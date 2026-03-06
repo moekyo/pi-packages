@@ -256,7 +256,7 @@ export default function (pi: ExtensionAPI) {
       ...builtinDescs,
       ...(customDescs.length > 0 ? ["", "Custom types:", ...customDescs] : []),
       "",
-      "Custom agents can be defined in .pi/agents/<name>.md — they are picked up automatically.",
+      "Custom agents can be defined in .pi/agents/<name>.md (project) or ~/.pi/agent/agents/<name>.md (global) — they are picked up automatically. Project-level agents override global ones.",
     ].join("\n");
   };
 
@@ -295,7 +295,7 @@ Guidelines:
         description: "A short (3-5 word) description of the task (shown in UI).",
       }),
       subagent_type: Type.String({
-        description: `The type of specialized agent to use. Built-in: ${SUBAGENT_TYPES.join(", ")}. Custom agents from .pi/agents/*.md are also available.`,
+        description: `The type of specialized agent to use. Built-in: ${SUBAGENT_TYPES.join(", ")}. Custom agents from .pi/agents/*.md (project) or ~/.pi/agent/agents/*.md (global) are also available.`,
       }),
       model: Type.Optional(
         Type.String({

@@ -1,29 +1,42 @@
 /**
- * custom-agents.ts — Load user-defined agents from .pi/agents/*.md files.
+ * custom-agents.ts — Load user-defined agents from project (.pi/agents/) and global (~/.pi/agent/agents/) locations.
  */
 
 import { parseFrontmatter } from "@mariozechner/pi-coding-agent";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
+import { homedir } from "node:os";
 import { SUBAGENT_TYPES, type CustomAgentConfig, type ThinkingLevel } from "./types.js";
 import { BUILTIN_TOOL_NAMES } from "./agent-types.js";
 
 /**
- * Scan .pi/agents/*.md and return a map of custom agent configs.
- * Filename (without .md) becomes the agent name.
+ * Scan for custom agent .md files from multiple locations.
+ * Discovery hierarchy (higher priority wins):
+ *   1. Project: <cwd>/.pi/agents/*.md
+ *   2. Global:  ~/.pi/agent/agents/*.md
+ *
+ * Project-level agents override global ones with the same name.
  */
 export function loadCustomAgents(cwd: string): Map<string, CustomAgentConfig> {
-  const dir = join(cwd, ".pi", "agents");
-  if (!existsSync(dir)) return new Map();
+  const globalDir = join(homedir(), ".pi", "agent", "agents");
+  const projectDir = join(cwd, ".pi", "agents");
+
+  const agents = new Map<string, CustomAgentConfig>();
+  loadFromDir(globalDir, agents);   // lower priority
+  loadFromDir(projectDir, agents);  // higher priority (overwrites)
+  return agents;
+}
+
+/** Load agent configs from a directory into the map. */
+function loadFromDir(dir: string, agents: Map<string, CustomAgentConfig>): void {
+  if (!existsSync(dir)) return;
 
   let files: string[];
   try {
     files = readdirSync(dir).filter(f => f.endsWith(".md"));
   } catch {
-    return new Map();
+    return;
   }
-
-  const agents = new Map<string, CustomAgentConfig>();
 
   for (const file of files) {
     const name = basename(file, ".md");
@@ -54,8 +67,6 @@ export function loadCustomAgents(cwd: string): Map<string, CustomAgentConfig> {
       isolated: fm.isolated === true,
     });
   }
-
-  return agents;
 }
 
 // ---- Field parsers ----

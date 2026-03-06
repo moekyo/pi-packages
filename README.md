@@ -87,7 +87,16 @@ Completed results can be expanded (ctrl+o in pi) to show the full agent output i
 
 ## Custom Agents
 
-Define custom agent types by creating `.pi/agents/<name>.md` files. The filename becomes the agent type name.
+Define custom agent types by creating `.md` files. The filename becomes the agent type name.
+
+Custom agents are discovered from two locations (higher priority wins):
+
+| Priority | Location | Scope |
+|----------|----------|-------|
+| 1 (highest) | `.pi/agents/<name>.md` | Project — per-repo agents |
+| 2 | `~/.pi/agent/agents/<name>.md` | Global — available everywhere |
+
+Project-level agents override global ones with the same name, so you can customize a global agent for a specific project.
 
 ### Example: `.pi/agents/auditor.md`
 
