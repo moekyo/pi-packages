@@ -57,12 +57,11 @@ function walkUp(
     const visited: string[] = [];
     while (true) {
       if (cache?.has(dir)) {
-        const cached = cache.get(dir);
-        const resolved = cached ?? undefined;
+        const cached = cache.get(dir) ?? null;
         for (const v of visited) {
-          cache.set(v, cached ?? null);
+          cache.set(v, cached);
         }
-        if (resolved) return resolved;
+        if (cached) return cached;
         break;
       }
       visited.push(dir);
