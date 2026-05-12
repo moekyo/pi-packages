@@ -14,7 +14,13 @@ import {
   SessionManager,
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
-import { getAgentConfig, getConfig, getMemoryToolNames, getReadOnlyMemoryToolNames, getToolNamesForType } from "./agent-types.js";
+import {
+  getAgentConfig,
+  getConfig,
+  getMemoryToolNames,
+  getReadOnlyMemoryToolNames,
+  getToolNamesForType,
+} from "./agent-types.js";
 import { buildParentContext, extractText } from "./context.js";
 import { DEFAULT_AGENTS } from "./default-agents.js";
 import { detectEnv } from "./env.js";
@@ -26,6 +32,42 @@ import type { SubagentType, ThinkingLevel } from "./types.js";
 /** Names of tools registered by this extension that subagents must NOT inherit. */
 const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"];
 
+/**
+ * Filter the session's active tool names according to extension/denylist rules.
+ *
+ * Run twice — once before `bindExtensions` (filters built-in tools) and once after
+ * (filters extension-registered tools, which only join the active set during
+ * `bindExtensions`). Extracting this keeps the two callsites consistent and makes
+ * the post-bind re-filter trivial.
+ *
+ * @param activeTools  Names currently active on the session.
+ * @param toolNames    The built-in tool name allowlist for this agent type.
+ * @param extensions   Agent config `extensions` field: false | true | string[] (allowlist).
+ * @param disallowedSet  Optional denylist from agent config.
+ */
+function filterActiveTools(
+  activeTools: string[],
+  toolNames: string[],
+  extensions: boolean | string[],
+  disallowedSet: Set<string> | undefined,
+): string[] {
+  if (extensions === false) {
+    // Extensions disabled: only apply the denylist to built-in tools.
+    if (!disallowedSet) return activeTools;
+    return activeTools.filter((t) => !disallowedSet.has(t));
+  }
+  const builtinToolNameSet = new Set(toolNames);
+  return activeTools.filter((t) => {
+    if (EXCLUDED_TOOL_NAMES.includes(t)) return false;
+    if (disallowedSet?.has(t)) return false;
+    if (builtinToolNameSet.has(t)) return true;
+    if (Array.isArray(extensions)) {
+      return extensions.some((ext) => t.startsWith(ext) || t.includes(ext));
+    }
+    return true;
+  });
+}
+
 /** Default max turns. undefined = unlimited (no turn limit). */
 let defaultMaxTurns: number | undefined;
 
@@ -36,17 +78,25 @@ export function normalizeMaxTurns(n: number | undefined): number | undefined {
 }
 
 /** Get the default max turns value. undefined = unlimited. */
-export function getDefaultMaxTurns(): number | undefined { return defaultMaxTurns; }
+export function getDefaultMaxTurns(): number | undefined {
+  return defaultMaxTurns;
+}
 /** Set the default max turns value. undefined or 0 = unlimited, otherwise minimum 1. */
-export function setDefaultMaxTurns(n: number | undefined): void { defaultMaxTurns = normalizeMaxTurns(n); }
+export function setDefaultMaxTurns(n: number | undefined): void {
+  defaultMaxTurns = normalizeMaxTurns(n);
+}
 
 /** Additional turns allowed after the soft limit steer message. */
 let graceTurns = 5;
 
 /** Get the grace turns value. */
-export function getGraceTurns(): number { return graceTurns; }
+export function getGraceTurns(): number {
+  return graceTurns;
+}
 /** Set the grace turns value (minimum 1). */
-export function setGraceTurns(n: number): void { graceTurns = Math.max(1, n); }
+export function setGraceTurns(n: number): void {
+  graceTurns = Math.max(1, n);
+}
 
 /**
  * Try to find the right model for an agent type.
@@ -54,7 +104,10 @@ export function setGraceTurns(n: number): void { graceTurns = Math.max(1, n); }
  */
 function resolveDefaultModel(
   parentModel: Model<any> | undefined,
-  registry: { find(provider: string, modelId: string): Model<any> | undefined; getAvailable?(): Model<any>[] },
+  registry: {
+    find(provider: string, modelId: string): Model<any> | undefined;
+    getAvailable?(): Model<any>[];
+  },
   configModel?: string,
 ): Model<any> | undefined {
   if (configModel) {
@@ -108,12 +161,19 @@ export interface RunOptions {
    * Lets callers maintain a lifetime accumulator that survives compaction
    * (which replaces session.state.messages and resets stats-derived sums).
    */
-  onAssistantUsage?: (usage: { input: number; output: number; cacheWrite: number }) => void;
+  onAssistantUsage?: (usage: {
+    input: number;
+    output: number;
+    cacheWrite: number;
+  }) => void;
   /**
    * Called when the session successfully compacts. `tokensBefore` is upstream's
    * pre-compaction context size estimate. Aborted compactions don't fire.
    */
-  onCompaction?: (info: { reason: "manual" | "threshold" | "overflow"; tokensBefore: number }) => void;
+  onCompaction?: (info: {
+    reason: "manual" | "threshold" | "overflow";
+    tokensBefore: number;
+  }) => void;
 }
 
 export interface RunResult {
@@ -135,7 +195,10 @@ function collectResponseText(session: AgentSession) {
     if (event.type === "message_start") {
       text = "";
     }
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+    if (
+      event.type === "message_update" &&
+      event.assistantMessageEvent.type === "text_delta"
+    ) {
       text += event.assistantMessageEvent.delta;
     }
   });
@@ -157,7 +220,10 @@ function getLastAssistantText(session: AgentSession): string {
  * Wire an AbortSignal to abort a session.
  * Returns a cleanup function to remove the listener.
  */
-function forwardAbortSignal(session: AgentSession, signal?: AbortSignal): () => void {
+function forwardAbortSignal(
+  session: AgentSession,
+  signal?: AbortSignal,
+): () => void {
   if (!signal) return () => {};
   const onAbort = () => session.abort();
   signal.addEventListener("abort", onAbort, { once: true });
@@ -202,33 +268,59 @@ export async function runAgent(
   // Account for disallowedTools — a tool in the base set but on the denylist is not truly available.
   if (agentConfig?.memory) {
     const existingNames = new Set(toolNames);
-    const denied = agentConfig.disallowedTools ? new Set(agentConfig.disallowedTools) : undefined;
-    const effectivelyHas = (name: string) => existingNames.has(name) && !denied?.has(name);
+    const denied = agentConfig.disallowedTools
+      ? new Set(agentConfig.disallowedTools)
+      : undefined;
+    const effectivelyHas = (name: string) =>
+      existingNames.has(name) && !denied?.has(name);
     const hasWriteTools = effectivelyHas("write") || effectivelyHas("edit");
 
     if (hasWriteTools) {
       // Read-write memory: add any missing memory tool names (read/write/edit)
       const extraNames = getMemoryToolNames(existingNames);
       if (extraNames.length > 0) toolNames = [...toolNames, ...extraNames];
-      extras.memoryBlock = buildMemoryBlock(agentConfig.name, agentConfig.memory, effectiveCwd);
+      extras.memoryBlock = buildMemoryBlock(
+        agentConfig.name,
+        agentConfig.memory,
+        effectiveCwd,
+      );
     } else {
       // Read-only memory: only add read tool name, use read-only prompt
       const extraNames = getReadOnlyMemoryToolNames(existingNames);
       if (extraNames.length > 0) toolNames = [...toolNames, ...extraNames];
-      extras.memoryBlock = buildReadOnlyMemoryBlock(agentConfig.name, agentConfig.memory, effectiveCwd);
+      extras.memoryBlock = buildReadOnlyMemoryBlock(
+        agentConfig.name,
+        agentConfig.memory,
+        effectiveCwd,
+      );
     }
   }
 
   // Build system prompt from agent config
   let systemPrompt: string;
   if (agentConfig) {
-    systemPrompt = buildAgentPrompt(agentConfig, effectiveCwd, env, parentSystemPrompt, extras);
+    systemPrompt = buildAgentPrompt(
+      agentConfig,
+      effectiveCwd,
+      env,
+      parentSystemPrompt,
+      extras,
+    );
   } else {
     // Unknown type fallback: spread the canonical general-purpose config (defensive —
     // unreachable in practice since index.ts resolves unknown types before calling runAgent).
     const fallback = DEFAULT_AGENTS.get("general-purpose");
-    if (!fallback) throw new Error(`No fallback config available for unknown type "${type}"`);
-    systemPrompt = buildAgentPrompt({ ...fallback, name: type }, effectiveCwd, env, parentSystemPrompt, extras);
+    if (!fallback)
+      throw new Error(
+        `No fallback config available for unknown type "${type}"`,
+      );
+    systemPrompt = buildAgentPrompt(
+      { ...fallback, name: type },
+      effectiveCwd,
+      env,
+      parentSystemPrompt,
+      extras,
+    );
   }
 
   // When skills is string[], we've already preloaded them into the prompt.
@@ -257,9 +349,9 @@ export async function runAgent(
   await loader.reload();
 
   // Resolve model: explicit option > config.model > parent model
-  const model = options.model ?? resolveDefaultModel(
-    ctx.model, ctx.modelRegistry, agentConfig?.model,
-  );
+  const model =
+    options.model ??
+    resolveDefaultModel(ctx.model, ctx.modelRegistry, agentConfig?.model);
 
   // Resolve thinking level: explicit option > agent config > undefined (inherit)
   const thinkingLevel = options.thinkingLevel ?? agentConfig?.thinking;
@@ -286,23 +378,16 @@ export async function runAgent(
     : undefined;
 
   // Filter active tools: remove our own tools to prevent nesting,
-  // apply extension allowlist if specified, and apply disallowedTools denylist
-  if (extensions !== false) {
-    const builtinToolNameSet = new Set(toolNames);
-    const activeTools = session.getActiveToolNames().filter((t) => {
-      if (EXCLUDED_TOOL_NAMES.includes(t)) return false;
-      if (disallowedSet?.has(t)) return false;
-      if (builtinToolNameSet.has(t)) return true;
-      if (Array.isArray(extensions)) {
-        return extensions.some(ext => t.startsWith(ext) || t.includes(ext));
-      }
-      return true;
-    });
-    session.setActiveToolsByName(activeTools);
-  } else if (disallowedSet) {
-    // Even with extensions disabled, apply denylist to built-in tools
-    const activeTools = session.getActiveToolNames().filter(t => !disallowedSet.has(t));
-    session.setActiveToolsByName(activeTools);
+  // apply extension allowlist if specified, and apply disallowedTools denylist.
+  // First pass — over built-in tools, before bindExtensions registers extension tools.
+  if (extensions !== false || disallowedSet) {
+    const filtered = filterActiveTools(
+      session.getActiveToolNames(),
+      toolNames,
+      extensions,
+      disallowedSet,
+    );
+    session.setActiveToolsByName(filtered);
   }
 
   // Bind extensions so that session_start fires and extensions can initialize
@@ -318,11 +403,29 @@ export async function runAgent(
     },
   });
 
+  // Patch 2 (RepOne #443): re-filter active tools after bindExtensions.
+  // Extension-registered tools (added during bindExtensions) are not in the
+  // session's active set when the first filter pass runs above. Without this
+  // re-filter, the `extensions: string[]` allowlist branch never matches any
+  // extension tools and `extensions: true` lets non-allowlisted denylist
+  // entries slip in. Run the same filter against the post-bind active set.
+  if (extensions !== false || disallowedSet) {
+    const refiltered = filterActiveTools(
+      session.getActiveToolNames(),
+      toolNames,
+      extensions,
+      disallowedSet,
+    );
+    session.setActiveToolsByName(refiltered);
+  }
+
   options.onSessionCreated?.(session);
 
   // Track turns for graceful max_turns enforcement
   let turnCount = 0;
-  const maxTurns = normalizeMaxTurns(options.maxTurns ?? agentConfig?.maxTurns ?? defaultMaxTurns);
+  const maxTurns = normalizeMaxTurns(
+    options.maxTurns ?? agentConfig?.maxTurns ?? defaultMaxTurns,
+  );
   let softLimitReached = false;
   let aborted = false;
 
@@ -334,7 +437,9 @@ export async function runAgent(
       if (maxTurns != null) {
         if (!softLimitReached && turnCount >= maxTurns) {
           softLimitReached = true;
-          session.steer("You have reached your turn limit. Wrap up immediately — provide your final answer now.");
+          session.steer(
+            "You have reached your turn limit. Wrap up immediately — provide your final answer now.",
+          );
         } else if (softLimitReached && turnCount >= maxTurns + graceTurns) {
           aborted = true;
           session.abort();
@@ -344,9 +449,15 @@ export async function runAgent(
     if (event.type === "message_start") {
       currentMessageText = "";
     }
-    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+    if (
+      event.type === "message_update" &&
+      event.assistantMessageEvent.type === "text_delta"
+    ) {
       currentMessageText += event.assistantMessageEvent.delta;
-      options.onTextDelta?.(event.assistantMessageEvent.delta, currentMessageText);
+      options.onTextDelta?.(
+        event.assistantMessageEvent.delta,
+        currentMessageText,
+      );
     }
     if (event.type === "tool_execution_start") {
       options.onToolActivity?.({ type: "start", toolName: event.toolName });
@@ -356,14 +467,18 @@ export async function runAgent(
     }
     if (event.type === "message_end" && event.message.role === "assistant") {
       const u = (event.message as any).usage;
-      if (u) options.onAssistantUsage?.({
-        input: u.input ?? 0,
-        output: u.output ?? 0,
-        cacheWrite: u.cacheWrite ?? 0,
-      });
+      if (u)
+        options.onAssistantUsage?.({
+          input: u.input ?? 0,
+          output: u.output ?? 0,
+          cacheWrite: u.cacheWrite ?? 0,
+        });
     }
     if (event.type === "compaction_end" && !event.aborted && event.result) {
-      options.onCompaction?.({ reason: event.reason, tokensBefore: event.result.tokensBefore });
+      options.onCompaction?.({
+        reason: event.reason,
+        tokensBefore: event.result.tokensBefore,
+      });
     }
   });
 
@@ -387,7 +502,8 @@ export async function runAgent(
     cleanupAbort();
   }
 
-  const responseText = collector.getText().trim() || getLastAssistantText(session);
+  const responseText =
+    collector.getText().trim() || getLastAssistantText(session);
   return { responseText, session, aborted, steered: softLimitReached };
 }
 
@@ -399,31 +515,55 @@ export async function resumeAgent(
   prompt: string,
   options: {
     onToolActivity?: (activity: ToolActivity) => void;
-    onAssistantUsage?: (usage: { input: number; output: number; cacheWrite: number }) => void;
-    onCompaction?: (info: { reason: "manual" | "threshold" | "overflow"; tokensBefore: number }) => void;
+    onAssistantUsage?: (usage: {
+      input: number;
+      output: number;
+      cacheWrite: number;
+    }) => void;
+    onCompaction?: (info: {
+      reason: "manual" | "threshold" | "overflow";
+      tokensBefore: number;
+    }) => void;
     signal?: AbortSignal;
   } = {},
 ): Promise<string> {
   const collector = collectResponseText(session);
   const cleanupAbort = forwardAbortSignal(session, options.signal);
 
-  const unsubEvents = (options.onToolActivity || options.onAssistantUsage || options.onCompaction)
-    ? session.subscribe((event: AgentSessionEvent) => {
-        if (event.type === "tool_execution_start") options.onToolActivity?.({ type: "start", toolName: event.toolName });
-        if (event.type === "tool_execution_end") options.onToolActivity?.({ type: "end", toolName: event.toolName });
-        if (event.type === "message_end" && event.message.role === "assistant") {
-          const u = (event.message as any).usage;
-          if (u) options.onAssistantUsage?.({
-            input: u.input ?? 0,
-            output: u.output ?? 0,
-            cacheWrite: u.cacheWrite ?? 0,
-          });
-        }
-        if (event.type === "compaction_end" && !event.aborted && event.result) {
-          options.onCompaction?.({ reason: event.reason, tokensBefore: event.result.tokensBefore });
-        }
-      })
-    : () => {};
+  const unsubEvents =
+    options.onToolActivity || options.onAssistantUsage || options.onCompaction
+      ? session.subscribe((event: AgentSessionEvent) => {
+          if (event.type === "tool_execution_start")
+            options.onToolActivity?.({
+              type: "start",
+              toolName: event.toolName,
+            });
+          if (event.type === "tool_execution_end")
+            options.onToolActivity?.({ type: "end", toolName: event.toolName });
+          if (
+            event.type === "message_end" &&
+            event.message.role === "assistant"
+          ) {
+            const u = (event.message as any).usage;
+            if (u)
+              options.onAssistantUsage?.({
+                input: u.input ?? 0,
+                output: u.output ?? 0,
+                cacheWrite: u.cacheWrite ?? 0,
+              });
+          }
+          if (
+            event.type === "compaction_end" &&
+            !event.aborted &&
+            event.result
+          ) {
+            options.onCompaction?.({
+              reason: event.reason,
+              tokensBefore: event.result.tokensBefore,
+            });
+          }
+        })
+      : () => {};
 
   try {
     await session.prompt(prompt);
@@ -455,19 +595,25 @@ export function getAgentConversation(session: AgentSession): string {
 
   for (const msg of session.messages) {
     if (msg.role === "user") {
-      const text = typeof msg.content === "string"
-        ? msg.content
-        : extractText(msg.content);
+      const text =
+        typeof msg.content === "string"
+          ? msg.content
+          : extractText(msg.content);
       if (text.trim()) parts.push(`[User]: ${text.trim()}`);
     } else if (msg.role === "assistant") {
       const textParts: string[] = [];
       const toolCalls: string[] = [];
       for (const c of msg.content) {
         if (c.type === "text" && c.text) textParts.push(c.text);
-        else if (c.type === "toolCall") toolCalls.push(`  Tool: ${(c as any).name ?? (c as any).toolName ?? "unknown"}`);
+        else if (c.type === "toolCall")
+          toolCalls.push(
+            `  Tool: ${(c as any).name ?? (c as any).toolName ?? "unknown"}`,
+          );
       }
-      if (textParts.length > 0) parts.push(`[Assistant]: ${textParts.join("\n")}`);
-      if (toolCalls.length > 0) parts.push(`[Tool Calls]:\n${toolCalls.join("\n")}`);
+      if (textParts.length > 0)
+        parts.push(`[Assistant]: ${textParts.join("\n")}`);
+      if (toolCalls.length > 0)
+        parts.push(`[Tool Calls]:\n${toolCalls.join("\n")}`);
     } else if (msg.role === "toolResult") {
       const text = extractText(msg.content);
       const truncated = text.length > 200 ? text.slice(0, 200) + "..." : text;
