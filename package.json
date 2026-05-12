@@ -30,7 +30,7 @@
       "./src/extension.ts"
     ]
   },
-  "packageManager": "pnpm@11.0.8",
+  "packageManager": "pnpm@11.1.1",
   "scripts": {
     "lint": "pnpm exec biome check . && pnpm run lint:md",
     "lint:fix": "pnpm exec biome check --write --files-ignore-unknown=true . && pnpm run lint:md:fix",
