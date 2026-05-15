@@ -19,7 +19,6 @@ jobs:
             const packages = [
               'pi-anthropic-auth',
               'pi-autoformat',
-              'pi-coding-agent-catppuccin',
               'pi-github-tools',
               'pi-permission-system',
               'pi-subagents',

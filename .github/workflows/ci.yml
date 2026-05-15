@@ -33,45 +33,14 @@ jobs:
       - name: Test
         run: pnpm -r run test
 
-  check-catppuccin:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: cachix/install-nix-action@v31
-
-      - uses: cachix/cachix-action@v16
-        with:
-          name: devenv
-
-      - name: Install devenv.sh
-        run: nix profile install nixpkgs#devenv
-
-      - name: Check formatting
-        run: devenv -d packages/pi-coding-agent-catppuccin shell just format --ci
-
-      - name: Run color verification
-        run: devenv -d packages/pi-coding-agent-catppuccin shell just verify-colors
-
-      - name: Verify all theme files exist
-        run: |
-          for flavor in latte frappe macchiato mocha; do
-            if [ ! -f "packages/pi-coding-agent-catppuccin/catppuccin-${flavor}.json" ]; then
-              echo "❌ Missing catppuccin-${flavor}.json"
-              exit 1
-            fi
-          done
-          echo "✅ All theme files present"
-
   release-please:
-    needs: [check, check-catppuccin]
+    needs: [check]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       pi-anthropic-auth: ${{ steps.release.outputs['packages/pi-anthropic-auth--release_created'] }}
       pi-autoformat: ${{ steps.release.outputs['packages/pi-autoformat--release_created'] }}
-      pi-coding-agent-catppuccin: ${{ steps.release.outputs['packages/pi-coding-agent-catppuccin--release_created'] }}
       pi-github-tools: ${{ steps.release.outputs['packages/pi-github-tools--release_created'] }}
       pi-permission-system: ${{ steps.release.outputs['packages/pi-permission-system--release_created'] }}
       pi-subagents: ${{ steps.release.outputs['packages/pi-subagents--release_created'] }}
@@ -110,12 +79,6 @@ jobs:
       - name: Publish pi-autoformat
         if: needs.release-please.outputs.pi-autoformat == 'true'
         run: pnpm --filter @gotgenes/pi-autoformat publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish pi-coding-agent-catppuccin
-        if: needs.release-please.outputs.pi-coding-agent-catppuccin == 'true'
-        run: pnpm --filter pi-coding-agent-catppuccin publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

@@ -7,9 +7,6 @@
     "packages/pi-autoformat": {
       "component": "pi-autoformat"
     },
-    "packages/pi-coding-agent-catppuccin": {
-      "component": "pi-coding-agent-catppuccin"
-    },
     "packages/pi-github-tools": {
       "component": "pi-github-tools"
     },
