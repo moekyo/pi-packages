@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    "packages/pi-anthropic-auth": {
+      "component": "pi-anthropic-auth"
+    },
+    "packages/pi-autoformat": {
+      "component": "pi-autoformat"
+    },
+    "packages/pi-coding-agent-catppuccin": {
+      "component": "pi-coding-agent-catppuccin"
+    },
+    "packages/pi-github-tools": {
+      "component": "pi-github-tools"
+    },
+    "packages/pi-permission-system": {
+      "component": "pi-permission-system"
+    },
+    "packages/pi-subagents": {
+      "component": "pi-subagents"
+    }
+  },
+  "include-v-in-tag": true,
+  "include-component-in-tag": true,
+  "release-type": "node",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "style", "section": "Styles", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous Chores" },
+    { "type": "refactor", "section": "Code Refactoring", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build System", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true }
+  ]
+}

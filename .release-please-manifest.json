@@ -1,0 +1,8 @@
+{
+  "packages/pi-anthropic-auth": "0.4.6",
+  "packages/pi-autoformat": "4.0.5",
+  "packages/pi-coding-agent-catppuccin": "1.0.0",
+  "packages/pi-github-tools": "3.0.0",
+  "packages/pi-permission-system": "5.18.1",
+  "packages/pi-subagents": "1.0.0"
+}

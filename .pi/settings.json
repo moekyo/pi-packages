@@ -1,0 +1,9 @@
+{
+  "packages": [
+    "./packages/pi-github-tools",
+    {
+      "source": "npm:@gotgenes/pi-github-tools",
+      "extensions": []
+    }
+  ]
+}

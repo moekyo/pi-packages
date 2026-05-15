@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "@gotgenes/pi-packages",
+  "description": "Monorepo for @gotgenes pi packages",
+  "packageManager": "pnpm@11.1.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prepare": "command -v prek >/dev/null 2>&1 && prek install || echo 'prek not found — skipping hook install (see README)'",
+    "build": "pnpm -r run build",
+    "check": "pnpm -r run check",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "lint": "biome check . && pnpm -r run lint:md",
+    "lint:fix": "biome check --write . && pnpm -r run lint:md:fix",
+    "lint:md": "pnpm -r run lint:md",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14"
+  }
+}
