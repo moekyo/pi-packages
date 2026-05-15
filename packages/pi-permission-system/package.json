@@ -18,7 +18,9 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint:md": "markdownlint-cli2 --config ../../.markdownlint-cli2.yaml '*.md' 'docs/**/*.md' '.pi/prompts/**/*.md'",
+    "lint": "biome check . && pnpm run lint:md"
   },
   "keywords": [
     "pi-package",
@@ -65,7 +67,8 @@
     "@earendil-works/pi-tui": "^0.74.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "markdownlint-cli2": "catalog:"
   },
   "dependencies": {
     "tree-sitter-bash": "^0.25.1",
