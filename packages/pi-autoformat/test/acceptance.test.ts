@@ -22,7 +22,7 @@ import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { piAvailable, runRpcSession } from "./helpers/rpc.js";
+import { piAvailable, runRpcSession } from "./helpers/rpc";
 
 const describeIfPi = piAvailable ? describe : describe.skip;
 

@@ -308,7 +308,7 @@ describe("external_directory policy state — allow", () => {
     const reviewCalls = (session.logger.review as ReturnType<typeof vi.fn>).mock
       .calls;
     const blockEntries = reviewCalls.filter(
-      ([eventName]: [string]) => eventName === "permission_request.blocked",
+      ([eventName]: string[]) => eventName === "permission_request.blocked",
     );
     expect(blockEntries).toHaveLength(0);
   });
@@ -404,7 +404,7 @@ describe("external_directory policy state — deny", () => {
     const reviewCalls = (session.logger.review as ReturnType<typeof vi.fn>).mock
       .calls;
     const blockEntries = reviewCalls.filter(
-      ([eventName]: [string]) => eventName === "permission_request.blocked",
+      ([eventName]: string[]) => eventName === "permission_request.blocked",
     );
     expect(blockEntries.length).toBeGreaterThanOrEqual(1);
     expect(blockEntries[0][1]).toMatchObject({
@@ -546,7 +546,7 @@ describe("external_directory policy state — ask", () => {
     const reviewCalls = (session.logger.review as ReturnType<typeof vi.fn>).mock
       .calls;
     const blockEntries = reviewCalls.filter(
-      ([eventName]: [string]) => eventName === "permission_request.blocked",
+      ([eventName]: string[]) => eventName === "permission_request.blocked",
     );
     expect(blockEntries.length).toBeGreaterThanOrEqual(1);
     expect(blockEntries[0][1]).toMatchObject({

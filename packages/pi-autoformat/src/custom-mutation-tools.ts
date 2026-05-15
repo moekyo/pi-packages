@@ -1,4 +1,4 @@
-import type { MutationSourceHandler } from "./touched-files-queue.js";
+import type { MutationSourceHandler } from "./touched-files-queue";
 
 /**
  * Declarative spec for a custom mutation tool.

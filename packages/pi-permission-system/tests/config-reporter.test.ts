@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,7 +7,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "vitest";
+import { expect, test } from "vitest";
 import { buildResolvedConfigLogEntry } from "../src/config-reporter";
 import { createPermissionSystemLogger } from "../src/logging";
 import type { ResolvedPolicyPaths } from "../src/permission-manager";
@@ -30,23 +29,21 @@ test("buildResolvedConfigLogEntry includes policy paths and legacy detection fla
 
   const result = buildResolvedConfigLogEntry({ policyPaths });
 
-  assert.equal(
-    result.globalConfigPath,
+  expect(result.globalConfigPath).toBe(
     "/home/user/.pi/agent/extensions/pi-permission-system/config.json",
   );
-  assert.equal(result.globalConfigExists, true);
-  assert.equal(
-    result.projectConfigPath,
+  expect(result.globalConfigExists).toBe(true);
+  expect(result.projectConfigPath).toBe(
     "/projects/my-app/.pi/extensions/pi-permission-system/config.json",
   );
-  assert.equal(result.projectConfigExists, false);
-  assert.equal(result.agentsDir, "/home/user/.pi/agent/agents");
-  assert.equal(result.agentsDirExists, true);
-  assert.equal(result.projectAgentsDir, "/projects/my-app/.pi/agent/agents");
-  assert.equal(result.projectAgentsDirExists, false);
-  assert.equal(result.legacyGlobalPolicyDetected, false);
-  assert.equal(result.legacyProjectPolicyDetected, false);
-  assert.equal(result.legacyExtensionConfigDetected, false);
+  expect(result.projectConfigExists).toBe(false);
+  expect(result.agentsDir).toBe("/home/user/.pi/agent/agents");
+  expect(result.agentsDirExists).toBe(true);
+  expect(result.projectAgentsDir).toBe("/projects/my-app/.pi/agent/agents");
+  expect(result.projectAgentsDirExists).toBe(false);
+  expect(result.legacyGlobalPolicyDetected).toBe(false);
+  expect(result.legacyProjectPolicyDetected).toBe(false);
+  expect(result.legacyExtensionConfigDetected).toBe(false);
 });
 
 test("buildResolvedConfigLogEntry handles null project paths", () => {
@@ -64,10 +61,10 @@ test("buildResolvedConfigLogEntry handles null project paths", () => {
 
   const result = buildResolvedConfigLogEntry({ policyPaths });
 
-  assert.equal(result.projectConfigPath, null);
-  assert.equal(result.projectConfigExists, false);
-  assert.equal(result.projectAgentsDir, null);
-  assert.equal(result.projectAgentsDirExists, false);
+  expect(result.projectConfigPath).toBe(null);
+  expect(result.projectConfigExists).toBe(false);
+  expect(result.projectAgentsDir).toBe(null);
+  expect(result.projectAgentsDirExists).toBe(false);
 });
 
 test("buildResolvedConfigLogEntry surfaces legacy detection flags", () => {
@@ -89,9 +86,9 @@ test("buildResolvedConfigLogEntry surfaces legacy detection flags", () => {
     legacyExtensionConfigDetected: true,
   });
 
-  assert.equal(result.legacyGlobalPolicyDetected, true);
-  assert.equal(result.legacyProjectPolicyDetected, false);
-  assert.equal(result.legacyExtensionConfigDetected, true);
+  expect(result.legacyGlobalPolicyDetected).toBe(true);
+  expect(result.legacyProjectPolicyDetected).toBe(false);
+  expect(result.legacyExtensionConfigDetected).toBe(true);
 });
 
 test("config.resolved entry appears in review log via logger", () => {
@@ -132,18 +129,18 @@ test("config.resolved entry appears in review log via logger", () => {
     const logContent = readFileSync(reviewLogPath, "utf-8").trim();
     const parsed = JSON.parse(logContent) as Record<string, unknown>;
 
-    assert.equal(parsed.event, "config.resolved");
-    assert.equal(parsed.globalConfigPath, globalConfigPath);
-    assert.equal(parsed.globalConfigExists, true);
-    assert.equal(parsed.agentsDir, agentsDir);
-    assert.equal(parsed.agentsDirExists, false);
-    assert.equal(parsed.projectConfigPath, null);
-    assert.equal(parsed.projectConfigExists, false);
-    assert.equal(parsed.projectAgentsDir, null);
-    assert.equal(parsed.projectAgentsDirExists, false);
-    assert.equal(parsed.legacyGlobalPolicyDetected, false);
-    assert.equal(parsed.legacyProjectPolicyDetected, false);
-    assert.equal(parsed.legacyExtensionConfigDetected, false);
+    expect(parsed.event).toBe("config.resolved");
+    expect(parsed.globalConfigPath).toBe(globalConfigPath);
+    expect(parsed.globalConfigExists).toBe(true);
+    expect(parsed.agentsDir).toBe(agentsDir);
+    expect(parsed.agentsDirExists).toBe(false);
+    expect(parsed.projectConfigPath).toBe(null);
+    expect(parsed.projectConfigExists).toBe(false);
+    expect(parsed.projectAgentsDir).toBe(null);
+    expect(parsed.projectAgentsDirExists).toBe(false);
+    expect(parsed.legacyGlobalPolicyDetected).toBe(false);
+    expect(parsed.legacyProjectPolicyDetected).toBe(false);
+    expect(parsed.legacyExtensionConfigDetected).toBe(false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

@@ -10,23 +10,23 @@ export {
   loadAutoformatConfig,
   type ValidateConfigResult,
   validateUserFormatterConfig,
-} from "./config-loader.js";
+} from "./config-loader";
 export {
   createAutoformatExtension,
   default as autoformatExtension,
-} from "./extension.js";
+} from "./extension";
 export {
   type FormatScope,
   type FormatScopeSetting,
   isInFormatScope,
   resolveFormatScope,
-} from "./format-scope.js";
+} from "./format-scope";
 export {
   type AutoformatConfig,
   createFormatterConfig,
   DEFAULT_FORMATTER_CONFIG,
   type UserFormatterConfig,
-} from "./formatter-config.js";
+} from "./formatter-config";
 export {
   type BatchRun,
   type ChainGroupInput,
@@ -34,7 +34,7 @@ export {
   type CommandRunnerOptions,
   type CommandRunResult,
   executeChainGroup,
-} from "./formatter-executor.js";
+} from "./formatter-executor";
 export {
   type ChainGroup,
   type FormatterConfig,
@@ -42,12 +42,12 @@ export {
   groupFilesByChain,
   type ResolvedFormatter,
   resolveChain,
-} from "./formatter-registry.js";
+} from "./formatter-registry";
 export {
   type ChainGroupResult,
   PromptAutoformatter,
   type PromptAutoformatterResult,
-} from "./prompt-autoformatter.js";
+} from "./prompt-autoformatter";
 export {
   DEFAULT_SHELL_MUTATION_DETECTION,
   matchWrapper,
@@ -55,9 +55,9 @@ export {
   type ShellMutationDetectionConfig,
   SnapshotTracker,
   type WrapperConfig,
-} from "./shell-mutation-detector.js";
+} from "./shell-mutation-detector";
 export {
   type MutationSourceHandler,
   TouchedFilesQueue,
   writeOrEditHandler,
-} from "./touched-files-queue.js";
+} from "./touched-files-queue";

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import type { BatchRun } from "./formatter-executor.js";
+import type { BatchRun } from "./formatter-executor";
 
 export type DiscoveryCache = Map<string, string | null>;
 

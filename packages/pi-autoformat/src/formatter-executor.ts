@@ -1,10 +1,10 @@
-import type { BuiltinFormatter } from "./builtin-formatters.js";
-import type { CommandProbe } from "./command-probe.js";
-import { defaultCommandProbe } from "./command-probe.js";
+import type { BuiltinFormatter } from "./builtin-formatters";
+import type { CommandProbe } from "./command-probe";
+import { defaultCommandProbe } from "./command-probe";
 import type {
   ResolvedChainStep,
   ResolvedFormatter,
-} from "./formatter-registry.js";
+} from "./formatter-registry";
 
 export type CommandRunResult = {
   exitCode: number;

@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { registerPermissionSystemCommand } from "../src/config-modal";
 import {
   DEFAULT_EXTENSION_CONFIG,
@@ -105,21 +104,17 @@ test("permission-system command completions expose top-level config actions", ()
       controller as never,
     );
 
-    assert.ok(definition !== null);
-    assert.ok(typeof definition?.getArgumentCompletions === "function");
+    expect(definition!.getArgumentCompletions).toBeTypeOf("function");
 
-    const topLevel = definition?.getArgumentCompletions?.("");
-    assert.ok(Array.isArray(topLevel));
-    assert.ok(topLevel?.some((item) => item.value === "show"));
-    assert.ok(topLevel?.some((item) => item.value === "reset"));
+    const topLevel = definition!.getArgumentCompletions?.("");
+    expect(Array.isArray(topLevel)).toBeTruthy();
+    expect(topLevel?.some((item) => item.value === "show")).toBeTruthy();
+    expect(topLevel?.some((item) => item.value === "reset")).toBeTruthy();
 
-    const filtered = definition?.getArgumentCompletions?.("pa");
-    assert.deepEqual(
-      filtered?.map((item) => item.value),
-      ["path"],
-    );
-    assert.equal(definition?.getArgumentCompletions?.("path extra"), null);
-    assert.equal(definition?.getArgumentCompletions?.("zzz"), null);
+    const filtered = definition!.getArgumentCompletions?.("pa");
+    expect(filtered?.map((item) => item.value)).toEqual(["path"]);
+    expect(definition!.getArgumentCompletions?.("path extra")).toBe(null);
+    expect(definition!.getArgumentCompletions?.("zzz")).toBe(null);
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
   }
@@ -156,7 +151,7 @@ test("permission-system command handlers manage config summary, persistence, and
         config = normalizePermissionSystemConfig(
           JSON.parse(readFileSync(configPath, "utf-8")) as unknown,
         );
-        assert.notDeepEqual(config, currentConfig);
+        expect(config).not.toEqual(currentConfig);
       },
       getConfigPath: () => configPath,
     };
@@ -180,40 +175,33 @@ test("permission-system command handlers manage config summary, persistence, and
       controller as never,
     );
 
-    assert.equal(registeredName, "permission-system");
-    assert.ok(definition !== null);
-    assert.ok(
-      (definition?.description ?? "").includes(
-        "Configure pi-permission-system",
-      ),
+    expect(registeredName).toBe("permission-system");
+    expect(definition!.description ?? "").toContain(
+      "Configure pi-permission-system",
     );
 
     const infoCtx = createCommandContext(true);
-    await definition?.handler("show", infoCtx.ctx);
-    assert.ok(
-      lastNotification(infoCtx.notifications).message.includes("yoloMode=on"),
+    await definition!.handler("show", infoCtx.ctx);
+    expect(lastNotification(infoCtx.notifications).message).toContain(
+      "yoloMode=on",
     );
-    assert.ok(
-      lastNotification(infoCtx.notifications).message.includes("debugLog=on"),
+    expect(lastNotification(infoCtx.notifications).message).toContain(
+      "debugLog=on",
     );
 
-    await definition?.handler("path", infoCtx.ctx);
-    assert.equal(
-      lastNotification(infoCtx.notifications).message,
+    await definition!.handler("path", infoCtx.ctx);
+    expect(lastNotification(infoCtx.notifications).message).toBe(
       `permission-system config: ${configPath}`,
     );
 
-    await definition?.handler("help", infoCtx.ctx);
-    assert.ok(
-      lastNotification(infoCtx.notifications).message.includes(
-        "Usage: /permission-system",
-      ),
+    await definition!.handler("help", infoCtx.ctx);
+    expect(lastNotification(infoCtx.notifications).message).toContain(
+      "Usage: /permission-system",
     );
 
-    await definition?.handler("reset", infoCtx.ctx);
-    assert.deepEqual(config, DEFAULT_EXTENSION_CONFIG);
-    assert.equal(
-      lastNotification(infoCtx.notifications).message,
+    await definition!.handler("reset", infoCtx.ctx);
+    expect(config).toEqual(DEFAULT_EXTENSION_CONFIG);
+    expect(lastNotification(infoCtx.notifications).message).toBe(
       "Permission system settings reset to defaults.",
     );
 
@@ -221,26 +209,23 @@ test("permission-system command handlers manage config summary, persistence, and
       string,
       unknown
     >;
-    assert.deepEqual(persisted, DEFAULT_EXTENSION_CONFIG);
+    expect(persisted).toEqual(DEFAULT_EXTENSION_CONFIG);
 
-    await definition?.handler("unknown", infoCtx.ctx);
-    assert.equal(lastNotification(infoCtx.notifications).level, "warning");
-    assert.ok(
-      lastNotification(infoCtx.notifications).message.includes(
-        "Usage: /permission-system",
-      ),
+    await definition!.handler("unknown", infoCtx.ctx);
+    expect(lastNotification(infoCtx.notifications).level).toBe("warning");
+    expect(lastNotification(infoCtx.notifications).message).toContain(
+      "Usage: /permission-system",
     );
 
     const headlessCtx = createCommandContext(false);
-    await definition?.handler("", headlessCtx.ctx);
-    assert.equal(
-      lastNotification(headlessCtx.notifications).message,
+    await definition!.handler("", headlessCtx.ctx);
+    expect(lastNotification(headlessCtx.notifications).message).toBe(
       "/permission-system requires interactive TUI mode.",
     );
 
     const modalCtx = createCommandContext(true);
-    await definition?.handler("", modalCtx.ctx);
-    assert.equal(modalCtx.getCustomCalls(), 1);
+    await definition!.handler("", modalCtx.ctx);
+    expect(modalCtx.getCustomCalls()).toBe(1);
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
   }
@@ -289,10 +274,10 @@ test("show output includes rule origins when getComposedRules is provided", asyn
   await definition!.handler("show", ctx.ctx);
   const msg = lastNotification(ctx.notifications).message;
 
-  assert.ok(msg.includes("global"), `expected 'global' in: ${msg}`);
-  assert.ok(msg.includes("project"), `expected 'project' in: ${msg}`);
-  assert.ok(msg.includes("read"), `expected 'read' in: ${msg}`);
-  assert.ok(msg.includes("bash"), `expected 'bash' in: ${msg}`);
+  expect(msg).toContain("global");
+  expect(msg).toContain("project");
+  expect(msg).toContain("read");
+  expect(msg).toContain("bash");
 });
 
 test("show output omits rule summary when getComposedRules is not provided", async () => {
@@ -323,7 +308,7 @@ test("show output omits rule summary when getComposedRules is not provided", asy
   const msg = lastNotification(ctx.notifications).message;
 
   // Config knobs still present.
-  assert.ok(msg.includes("yoloMode=on"), `expected yoloMode=on in: ${msg}`);
+  expect(msg).toContain("yoloMode=on");
   // No rule annotation lines.
-  assert.ok(!msg.includes("(global)"), `unexpected '(global)' in: ${msg}`);
+  expect(msg).not.toContain("(global)");
 });

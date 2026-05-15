@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import {
   existsSync,
   mkdirSync,
@@ -9,7 +8,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { test } from "vitest";
+import { expect, test } from "vitest";
 
 import {
   createActiveToolsCacheKey,
@@ -230,7 +229,7 @@ async function runToolCall(
   options: ExtensionHarnessOptions = {},
 ): Promise<Record<string, unknown>> {
   const handler = harness.handlers.tool_call;
-  assert.equal(typeof handler, "function");
+  expect(handler).toBeTypeOf("function");
 
   const result = await withIsolatedSubagentEnv(async () =>
     Promise.resolve(
@@ -241,66 +240,58 @@ async function runToolCall(
 }
 
 test("Yolo mode only auto-approves ask-state permissions", () => {
-  assert.equal(
+  expect(
     shouldAutoApprovePermissionState("ask", DEFAULT_EXTENSION_CONFIG),
-    false,
-  );
-  assert.equal(
+  ).toBe(false);
+  expect(
     shouldAutoApprovePermissionState("ask", {
       ...DEFAULT_EXTENSION_CONFIG,
       yoloMode: true,
     }),
-    true,
-  );
-  assert.equal(
+  ).toBe(true);
+  expect(
     shouldAutoApprovePermissionState("deny", {
       ...DEFAULT_EXTENSION_CONFIG,
       yoloMode: true,
     }),
-    false,
-  );
-  assert.equal(
+  ).toBe(false);
+  expect(
     shouldAutoApprovePermissionState("allow", {
       ...DEFAULT_EXTENSION_CONFIG,
       yoloMode: true,
     }),
-    false,
-  );
+  ).toBe(false);
 });
 
 test("Yolo mode resolves ask permissions without UI or delegation forwarding", () => {
-  assert.equal(
+  expect(
     canResolveAskPermissionRequest({
       config: DEFAULT_EXTENSION_CONFIG,
       hasUI: false,
       isSubagent: false,
     }),
-    false,
-  );
-  assert.equal(
+  ).toBe(false);
+  expect(
     canResolveAskPermissionRequest({
       config: { ...DEFAULT_EXTENSION_CONFIG, yoloMode: true },
       hasUI: false,
       isSubagent: false,
     }),
-    true,
-  );
-  assert.equal(
+  ).toBe(true);
+  expect(
     canResolveAskPermissionRequest({
       config: DEFAULT_EXTENSION_CONFIG,
       hasUI: false,
       isSubagent: true,
     }),
-    true,
-  );
+  ).toBe(true);
 });
 
 test("Permission-system status is only exposed when yolo mode is enabled", () => {
-  assert.equal(getPermissionSystemStatus(DEFAULT_EXTENSION_CONFIG), undefined);
-  assert.equal(
+  expect(getPermissionSystemStatus(DEFAULT_EXTENSION_CONFIG)).toBe(undefined);
+  expect(
     getPermissionSystemStatus({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
-    "yolo",
-  );
+  ).toBe("yolo");
 });
 
 test("System prompt sanitizer removes the Available tools section and surrounding boilerplate", () => {
@@ -318,11 +309,11 @@ test("System prompt sanitizer removes the Available tools section and surroundin
 
   const result = sanitizeAvailableToolsSection(prompt, ["read", "mcp"]);
 
-  assert.equal(result.removed, true);
-  assert.equal(result.prompt.includes("Available tools:"), false);
-  assert.equal(result.prompt.includes("In addition to the tools above"), false);
-  assert.match(result.prompt, /Guidelines:/);
-  assert.match(result.prompt, /Use mcp for MCP discovery first/i);
+  expect(result.removed).toBe(true);
+  expect(result.prompt).not.toContain("Available tools:");
+  expect(result.prompt).not.toContain("In addition to the tools above");
+  expect(result.prompt).toMatch(/Guidelines:/);
+  expect(result.prompt).toMatch(/Use mcp for MCP discovery first/i);
 });
 
 test("System prompt sanitizer removes denied tool guidelines while keeping global guidance", () => {
@@ -337,13 +328,12 @@ test("System prompt sanitizer removes denied tool guidelines while keeping globa
 
   const result = sanitizeAvailableToolsSection(prompt, ["bash", "grep", "mcp"]);
 
-  assert.equal(result.removed, true);
-  assert.equal(result.prompt.includes("Use task when work SHOULD"), false);
-  assert.match(result.prompt, /Use mcp for MCP discovery first/i);
-  assert.match(result.prompt, /Prefer grep\/find\/ls tools over bash/i);
-  assert.match(result.prompt, /Be concise in your responses/);
-  assert.match(
-    result.prompt,
+  expect(result.removed).toBe(true);
+  expect(result.prompt).not.toContain("Use task when work SHOULD");
+  expect(result.prompt).toMatch(/Use mcp for MCP discovery first/i);
+  expect(result.prompt).toMatch(/Prefer grep\/find\/ls tools over bash/i);
+  expect(result.prompt).toMatch(/Be concise in your responses/);
+  expect(result.prompt).toMatch(
     /Show file paths clearly when working with files/,
   );
 });
@@ -358,16 +348,14 @@ test("System prompt sanitizer removes inactive built-in write guidance", () => {
 
   const result = sanitizeAvailableToolsSection(prompt, ["read"]);
 
-  assert.equal(result.removed, true);
-  assert.equal(
-    result.prompt.includes("Use write only for new files or complete rewrites"),
-    false,
+  expect(result.removed).toBe(true);
+  expect(result.prompt).not.toContain(
+    "Use write only for new files or complete rewrites",
   );
-  assert.equal(
-    result.prompt.includes("do NOT use cat or bash to display what you did"),
-    false,
+  expect(result.prompt).not.toContain(
+    "do NOT use cat or bash to display what you did",
   );
-  assert.match(result.prompt, /Be concise in your responses/);
+  expect(result.prompt).toMatch(/Be concise in your responses/);
 });
 
 test("Before-agent-start cache dedupes unchanged active-tool exposure and prompt state", () => {
@@ -381,14 +369,12 @@ test("Before-agent-start cache dedupes unchanged active-tool exposure and prompt
     allowedToolNames: allowedTools,
   });
 
-  assert.equal(shouldApplyCachedAgentStartState(null, activeToolsKey), true);
-  assert.equal(
-    shouldApplyCachedAgentStartState(activeToolsKey, activeToolsKey),
+  expect(shouldApplyCachedAgentStartState(null, activeToolsKey)).toBe(true);
+  expect(shouldApplyCachedAgentStartState(activeToolsKey, activeToolsKey)).toBe(
     false,
   );
-  assert.equal(shouldApplyCachedAgentStartState(null, promptStateKey), true);
-  assert.equal(
-    shouldApplyCachedAgentStartState(promptStateKey, promptStateKey),
+  expect(shouldApplyCachedAgentStartState(null, promptStateKey)).toBe(true);
+  expect(shouldApplyCachedAgentStartState(promptStateKey, promptStateKey)).toBe(
     false,
   );
 });
@@ -408,11 +394,10 @@ test("Before-agent-start prompt cache invalidates on permission changes while ru
       allowedToolNames: ["read"],
     });
 
-    assert.equal(
-      shouldApplyCachedAgentStartState(baselineKey, baselineKey),
+    expect(shouldApplyCachedAgentStartState(baselineKey, baselineKey)).toBe(
       false,
     );
-    assert.equal(manager.checkPermission("write", {}, undefined).state, "deny");
+    expect(manager.checkPermission("write", {}, undefined).state).toBe("deny");
 
     const updatedConfig = `${JSON.stringify(
       { permission: { "*": "allow", write: "allow" } },
@@ -435,7 +420,7 @@ test("Before-agent-start prompt cache invalidates on permission changes while ru
       updatedStamp = manager.getPolicyCacheStamp();
     }
 
-    assert.notEqual(updatedStamp, baselineStamp);
+    expect(updatedStamp).not.toBe(baselineStamp);
 
     const invalidatedKey = createBeforeAgentStartPromptStateKey({
       agentName: null,
@@ -445,14 +430,10 @@ test("Before-agent-start prompt cache invalidates on permission changes while ru
       allowedToolNames: ["read", "write"],
     });
 
-    assert.equal(
-      shouldApplyCachedAgentStartState(baselineKey, invalidatedKey),
+    expect(shouldApplyCachedAgentStartState(baselineKey, invalidatedKey)).toBe(
       true,
     );
-    assert.equal(
-      manager.checkPermission("write", {}, undefined).state,
-      "allow",
-    );
+    expect(manager.checkPermission("write", {}, undefined).state).toBe("allow");
   } finally {
     cleanup();
   }
@@ -482,16 +463,16 @@ test("Permission-system logger respects debug toggle and keeps review log enable
       toolName: "write",
     });
 
-    assert.equal(initialDebugWarning, undefined);
-    assert.equal(reviewWarning, undefined);
-    assert.equal(existsSync(debugLogPath), false);
-    assert.equal(existsSync(reviewLogPath), true);
+    expect(initialDebugWarning).toBe(undefined);
+    expect(reviewWarning).toBe(undefined);
+    expect(existsSync(debugLogPath)).toBe(false);
+    expect(existsSync(reviewLogPath)).toBe(true);
 
     config.debugLog = true;
     const enabledDebugWarning = logger.debug("debug.enabled", { sample: true });
-    assert.equal(enabledDebugWarning, undefined);
-    assert.equal(existsSync(debugLogPath), true);
-    assert.match(readFileSync(debugLogPath, "utf8"), /debug\.enabled/);
+    expect(enabledDebugWarning).toBe(undefined);
+    expect(existsSync(debugLogPath)).toBe(true);
+    expect(readFileSync(debugLogPath, "utf8")).toMatch(/debug\.enabled/);
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
   }
@@ -504,12 +485,12 @@ test("PermissionManager canonical built-in permission checking", () => {
 
   try {
     const readResult = manager.checkPermission("read", {});
-    assert.equal(readResult.state, "allow");
-    assert.equal(readResult.source, "tool");
+    expect(readResult.state).toBe("allow");
+    expect(readResult.source).toBe("tool");
 
     const writeResult = manager.checkPermission("write", {});
-    assert.equal(writeResult.state, "deny");
-    assert.equal(writeResult.source, "tool");
+    expect(writeResult.state).toBe("deny");
+    expect(writeResult.source).toBe("tool");
   } finally {
     cleanup();
   }
@@ -530,7 +511,7 @@ test("multiline bash command resolves to allow via universal fallback", () => {
     const command =
       "node -e \"\nimport('x').then(() => {\n  console.log('done');\n});\n\"";
     const result = manager.checkPermission("bash", { command });
-    assert.equal(result.state, "allow");
+    expect(result.state).toBe("allow");
   } finally {
     cleanup();
   }
@@ -548,14 +529,14 @@ test("Bash specific deny patterns override catch-all within the same config", ()
 
   try {
     const denied = manager.checkPermission("bash", { command: "rm -rf build" });
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.source, "bash");
-    assert.equal(denied.matchedPattern, "rm -rf *");
+    expect(denied.state).toBe("deny");
+    expect(denied.source).toBe("bash");
+    expect(denied.matchedPattern).toBe("rm -rf *");
 
     const allowed = manager.checkPermission("bash", { command: "echo hello" });
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.source, "bash");
-    assert.equal(allowed.matchedPattern, "*");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.source).toBe("bash");
+    expect(allowed.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -573,22 +554,22 @@ test("MCP wildcard matching uses the registered mcp tool", () => {
     const queryDocs = manager.checkPermission("mcp", {
       tool: "research:query-docs",
     });
-    assert.equal(queryDocs.state, "allow");
-    assert.equal(queryDocs.source, "mcp");
-    assert.equal(queryDocs.matchedPattern, "research_query-*");
-    assert.equal(queryDocs.target, "research_query-docs");
+    expect(queryDocs.state).toBe("allow");
+    expect(queryDocs.source).toBe("mcp");
+    expect(queryDocs.matchedPattern).toBe("research_query-*");
+    expect(queryDocs.target).toBe("research_query-docs");
 
     const resolve2 = manager.checkPermission("mcp", {
       tool: "research:resolve-context",
     });
-    assert.equal(resolve2.state, "ask");
-    assert.equal(resolve2.matchedPattern, "research_*");
-    assert.equal(resolve2.target, "research_resolve-context");
+    expect(resolve2.state).toBe("ask");
+    expect(resolve2.matchedPattern).toBe("research_*");
+    expect(resolve2.target).toBe("research_resolve-context");
 
     const unknown = manager.checkPermission("mcp", { tool: "search:provider" });
-    assert.equal(unknown.state, "deny");
-    assert.equal(unknown.matchedPattern, "*");
-    assert.equal(unknown.target, "search_provider");
+    expect(unknown.state).toBe("deny");
+    expect(unknown.matchedPattern).toBe("*");
+    expect(unknown.target).toBe("search_provider");
   } finally {
     cleanup();
   }
@@ -605,14 +586,14 @@ test("Arbitrary extension tools use exact-name tool permissions instead of MCP f
 
   try {
     const allowed = manager.checkPermission("third_party_tool", {});
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.source, "tool");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.source).toBe("tool");
 
     // another_extension_tool has no explicit rule — falls through to the
     // universal default (permission["*"] = "deny") with source "default".
     const fallback = manager.checkPermission("another_extension_tool", {});
-    assert.equal(fallback.state, "deny");
-    assert.equal(fallback.source, "default");
+    expect(fallback.state).toBe("deny");
+    expect(fallback.source).toBe("default");
   } finally {
     cleanup();
   }
@@ -634,21 +615,21 @@ test("Skill permission matching", () => {
     const allowed = manager.checkPermission("skill", {
       name: "requesting-code-review",
     });
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "requesting-code-review");
-    assert.equal(allowed.source, "skill");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("requesting-code-review");
+    expect(allowed.source).toBe("skill");
 
     const denied = manager.checkPermission("skill", {
       name: "web-design-guidelines",
     });
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.matchedPattern, "web-*");
+    expect(denied.state).toBe("deny");
+    expect(denied.matchedPattern).toBe("web-*");
 
     const fallback = manager.checkPermission("skill", {
       name: "unknown-skill",
     });
-    assert.equal(fallback.state, "ask");
-    assert.equal(fallback.matchedPattern, "*");
+    expect(fallback.state).toBe("ask");
+    expect(fallback.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -672,10 +653,10 @@ test("MCP proxy tool infers server-prefixed aliases from configured server names
     const result = manager.checkPermission("mcp", {
       tool: "get_code_context_exa",
     });
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "mcp");
-    assert.equal(result.matchedPattern, "exa_get_code_context_exa");
-    assert.equal(result.target, "exa_get_code_context_exa");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("mcp");
+    expect(result.matchedPattern).toBe("exa_get_code_context_exa");
+    expect(result.target).toBe("exa_get_code_context_exa");
   } finally {
     cleanup();
   }
@@ -715,7 +696,7 @@ test("MCP server names in settings.json are not used — only mcp.json is consul
     const result = manager.checkPermission("mcp", {
       tool: "some_tool_legacy-server",
     });
-    assert.equal(result.state, "ask");
+    expect(result.state).toBe("ask");
   } finally {
     rmSync(baseDir, { recursive: true, force: true });
   }
@@ -740,10 +721,10 @@ test("MCP describe mode normalizes qualified tool names without duplicating serv
       describe: "exa:web_search_exa",
       server: "exa",
     });
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "mcp");
-    assert.equal(result.matchedPattern, "exa_web_search_exa");
-    assert.equal(result.target, "exa_web_search_exa");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("mcp");
+    expect(result.matchedPattern).toBe("exa_web_search_exa");
+    expect(result.target).toBe("exa_web_search_exa");
   } finally {
     cleanup();
   }
@@ -756,12 +737,12 @@ test("Canonical tools map directly without legacy aliases", () => {
 
   try {
     const findResult = manager.checkPermission("find", {});
-    assert.equal(findResult.state, "allow");
-    assert.equal(findResult.source, "tool");
+    expect(findResult.state).toBe("allow");
+    expect(findResult.source).toBe("tool");
 
     const lsResult = manager.checkPermission("ls", {});
-    assert.equal(lsResult.state, "deny");
-    assert.equal(lsResult.source, "tool");
+    expect(lsResult.state).toBe("deny");
+    expect(lsResult.source).toBe("tool");
   } finally {
     cleanup();
   }
@@ -788,9 +769,9 @@ permission:
       { tool: "exa:web_search_exa" },
       "reviewer",
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "mcp");
-    assert.equal(result.target, "exa_web_search_exa");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("mcp");
+    expect(result.target).toBe("exa_web_search_exa");
   } finally {
     cleanup();
   }
@@ -822,10 +803,10 @@ permission:
       { tool: "web_search_exa" },
       "reviewer",
     );
-    assert.equal(result.state, "deny");
-    assert.equal(result.source, "mcp");
-    assert.equal(result.matchedPattern, "exa_web_search_exa");
-    assert.equal(result.target, "exa_web_search_exa");
+    expect(result.state).toBe("deny");
+    expect(result.source).toBe("mcp");
+    expect(result.matchedPattern).toBe("exa_web_search_exa");
+    expect(result.target).toBe("exa_web_search_exa");
   } finally {
     cleanup();
   }
@@ -857,19 +838,19 @@ permission:
       { tool: "web_search_exa" },
       "reviewer",
     );
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.source, "mcp");
-    assert.equal(allowed.matchedPattern, "exa_web_search_exa");
-    assert.equal(allowed.target, "exa_web_search_exa");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.source).toBe("mcp");
+    expect(allowed.matchedPattern).toBe("exa_web_search_exa");
+    expect(allowed.target).toBe("exa_web_search_exa");
 
     const fallback = manager.checkPermission(
       "mcp",
       { tool: "other_exa" },
       "reviewer",
     );
-    assert.equal(fallback.state, "deny");
-    assert.equal(fallback.source, "mcp");
-    assert.equal(fallback.target, "exa_other_exa");
+    expect(fallback.state).toBe("deny");
+    expect(fallback.source).toBe("mcp");
+    expect(fallback.target).toBe("exa_other_exa");
   } finally {
     cleanup();
   }
@@ -892,16 +873,16 @@ permission:
 
   try {
     const readResult = manager.checkPermission("read", {}, "reviewer");
-    assert.equal(readResult.state, "deny");
-    assert.equal(readResult.source, "tool");
+    expect(readResult.state).toBe("deny");
+    expect(readResult.source).toBe("tool");
 
     const mcpResult = manager.checkPermission(
       "mcp",
       { tool: "exa:web_search_exa" },
       "reviewer",
     );
-    assert.equal(mcpResult.state, "allow");
-    assert.equal(mcpResult.source, "mcp");
+    expect(mcpResult.state).toBe("allow");
+    expect(mcpResult.source).toBe("mcp");
   } finally {
     cleanup();
   }
@@ -925,12 +906,12 @@ permission:
 
   try {
     const findResult = manager.checkPermission("find", {}, "reviewer");
-    assert.equal(findResult.state, "allow");
-    assert.equal(findResult.source, "tool");
+    expect(findResult.state).toBe("allow");
+    expect(findResult.source).toBe("tool");
 
     const lsResult = manager.checkPermission("ls", {}, "reviewer");
-    assert.equal(lsResult.state, "deny");
-    assert.equal(lsResult.source, "tool");
+    expect(lsResult.state).toBe("deny");
+    expect(lsResult.source).toBe("tool");
   } finally {
     cleanup();
   }
@@ -955,13 +936,13 @@ permission:
 
   try {
     const findResult = manager.checkPermission("find", {}, "reviewer");
-    assert.equal(findResult.state, "allow");
-    assert.equal(findResult.source, "tool");
+    expect(findResult.state).toBe("allow");
+    expect(findResult.source).toBe("tool");
 
     // In flat format any surface key works, including extension tools
     const taskResult = manager.checkPermission("task", {}, "reviewer");
-    assert.equal(taskResult.state, "allow");
-    assert.equal(taskResult.source, "tool");
+    expect(taskResult.state).toBe("allow");
+    expect(taskResult.source).toBe("tool");
 
     // mcp: allow catches all MCP targets
     const mcpResult = manager.checkPermission(
@@ -969,7 +950,7 @@ permission:
       { tool: "exa:web_search_exa" },
       "reviewer",
     );
-    assert.equal(mcpResult.state, "allow");
+    expect(mcpResult.state).toBe("allow");
   } finally {
     cleanup();
   }
@@ -982,19 +963,19 @@ test("task uses exact-name tool permissions like any registered extension tool",
 
   try {
     const taskResult = manager.checkPermission("task", {});
-    assert.equal(taskResult.state, "allow");
-    assert.equal(taskResult.source, "tool");
+    expect(taskResult.state).toBe("allow");
+    expect(taskResult.source).toBe("tool");
   } finally {
     cleanup();
   }
 });
 
 test("Tool registry resolves event tool names from string and object payloads", () => {
-  assert.equal(getToolNameFromValue("  read  "), "read");
-  assert.equal(getToolNameFromValue({ toolName: "write" }), "write");
-  assert.equal(getToolNameFromValue({ name: "find" }), "find");
-  assert.equal(getToolNameFromValue({ tool: "grep" }), "grep");
-  assert.equal(getToolNameFromValue({}), null);
+  expect(getToolNameFromValue("  read  ")).toBe("read");
+  expect(getToolNameFromValue({ toolName: "write" })).toBe("write");
+  expect(getToolNameFromValue({ name: "find" })).toBe("find");
+  expect(getToolNameFromValue({ tool: "grep" })).toBe("grep");
+  expect(getToolNameFromValue({})).toBe(null);
 });
 
 test("Tool registry blocks unregistered tools and handles aliases", () => {
@@ -1008,9 +989,9 @@ test("Tool registry blocks unregistered tools and handles aliases", () => {
     "third_party_tool",
     registeredTools,
   );
-  assert.equal(unknownCheck.status, "unregistered");
+  expect(unknownCheck.status).toBe("unregistered");
   if (unknownCheck.status === "unregistered") {
-    assert.deepEqual(unknownCheck.availableToolNames, ["bash", "mcp", "read"]);
+    expect(unknownCheck.availableToolNames).toEqual(["bash", "mcp", "read"]);
   }
 
   const aliasCheck = checkRequestedToolRegistration(
@@ -1018,13 +999,13 @@ test("Tool registry blocks unregistered tools and handles aliases", () => {
     registeredTools,
     { legacy_read: "read" },
   );
-  assert.equal(aliasCheck.status, "registered");
+  expect(aliasCheck.status).toBe("registered");
 
   const missingNameCheck = checkRequestedToolRegistration(
     "   ",
     registeredTools,
   );
-  assert.equal(missingNameCheck.status, "missing-tool-name");
+  expect(missingNameCheck.status).toBe("missing-tool-name");
 });
 
 test("getToolPermission returns tool-level policy for canonical and extension tools", () => {
@@ -1046,16 +1027,16 @@ permission:
 
   try {
     const bashPermission = manager.getToolPermission("bash", "reviewer");
-    assert.equal(bashPermission, "deny");
+    expect(bashPermission).toBe("deny");
 
     const taskPermission = manager.getToolPermission("task", "reviewer");
-    assert.equal(taskPermission, "allow");
+    expect(taskPermission).toBe("allow");
 
     const readPermission = manager.getToolPermission("read", "reviewer");
-    assert.equal(readPermission, "deny");
+    expect(readPermission).toBe("deny");
 
     const defaultBashPermission = manager.getToolPermission("bash");
-    assert.equal(defaultBashPermission, "ask");
+    expect(defaultBashPermission).toBe("ask");
 
     const { manager: manager2, cleanup: cleanup2 } = createManager({
       permission: { "*": "deny", bash: "allow" },
@@ -1063,7 +1044,7 @@ permission:
 
     try {
       const globalBashPermission = manager2.getToolPermission("bash");
-      assert.equal(globalBashPermission, "allow");
+      expect(globalBashPermission).toBe("allow");
     } finally {
       cleanup2();
     }
@@ -1079,12 +1060,12 @@ test("getToolPermission supports arbitrary extension tool names", () => {
 
   try {
     const explicitPermission = manager.getToolPermission("third_party_tool");
-    assert.equal(explicitPermission, "allow");
+    expect(explicitPermission).toBe("allow");
 
     const fallbackPermission = manager.getToolPermission(
       "missing_extension_tool",
     );
-    assert.equal(fallbackPermission, "deny");
+    expect(fallbackPermission).toBe("deny");
   } finally {
     cleanup();
   }
@@ -1098,22 +1079,20 @@ test("Yolo mode bypasses delegated ask routing when no parent forwarding target 
     env: {},
   });
 
-  assert.equal(targetSessionId, null);
-  assert.equal(
+  expect(targetSessionId).toBe(null);
+  expect(
     canResolveAskPermissionRequest({
       config: { ...DEFAULT_EXTENSION_CONFIG, yoloMode: true },
       hasUI: false,
       isSubagent: true,
     }),
-    true,
-  );
-  assert.equal(
+  ).toBe(true);
+  expect(
     shouldAutoApprovePermissionState("ask", {
       ...DEFAULT_EXTENSION_CONFIG,
       yoloMode: true,
     }),
-    true,
-  );
+  ).toBe(true);
 });
 
 test("Permission forwarding resolves the parent interactive session from subagent runtime env", () => {
@@ -1126,7 +1105,7 @@ test("Permission forwarding resolves the parent interactive session from subagen
     },
   });
 
-  assert.equal(targetSessionId, "parent-session");
+  expect(targetSessionId).toBe("parent-session");
 });
 
 test("Permission forwarding does not guess a target session when subagent runtime env is missing", () => {
@@ -1137,7 +1116,7 @@ test("Permission forwarding does not guess a target session when subagent runtim
     env: {},
   });
 
-  assert.equal(targetSessionId, null);
+  expect(targetSessionId).toBe(null);
 });
 
 test("Permission forwarding uses session-scoped directories per interactive session", () => {
@@ -1151,26 +1130,24 @@ test("Permission forwarding uses session-scoped directories per interactive sess
     "session-b",
   );
 
-  assert.notEqual(sessionA.sessionRootDir, sessionB.sessionRootDir);
-  assert.notEqual(sessionA.requestsDir, sessionB.requestsDir);
-  assert.notEqual(sessionA.responsesDir, sessionB.responsesDir);
+  expect(sessionA.sessionRootDir).not.toBe(sessionB.sessionRootDir);
+  expect(sessionA.requestsDir).not.toBe(sessionB.requestsDir);
+  expect(sessionA.responsesDir).not.toBe(sessionB.responsesDir);
 });
 
 test("Permission forwarding request routing only matches the intended UI session", () => {
-  assert.equal(
+  expect(
     isForwardedPermissionRequestForSession(
       { targetSessionId: "session-a" },
       "session-a",
     ),
-    true,
-  );
-  assert.equal(
+  ).toBe(true);
+  expect(
     isForwardedPermissionRequestForSession(
       { targetSessionId: "session-a" },
       "session-b",
     ),
-    false,
-  );
+  ).toBe(false);
 });
 
 test("Permission forwarding rejects unresolved sentinel session ids", () => {
@@ -1180,7 +1157,7 @@ test("Permission forwarding rejects unresolved sentinel session ids", () => {
     currentSessionId: "unknown",
   });
 
-  assert.equal(targetSessionId, null);
+  expect(targetSessionId).toBe(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -1268,14 +1245,14 @@ test("Project-level config overrides base bash patterns", () => {
     const allowed = manager.checkPermission("bash", {
       command: "rm -rf build",
     });
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "rm -rf build");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("rm -rf build");
 
     const denied = manager.checkPermission("bash", {
       command: "rm -rf node_modules",
     });
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.matchedPattern, "rm -rf *");
+    expect(denied.state).toBe("deny");
+    expect(denied.matchedPattern).toBe("rm -rf *");
   } finally {
     cleanup();
   }
@@ -1308,16 +1285,16 @@ permission:
       { command: "git log --oneline" },
       "reviewer",
     );
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "git log *");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("git log *");
 
     const denied = manager.checkPermission(
       "bash",
       { command: "git status" },
       "reviewer",
     );
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.matchedPattern, "git *");
+    expect(denied.state).toBe("deny");
+    expect(denied.matchedPattern).toBe("git *");
   } finally {
     cleanup();
   }
@@ -1350,8 +1327,8 @@ permission:
 
   try {
     const result = manager.checkPermission("read", {}, "reviewer");
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "tool");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("tool");
   } finally {
     cleanup();
   }
@@ -1391,12 +1368,12 @@ permission:
       {},
       "reviewer",
     );
-    assert.equal(reviewerResult.state, "deny");
-    assert.equal(reviewerResult.source, "default");
+    expect(reviewerResult.state).toBe("deny");
+    expect(reviewerResult.source).toBe("default");
 
     const globalResult = manager.checkPermission("custom_extension_tool", {});
-    assert.equal(globalResult.state, "allow");
-    assert.equal(globalResult.source, "default");
+    expect(globalResult.state).toBe("allow");
+    expect(globalResult.source).toBe("default");
   } finally {
     cleanup();
   }
@@ -1422,12 +1399,12 @@ permission:
 
   try {
     const agentResult = manager.checkPermission("read", {}, "reviewer");
-    assert.equal(agentResult.state, "deny");
-    assert.equal(agentResult.source, "tool");
+    expect(agentResult.state).toBe("deny");
+    expect(agentResult.source).toBe("tool");
 
     const globalResult = manager.checkPermission("read", {});
-    assert.equal(globalResult.state, "allow");
-    assert.equal(globalResult.source, "tool");
+    expect(globalResult.state).toBe("allow");
+    expect(globalResult.source).toBe("tool");
   } finally {
     cleanup();
   }
@@ -1454,10 +1431,10 @@ test("PermissionManager reads config from PI_CODING_AGENT_DIR when set", () => {
   try {
     const manager = new PermissionManager();
     const result = manager.checkPermission("read", {});
-    assert.equal(result.state, "allow");
+    expect(result.state).toBe("allow");
 
     const result2 = manager.checkPermission("write", {});
-    assert.equal(result2.state, "deny");
+    expect(result2.state).toBe("deny");
   } finally {
     if (original !== undefined) {
       process.env.PI_CODING_AGENT_DIR = original;
@@ -1495,9 +1472,9 @@ test("parseAllSkillPromptSections finds every available_skills block", () => {
 
   const sections = parseAllSkillPromptSections(prompt);
 
-  assert.equal(sections.length, 2);
-  assert.equal(sections[0].entries[0]?.name, "skill-one");
-  assert.equal(sections[1].entries[0]?.name, "skill-two");
+  expect(sections.length).toBe(2);
+  expect(sections[0].entries[0]?.name).toBe("skill-one");
+  expect(sections[1].entries[0]?.name).toBe("skill-two");
 });
 
 test("REGRESSION: resolveSkillPromptEntries sanitizes every available_skills block", () => {
@@ -1536,26 +1513,12 @@ test("REGRESSION: resolveSkillPromptEntries sanitizes every available_skills blo
 
     const result = resolveSkillPromptEntries(prompt, manager, null, "/cwd");
 
-    assert.equal(
-      result.prompt.includes("denied-skill"),
-      false,
-      "Denied skill should be removed from every block",
-    );
-    assert.equal(
-      result.prompt.includes("visible-skill"),
-      true,
-      "Visible skill should remain in the prompt",
-    );
-    assert.equal(
-      (result.prompt.match(/<available_skills>/g) || []).length,
-      1,
-      "Fully denied blocks should be removed",
-    );
-    assert.deepEqual(
-      result.entries.map((entry) => entry.name),
-      ["visible-skill"],
-      "Tracked skill entries should exclude denied skills",
-    );
+    expect(result.prompt).not.toContain("denied-skill");
+    expect(result.prompt).toContain("visible-skill");
+    expect((result.prompt.match(/<available_skills>/g) || []).length).toBe(1);
+    expect(result.entries.map((entry) => entry.name)).toEqual([
+      "visible-skill",
+    ]);
   } finally {
     cleanup();
   }
@@ -1602,12 +1565,8 @@ test("REGRESSION: resolveSkillPromptEntries keeps only visible skills available 
       result.entries,
     );
 
-    assert.equal(matchedVisibleSkill?.name, "visible-skill");
-    assert.equal(
-      matchedBlockedSkill,
-      null,
-      "Denied skills should not remain in tracked entries",
-    );
+    expect(matchedVisibleSkill?.name).toBe("visible-skill");
+    expect(matchedBlockedSkill).toBe(null);
   } finally {
     cleanup();
   }
@@ -1623,9 +1582,9 @@ test("external_directory permission falls back to universal default when not exp
 
   try {
     const result = manager.checkPermission("external_directory", {});
-    assert.equal(result.state, "ask");
-    assert.equal(result.source, "special");
-    assert.equal(result.matchedPattern, undefined);
+    expect(result.state).toBe("ask");
+    expect(result.source).toBe("special");
+    expect(result.matchedPattern).toBe(undefined);
   } finally {
     cleanup();
   }
@@ -1638,9 +1597,9 @@ test("external_directory permission respects explicit deny", () => {
 
   try {
     const result = manager.checkPermission("external_directory", {});
-    assert.equal(result.state, "deny");
-    assert.equal(result.source, "special");
-    assert.equal(result.matchedPattern, "*");
+    expect(result.state).toBe("deny");
+    expect(result.source).toBe("special");
+    expect(result.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -1653,9 +1612,9 @@ test("external_directory permission can be explicitly allowed", () => {
 
   try {
     const result = manager.checkPermission("external_directory", {});
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "special");
-    assert.equal(result.matchedPattern, "*");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("special");
+    expect(result.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -1679,7 +1638,7 @@ permission:
   try {
     // Global policy denies external_directory
     const globalResult = manager.checkPermission("external_directory", {});
-    assert.equal(globalResult.state, "deny");
+    expect(globalResult.state).toBe("deny");
 
     // Trusted agent overrides to allow
     const agentResult = manager.checkPermission(
@@ -1687,8 +1646,8 @@ permission:
       {},
       "trusted",
     );
-    assert.equal(agentResult.state, "allow");
-    assert.equal(agentResult.source, "special");
+    expect(agentResult.state).toBe("allow");
+    expect(agentResult.source).toBe("special");
   } finally {
     cleanup();
   }
@@ -1704,8 +1663,8 @@ test("external_directory permission is not affected by unrelated surface keys", 
   try {
     // external_directory still resolves from its own entry
     const extResult = manager.checkPermission("external_directory", {});
-    assert.equal(extResult.state, "allow");
-    assert.equal(extResult.matchedPattern, "*");
+    expect(extResult.state).toBe("allow");
+    expect(extResult.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -1735,9 +1694,9 @@ permission:
       { name: "pi-code-review" },
       "reviewer",
     );
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "pi-*");
-    assert.equal(allowed.source, "skill");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("pi-*");
+    expect(allowed.source).toBe("skill");
 
     // Falls through to agent frontmatter catch-all
     const asked = manager.checkPermission(
@@ -1745,13 +1704,13 @@ permission:
       { name: "other-skill" },
       "reviewer",
     );
-    assert.equal(asked.state, "ask");
-    assert.equal(asked.matchedPattern, "*");
+    expect(asked.state).toBe("ask");
+    expect(asked.matchedPattern).toBe("*");
 
     // No agent override — global deny applies
     const denied = manager.checkPermission("skill", { name: "pi-code-review" });
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.source, "skill");
+    expect(denied.state).toBe("deny");
+    expect(denied.source).toBe("skill");
   } finally {
     cleanup();
   }
@@ -1781,9 +1740,9 @@ permission:
       { path: `${homedir()}/Downloads/file.txt` },
       "trusted",
     );
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "~/Downloads/*");
-    assert.equal(allowed.source, "special");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("~/Downloads/*");
+    expect(allowed.source).toBe("special");
 
     // Falls through to agent frontmatter catch-all deny
     const denied = manager.checkPermission(
@@ -1791,13 +1750,13 @@ permission:
       { path: `${homedir()}/Documents/secret.txt` },
       "trusted",
     );
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.matchedPattern, "*");
+    expect(denied.state).toBe("deny");
+    expect(denied.matchedPattern).toBe("*");
 
     // No agent override — global deny applies
     const globalDenied = manager.checkPermission("external_directory", {});
-    assert.equal(globalDenied.state, "deny");
-    assert.equal(globalDenied.source, "special");
+    expect(globalDenied.state).toBe("deny");
+    expect(globalDenied.source).toBe("special");
   } finally {
     cleanup();
   }
@@ -1838,8 +1797,8 @@ permission:
       { name: "pi-code-review" },
       "analyst",
     );
-    assert.equal(allowed.state, "allow");
-    assert.equal(allowed.matchedPattern, "pi-*");
+    expect(allowed.state).toBe("allow");
+    expect(allowed.matchedPattern).toBe("pi-*");
 
     // Project-agent *: deny wins over global-agent *: ask
     const denied = manager.checkPermission(
@@ -1847,8 +1806,8 @@ permission:
       { name: "other-skill" },
       "analyst",
     );
-    assert.equal(denied.state, "deny");
-    assert.equal(denied.matchedPattern, "*");
+    expect(denied.state).toBe("deny");
+    expect(denied.matchedPattern).toBe("*");
   } finally {
     cleanup();
   }
@@ -1882,12 +1841,12 @@ permission:
   try {
     // Project-agent allow wins over global-agent ask
     const result = manager.checkPermission("external_directory", {}, "analyst");
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "special");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("special");
 
     // Without agent context, global config deny applies
     const globalResult = manager.checkPermission("external_directory", {});
-    assert.equal(globalResult.state, "deny");
+    expect(globalResult.state).toBe("deny");
   } finally {
     cleanup();
   }
@@ -1914,12 +1873,11 @@ test("tool_call blocks path-bearing tools outside cwd when external_directory is
       input: { path: siblingPath },
     });
 
-    assert.equal(result.block, true);
-    assert.match(
-      String(result.reason),
+    expect(result.block).toBe(true);
+    expect(String(result.reason)).toMatch(
       /external directory permission denial/i,
     );
-    assert.match(String(result.reason), /repo-sibling/);
+    expect(String(result.reason)).toMatch(/repo-sibling/);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -1941,8 +1899,8 @@ test("tool_call allows path-bearing tools inside cwd without external_directory 
       input: { path: join(harness.cwd, "src", "index.ts") },
     });
 
-    assert.deepEqual(result, {});
-    assert.deepEqual(harness.prompts, []);
+    expect(result).toEqual({});
+    expect(harness.prompts).toEqual([]);
   } finally {
     await harness.cleanup();
   }
@@ -1966,9 +1924,8 @@ test("tool_call blocks external_directory ask when no confirmation channel is av
       },
     });
 
-    assert.equal(result.block, true);
-    assert.match(
-      String(result.reason),
+    expect(result.block).toBe(true);
+    expect(String(result.reason)).toMatch(
       /requires approval, but no interactive UI is available/i,
     );
   } finally {
@@ -1996,11 +1953,11 @@ test("tool_call prompts for external_directory and then falls through to normal 
       { hasUI: true, selectResponse: "Yes" },
     );
 
-    assert.deepEqual(result, {});
-    assert.equal(harness.prompts.length, 1);
-    assert.match(harness.prompts[0], /external directory access/i);
-    assert.match(harness.prompts[0], /grep/);
-    assert.match(harness.prompts[0], /external-search-root/);
+    expect(result).toEqual({});
+    expect(harness.prompts.length).toBe(1);
+    expect(harness.prompts[0]).toMatch(/external directory access/i);
+    expect(harness.prompts[0]).toMatch(/grep/);
+    expect(harness.prompts[0]).toMatch(/external-search-root/);
   } finally {
     await harness.cleanup();
   }
@@ -2021,8 +1978,8 @@ test("tool_call skips external_directory checks for optional path tools without 
       input: { pattern: "*.ts" },
     });
 
-    assert.deepEqual(result, {});
-    assert.deepEqual(harness.prompts, []);
+    expect(result).toEqual({});
+    expect(harness.prompts).toEqual([]);
   } finally {
     await harness.cleanup();
   }
@@ -2045,12 +2002,11 @@ test("tool_call blocks bash command with external path when external_directory i
       input: { command: "cat /etc/hosts" },
     });
 
-    assert.equal(result.block, true);
-    assert.match(
-      String(result.reason),
+    expect(result.block).toBe(true);
+    expect(String(result.reason)).toMatch(
       /external directory permission denial/i,
     );
-    assert.match(String(result.reason), /\/etc\/hosts/);
+    expect(String(result.reason)).toMatch(/\/etc\/hosts/);
   } finally {
     await harness.cleanup();
   }
@@ -2071,7 +2027,7 @@ test("tool_call allows bash command with only internal paths when external_direc
       input: { command: "cat src/index.ts" },
     });
 
-    assert.deepEqual(result, {});
+    expect(result).toEqual({});
   } finally {
     await harness.cleanup();
   }
@@ -2093,9 +2049,8 @@ test("tool_call prompts for bash command with external path when external_direct
     });
 
     // No UI available in default harness, so it should block
-    assert.equal(result.block, true);
-    assert.match(
-      String(result.reason),
+    expect(result.block).toBe(true);
+    expect(String(result.reason)).toMatch(
       /requires approval.*no interactive UI/i,
     );
   } finally {
@@ -2119,7 +2074,7 @@ test("tool_call allows bash command with external path when external_directory i
     });
 
     // Should pass through to normal bash permission (which is also allow)
-    assert.deepEqual(result, {});
+    expect(result).toEqual({});
   } finally {
     await harness.cleanup();
   }
@@ -2145,8 +2100,8 @@ test("tool_call applies bash pattern permissions after external_directory allow"
     });
 
     // external_directory allows, but bash pattern denies
-    assert.equal(result.block, true);
-    assert.match(String(result.reason), /not permitted/i);
+    expect(result.block).toBe(true);
+    expect(String(result.reason)).toMatch(/not permitted/i);
   } finally {
     await harness.cleanup();
   }
@@ -2171,10 +2126,10 @@ test("generic ask prompts include serialized tool input for informed approval", 
       { hasUI: true, selectResponse: "No" },
     );
 
-    assert.equal(result.block, true);
-    assert.equal(harness.prompts.length, 1);
-    assert.match(harness.prompts[0], /weather_lookup/);
-    assert.match(harness.prompts[0], /\{"city":"Chicago","units":"metric"\}/);
+    expect(result.block).toBe(true);
+    expect(harness.prompts.length).toBe(1);
+    expect(harness.prompts[0]).toMatch(/weather_lookup/);
+    expect(harness.prompts[0]).toMatch(/\{"city":"Chicago","units":"metric"\}/);
   } finally {
     await harness.cleanup();
   }
@@ -2203,14 +2158,14 @@ test("getResolvedPolicyPaths returns correct paths and existence when files exis
 
     const result = pm.getResolvedPolicyPaths();
 
-    assert.equal(result.globalConfigPath, globalConfigPath);
-    assert.equal(result.globalConfigExists, true);
-    assert.equal(result.projectConfigPath, projectConfigPath);
-    assert.equal(result.projectConfigExists, true);
-    assert.equal(result.agentsDir, agentsDir);
-    assert.equal(result.agentsDirExists, true);
-    assert.equal(result.projectAgentsDir, projectAgentsDir);
-    assert.equal(result.projectAgentsDirExists, true);
+    expect(result.globalConfigPath).toBe(globalConfigPath);
+    expect(result.globalConfigExists).toBe(true);
+    expect(result.projectConfigPath).toBe(projectConfigPath);
+    expect(result.projectConfigExists).toBe(true);
+    expect(result.agentsDir).toBe(agentsDir);
+    expect(result.agentsDirExists).toBe(true);
+    expect(result.projectAgentsDir).toBe(projectAgentsDir);
+    expect(result.projectAgentsDirExists).toBe(true);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2229,14 +2184,14 @@ test("getResolvedPolicyPaths returns false for missing files and null for absent
 
     const result = pm.getResolvedPolicyPaths();
 
-    assert.equal(result.globalConfigPath, globalConfigPath);
-    assert.equal(result.globalConfigExists, false);
-    assert.equal(result.projectConfigPath, null);
-    assert.equal(result.projectConfigExists, false);
-    assert.equal(result.agentsDir, agentsDir);
-    assert.equal(result.agentsDirExists, false);
-    assert.equal(result.projectAgentsDir, null);
-    assert.equal(result.projectAgentsDirExists, false);
+    expect(result.globalConfigPath).toBe(globalConfigPath);
+    expect(result.globalConfigExists).toBe(false);
+    expect(result.projectConfigPath).toBe(null);
+    expect(result.projectConfigExists).toBe(false);
+    expect(result.agentsDir).toBe(agentsDir);
+    expect(result.agentsDirExists).toBe(false);
+    expect(result.projectAgentsDir).toBe(null);
+    expect(result.projectAgentsDirExists).toBe(false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -2251,7 +2206,7 @@ test("PermissionManager.getConfigIssues returns empty array for clean config", (
   const { manager, cleanup } = createManager(config);
   try {
     const issues = manager.getConfigIssues();
-    assert.equal(issues.length, 0);
+    expect(issues.length).toBe(0);
   } finally {
     cleanup();
   }
@@ -2261,7 +2216,7 @@ test("PermissionManager.getConfigIssues returns empty array for empty config", (
   const { manager, cleanup } = createManager({});
   try {
     const issues = manager.getConfigIssues();
-    assert.equal(issues.length, 0);
+    expect(issues.length).toBe(0);
   } finally {
     cleanup();
   }
@@ -2297,8 +2252,8 @@ test("session approval: first prompt with 'Yes, for this session' skips subseque
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.deepEqual(result1, {});
-    assert.equal(harness.prompts.length, 1);
+    expect(result1).toEqual({});
+    expect(harness.prompts.length).toBe(1);
 
     // Second access under same prefix — should skip prompt
     const result2 = await runToolCall(
@@ -2310,9 +2265,9 @@ test("session approval: first prompt with 'Yes, for this session' skips subseque
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.deepEqual(result2, {});
+    expect(result2).toEqual({});
     // No new prompt — still just the original one
-    assert.equal(harness.prompts.length, 1);
+    expect(harness.prompts.length).toBe(1);
 
     // Third access with different tool under same prefix — also skipped
     const result3 = await runToolCall(
@@ -2324,8 +2279,8 @@ test("session approval: first prompt with 'Yes, for this session' skips subseque
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.deepEqual(result3, {});
-    assert.equal(harness.prompts.length, 1);
+    expect(result3).toEqual({});
+    expect(harness.prompts.length).toBe(1);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2360,7 +2315,7 @@ test("session approval: different directory prefix still prompts", async () => {
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.equal(harness.prompts.length, 1);
+    expect(harness.prompts.length).toBe(1);
 
     // Access sibling-b — different prefix, should prompt again
     await runToolCall(
@@ -2372,7 +2327,7 @@ test("session approval: different directory prefix still prompts", async () => {
       },
       { hasUI: true, selectResponse: "Yes" },
     );
-    assert.equal(harness.prompts.length, 2);
+    expect(harness.prompts.length).toBe(2);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2405,7 +2360,7 @@ test("session approval: session_shutdown clears session approvals", async () => 
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.equal(harness.prompts.length, 1);
+    expect(harness.prompts.length).toBe(1);
 
     // Trigger session_shutdown (clears cache)
     const shutdownCtx = createMockContext(cwd, harness.prompts, {
@@ -2424,8 +2379,8 @@ test("session approval: session_shutdown clears session approvals", async () => 
       },
       { hasUI: true, selectResponse: "Yes" },
     );
-    assert.deepEqual(result, {});
-    assert.equal(harness.prompts.length, 2);
+    expect(result).toEqual({});
+    expect(harness.prompts.length).toBe(2);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2457,8 +2412,8 @@ test("session approval: bash external directory with 'Yes, for this session' ski
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.deepEqual(result1, {});
-    assert.equal(harness.prompts.length, 1);
+    expect(result1).toEqual({});
+    expect(harness.prompts.length).toBe(1);
 
     // Second bash command referencing path under same prefix — skips prompt
     const result2 = await runToolCall(
@@ -2470,8 +2425,8 @@ test("session approval: bash external directory with 'Yes, for this session' ski
       },
       { hasUI: true, selectResponse: "Yes, for this session" },
     );
-    assert.deepEqual(result2, {});
-    assert.equal(harness.prompts.length, 1);
+    expect(result2).toEqual({});
+    expect(harness.prompts.length).toBe(1);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2504,7 +2459,7 @@ test("session approval: regular 'Yes' does not create session approval", async (
       },
       { hasUI: true, selectResponse: "Yes" },
     );
-    assert.equal(harness.prompts.length, 1);
+    expect(harness.prompts.length).toBe(1);
 
     // Same prefix — should still prompt since we used "Yes" not session
     await runToolCall(
@@ -2516,7 +2471,7 @@ test("session approval: regular 'Yes' does not create session approval", async (
       },
       { hasUI: true, selectResponse: "Yes" },
     );
-    assert.equal(harness.prompts.length, 2);
+    expect(harness.prompts.length).toBe(2);
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2549,9 +2504,9 @@ test("checkPermission returns source 'session' when session rules cover the exte
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
-    assert.equal(result.matchedPattern, "/other/project/*");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
+    expect(result.matchedPattern).toBe("/other/project/*");
   } finally {
     cleanup();
   }
@@ -2580,8 +2535,8 @@ test("checkPermission falls back to config policy when session rules do not cove
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "deny");
-    assert.equal(result.source, "special");
+    expect(result.state).toBe("deny");
+    expect(result.source).toBe("special");
   } finally {
     cleanup();
   }
@@ -2609,8 +2564,8 @@ test("checkPermission with empty session rules is identical to call without sess
       source: "special",
       origin: "global",
     };
-    assert.deepEqual(withEmpty, expected);
-    assert.deepEqual(withoutArg, expected);
+    expect(withEmpty).toEqual(expected);
+    expect(withoutArg).toEqual(expected);
   } finally {
     cleanup();
   }
@@ -2640,8 +2595,8 @@ test("session rules for one surface do not affect checks on other surfaces", () 
       undefined,
       sessionRules,
     );
-    assert.equal(bashResult.state, "ask");
-    assert.equal(bashResult.source, "bash");
+    expect(bashResult.state).toBe("ask");
+    expect(bashResult.source).toBe("bash");
 
     // MCP check — session rules should not affect MCP decisions.
     const mcpResult = manager.checkPermission(
@@ -2650,8 +2605,8 @@ test("session rules for one surface do not affect checks on other surfaces", () 
       undefined,
       sessionRules,
     );
-    assert.equal(mcpResult.state, "ask");
-    assert.equal(mcpResult.source, "default");
+    expect(mcpResult.state).toBe("ask");
+    expect(mcpResult.source).toBe("default");
   } finally {
     cleanup();
   }
@@ -2680,8 +2635,8 @@ test("session rules override config deny for external_directory", () => {
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
   } finally {
     cleanup();
   }
@@ -2709,9 +2664,9 @@ test("checkPermission returns source 'session' for bash when session rules match
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
-    assert.equal(result.matchedPattern, "git *");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
+    expect(result.matchedPattern).toBe("git *");
   } finally {
     cleanup();
   }
@@ -2737,8 +2692,8 @@ test("checkPermission returns source 'session' for bash when session rule is exa
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
   } finally {
     cleanup();
   }
@@ -2764,8 +2719,8 @@ test("checkPermission falls back to config for bash when session rules do not ma
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "deny");
-    assert.equal(result.source, "bash");
+    expect(result.state).toBe("deny");
+    expect(result.source).toBe("bash");
   } finally {
     cleanup();
   }
@@ -2791,8 +2746,8 @@ test("checkPermission returns source 'session' for mcp when session rules match 
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
   } finally {
     cleanup();
   }
@@ -2818,9 +2773,9 @@ test("checkPermission returns source 'session' for skill when session rules matc
       undefined,
       sessionRules,
     );
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
-    assert.equal(result.matchedPattern, "librarian");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
+    expect(result.matchedPattern).toBe("librarian");
   } finally {
     cleanup();
   }
@@ -2841,8 +2796,8 @@ test("checkPermission returns source 'session' for tool surface when session rul
     ];
 
     const result = manager.checkPermission("read", {}, undefined, sessionRules);
-    assert.equal(result.state, "allow");
-    assert.equal(result.source, "session");
+    expect(result.state).toBe("allow");
+    expect(result.source).toBe("session");
   } finally {
     cleanup();
   }
@@ -2869,7 +2824,7 @@ test("bash session rules do not bleed into mcp checks", () => {
       sessionRules,
     );
     // bash session rule must not affect mcp surface
-    assert.notEqual(result.source, "session");
+    expect(result.source).not.toBe("session");
   } finally {
     cleanup();
   }

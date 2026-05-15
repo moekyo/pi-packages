@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   type BuiltinFormatter,
   getBuiltinFormatter,
-} from "./builtin-formatters.js";
+} from "./builtin-formatters";
 
 export type FormatterDefinition = {
   command: string[];

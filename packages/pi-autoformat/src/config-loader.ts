@@ -2,9 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { BUILTIN_FORMATTERS } from "./builtin-formatters.js";
-import type { CustomMutationToolSpec } from "./custom-mutation-tools.js";
-import type { FormatScopeSetting } from "./format-scope.js";
+import { BUILTIN_FORMATTERS } from "./builtin-formatters";
+import type { CustomMutationToolSpec } from "./custom-mutation-tools";
+import type { FormatScopeSetting } from "./format-scope";
 import {
   type AutoformatConfig,
   createFormatterConfig,
@@ -13,12 +13,12 @@ import {
   type FormatterOutputOnFailure,
   type FormatterOutputReportingConfig,
   type UserFormatterConfig,
-} from "./formatter-config.js";
+} from "./formatter-config";
 import type {
   ChainStep,
   FallbackChainStep,
   FormatterDefinition,
-} from "./formatter-registry.js";
+} from "./formatter-registry";
 
 // Pi's built-in tool names. Declaring any of these in customMutationTools is
 // a configuration mistake: write/edit are already covered, bash has its own
@@ -36,7 +36,7 @@ const BUILTIN_TOOL_NAMES = new Set([
 import type {
   ShellMutationDetectionConfig,
   WrapperConfig,
-} from "./shell-mutation-detector.js";
+} from "./shell-mutation-detector";
 
 export const AUTOFORMAT_EXTENSION_ID = "pi-autoformat";
 export const AUTOFORMAT_CONFIG_FILE_NAME = "config.json";

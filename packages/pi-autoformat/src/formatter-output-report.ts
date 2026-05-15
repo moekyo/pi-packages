@@ -1,5 +1,5 @@
-import type { FormatterOutputReportingConfig } from "./formatter-config.js";
-import type { BatchRun } from "./formatter-executor.js";
+import type { FormatterOutputReportingConfig } from "./formatter-config";
+import type { BatchRun } from "./formatter-executor";
 
 const HEADER_INDENT = "  ";
 const BODY_INDENT = "    ";

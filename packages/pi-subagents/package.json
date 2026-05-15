@@ -35,31 +35,21 @@
     "croner": "^10.0.1",
     "nanoid": "^5.0.0"
   },
-  "packageManager": "pnpm@11.1.1",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "prepare": "command -v prek >/dev/null 2>&1 && prek install || echo 'prek not found — skipping hook install (see README)'",
-    "build": "tsc",
-    "prepublishOnly": "pnpm run lint:all && pnpm run typecheck && pnpm run test && pnpm run build",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check src/ test/",
-    "lint:fix": "biome check --fix src/ test/",
-    "lint:md": "markdownlint-cli2 '*.md' 'docs/**/*.md'",
-    "lint:md:fix": "markdownlint-cli2 --fix '*.md' 'docs/**/*.md'",
-    "lint:all": "pnpm run lint && pnpm run lint:md",
-    "format": "biome format --write src/ test/",
-    "check": "pnpm run build && pnpm run lint:all && pnpm run test"
+    "lint:md": "markdownlint-cli2 '*.md' 'docs/**/*.md'"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
-    "@types/node": "^25.5.0",
-    "markdownlint-cli2": "^0.22.1",
-    "typescript": "^6.0.0",
-    "vitest": "^4.0.18"
+    "@biomejs/biome": "catalog:",
+    "@types/node": "catalog:",
+    "markdownlint-cli2": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "pi": {
     "extensions": [

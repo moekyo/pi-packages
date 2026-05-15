@@ -1,14 +1,14 @@
-import type { CustomMutationToolSpec } from "./custom-mutation-tools.js";
-import type { FormatScopeSetting } from "./format-scope.js";
+import type { CustomMutationToolSpec } from "./custom-mutation-tools";
+import type { FormatScopeSetting } from "./format-scope";
 import type {
   ChainStep,
   FormatterConfig,
   FormatterDefinition,
-} from "./formatter-registry.js";
+} from "./formatter-registry";
 import {
   DEFAULT_SHELL_MUTATION_DETECTION,
   type ShellMutationDetectionConfig,
-} from "./shell-mutation-detector.js";
+} from "./shell-mutation-detector";
 
 export type FormatterOutputOnFailure = "none" | "stderr" | "both";
 

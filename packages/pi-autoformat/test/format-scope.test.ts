@@ -10,7 +10,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { isInFormatScope, resolveFormatScope } from "../src/format-scope.js";
+import { isInFormatScope, resolveFormatScope } from "../src/format-scope";
 
 describe("resolveFormatScope", () => {
   it("uses repo root when detected", () => {

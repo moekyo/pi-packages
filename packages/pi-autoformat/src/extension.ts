@@ -13,28 +13,28 @@ import {
   type ConfigValidationIssue,
   type LoadConfigResult,
   loadAutoformatConfig,
-} from "./config-loader.js";
+} from "./config-loader";
 import {
   createCustomToolHandlers,
   parseTouchedPayload,
-} from "./custom-mutation-tools.js";
-import { resolveFormatScope } from "./format-scope.js";
-import type { AutoformatConfig } from "./formatter-config.js";
-import type { CommandRunner, CommandRunResult } from "./formatter-executor.js";
-import { formatRunOutputBlock } from "./formatter-output-report.js";
+} from "./custom-mutation-tools";
+import { resolveFormatScope } from "./format-scope";
+import type { AutoformatConfig } from "./formatter-config";
+import type { CommandRunner, CommandRunResult } from "./formatter-executor";
+import { formatRunOutputBlock } from "./formatter-output-report";
 import {
   PromptAutoformatter,
   type PromptAutoformatterResult,
-} from "./prompt-autoformatter.js";
+} from "./prompt-autoformatter";
 import {
   matchWrapper,
   parseKnownCommand,
   SnapshotTracker,
-} from "./shell-mutation-detector.js";
+} from "./shell-mutation-detector";
 import {
   type MutationSourceHandler,
   writeOrEditHandler,
-} from "./touched-files-queue.js";
+} from "./touched-files-queue";
 
 const execFileAsync = promisify(execFile);
 const COMMAND_MAX_BUFFER_BYTES = 8 * 1024 * 1024;

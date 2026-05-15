@@ -29,7 +29,7 @@ import { join, resolve } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { piAvailable, runRpcSession } from "./helpers/rpc.js";
+import { piAvailable, runRpcSession } from "./helpers/rpc";
 
 const FIXTURE_EXTENSION = resolve(
   __dirname,

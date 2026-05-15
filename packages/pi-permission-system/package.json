@@ -16,18 +16,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "prepare": "command -v prek >/dev/null 2>&1 && prek install || echo 'prek not found — skipping hook install (see README)'",
-    "build": "tsc -p tsconfig.json",
-    "lint": "biome check .",
-    "lint:fix": "biome check --write .",
-    "lint:md": "markdownlint-cli2 '*.md' 'docs/**/*.md' '.pi/prompts/**/*.md'",
-    "lint:md:fix": "markdownlint-cli2 --fix '*.md' 'docs/**/*.md' '.pi/prompts/**/*.md'",
-    "lint:imports": "! grep -rn --include='*.ts' 'from \"\\.[./][^\"]*\\.js\"' src/ tests/",
-    "lint:all": "pnpm run lint && pnpm run lint:md && pnpm run lint:imports",
-    "format": "biome format --write .",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "pnpm run build && pnpm run lint:all && pnpm run test"
+    "lint:md": "markdownlint-cli2 '*.md' 'docs/**/*.md' '.pi/prompts/**/*.md'"
   },
   "keywords": [
     "pi-package",
@@ -53,7 +45,6 @@
   "bugs": {
     "url": "https://github.com/gotgenes/pi-permission-system/issues"
   },
-  "packageManager": "pnpm@11.0.8",
   "engines": {
     "node": ">=20"
   },
@@ -70,13 +61,13 @@
     "@earendil-works/pi-tui": "*"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "catalog:",
     "@earendil-works/pi-coding-agent": "^0.74.0",
     "@earendil-works/pi-tui": "^0.74.0",
-    "@types/node": "^25.6.2",
-    "markdownlint-cli2": "^0.22.1",
-    "typescript": "6.0.3",
-    "vitest": "^4.1.5"
+    "@types/node": "catalog:",
+    "markdownlint-cli2": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "tree-sitter-bash": "^0.25.1",

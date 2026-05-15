@@ -5,7 +5,7 @@ import {
   groupFilesByChain,
   resolveChain,
   resolveChainSteps,
-} from "../src/formatter-registry.js";
+} from "../src/formatter-registry";
 
 describe("groupFilesByChain", () => {
   const config: FormatterConfig = {

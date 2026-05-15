@@ -36,7 +36,7 @@ export class SessionLifecycleHandler {
     session.logResolvedConfigPaths();
 
     const agentName = session.resolveAgentName(ctx);
-    const policyIssues = session.getConfigIssues(agentName);
+    const policyIssues = session.getConfigIssues(agentName ?? undefined);
     for (const issue of policyIssues) {
       session.logger.warn(issue);
     }

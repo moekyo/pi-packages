@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { FormatScope } from "./format-scope.js";
-import { isInFormatScope } from "./format-scope.js";
+import type { FormatScope } from "./format-scope";
+import { isInFormatScope } from "./format-scope";
 
 type ToolResultPayload = {
   path?: unknown;

@@ -1,9 +1,19 @@
 {
   "packages": [
     "./packages/pi-github-tools",
-    {
-      "source": "npm:@gotgenes/pi-github-tools",
-      "extensions": []
-    }
+    "./packages/pi-autoformat",
+    "./packages/pi-permission-system",
+    "./packages/pi-anthropic-auth",
+    "./packages/pi-subagents",
+
+    { "source": "npm:@gotgenes/pi-github-tools", "extensions": [] },
+    { "source": "npm:@gotgenes/pi-autoformat", "extensions": [] },
+    { "source": "npm:@gotgenes/pi-permission-system", "extensions": [] },
+    { "source": "npm:@gotgenes/pi-anthropic-auth", "extensions": [] },
+    { "source": "npm:@gotgenes/pi-subagents", "extensions": [] },
+
+    "npm:pi-prompt-template-model",
+    "npm:pi-web-access",
+    "npm:@eko24ive/pi-ask"
   ]
 }

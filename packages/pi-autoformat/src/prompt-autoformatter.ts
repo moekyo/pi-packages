@@ -1,29 +1,29 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-import type { DiscoveryCache } from "./builtin-formatters.js";
+import type { DiscoveryCache } from "./builtin-formatters";
 import {
   type CommandProbe,
   createCachedCommandProbe,
   defaultCommandProbe,
-} from "./command-probe.js";
-import type { FormatScope } from "./format-scope.js";
+} from "./command-probe";
+import type { FormatScope } from "./format-scope";
 import {
   type BatchRun,
   type CommandRunner,
   executeChainGroupWithPartition,
-} from "./formatter-executor.js";
-import type { ChainStep } from "./formatter-registry.js";
+} from "./formatter-executor";
+import type { ChainStep } from "./formatter-registry";
 import {
   type FormatterConfig,
   groupFilesByChain,
   resolveChainSteps,
   WILDCARD_CHAIN_KEY,
-} from "./formatter-registry.js";
+} from "./formatter-registry";
 import {
   type MutationSourceHandler,
   TouchedFilesQueue,
-} from "./touched-files-queue.js";
+} from "./touched-files-queue";
 
 export type ChainGroupResult = {
   chain: ChainStep[];
