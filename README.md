@@ -1,7 +1,7 @@
 # pi-packages
 
 A monorepo of [Pi](https://github.com/badlogic/pi-mono) extension packages, published to npm under `@gotgenes/`.
-Built for personal use and shared in case they help others.
+Some packages (like pi-permission-system) are designed for broad use; others scratch a personal itch and are shared in case they help others.
 
 ## Packages
 
