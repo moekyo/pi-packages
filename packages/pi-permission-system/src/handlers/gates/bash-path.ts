@@ -56,6 +56,14 @@ export async function describeBashPathGate(
       sessionRules,
     );
 
+    // No explicit path rule matched — only the universal default fired.
+    // Treat this token as unrestricted to preserve backward compatibility
+    // for configs without a "path" key (#58).
+    if (check.matchedPattern === undefined && check.source !== "session") {
+      allSessionCovered = false;
+      continue;
+    }
+
     if (check.source !== "session") {
       allSessionCovered = false;
     }

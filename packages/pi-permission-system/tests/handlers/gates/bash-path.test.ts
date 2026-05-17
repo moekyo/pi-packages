@@ -119,7 +119,7 @@ describe("describeBashPathGate", () => {
   it("returns GateDescriptor when a token evaluates to ask", async () => {
     const checkPermission = vi
       .fn<CheckPermissionFn>()
-      .mockReturnValue(makeCheckResult({ state: "ask" }));
+      .mockReturnValue(makeCheckResult({ state: "ask", matchedPattern: "*" }));
     const getSessionRuleset = vi.fn<() => Rule[]>().mockReturnValue([]);
     const result = await describeBashPathGate(
       makeTcc({ input: { command: "cat .env" } }),
@@ -135,7 +135,9 @@ describe("describeBashPathGate", () => {
   it("descriptor includes triggering token in prompt message", async () => {
     const checkPermission = vi
       .fn<CheckPermissionFn>()
-      .mockReturnValue(makeCheckResult({ state: "deny" }));
+      .mockReturnValue(
+        makeCheckResult({ state: "deny", matchedPattern: "*.env" }),
+      );
     const getSessionRuleset = vi.fn<() => Rule[]>().mockReturnValue([]);
     const result = (await describeBashPathGate(
       makeTcc({ input: { command: "cat .env" } }),
@@ -149,7 +151,9 @@ describe("describeBashPathGate", () => {
   it("descriptor decision uses surface 'path'", async () => {
     const checkPermission = vi
       .fn<CheckPermissionFn>()
-      .mockReturnValue(makeCheckResult({ state: "deny" }));
+      .mockReturnValue(
+        makeCheckResult({ state: "deny", matchedPattern: "*.env" }),
+      );
     const getSessionRuleset = vi.fn<() => Rule[]>().mockReturnValue([]);
     const result = (await describeBashPathGate(
       makeTcc({ input: { command: "cat .env" } }),
