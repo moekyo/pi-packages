@@ -32,9 +32,39 @@ export function createSubagentsService(deps: AdapterDeps): SubagentsService {
   const { manager } = deps;
 
   return {
-    spawn(_type: string, _prompt: string, _options?) {
-      // TODO: implement in step 4
-      throw new Error("Not implemented");
+    spawn(type: string, prompt: string, options?) {
+      const session = deps.getCtx();
+      if (!session) {
+        throw new Error("No active session — cannot spawn agents outside a session.");
+      }
+
+      let model: unknown;
+      if (options?.model) {
+        const registry = deps.getModelRegistry();
+        if (!registry) {
+          throw new Error("No model registry available.");
+        }
+        const resolved = deps.resolveModel(options.model, registry);
+        if (typeof resolved === "string") {
+          throw new Error(resolved);
+        }
+        model = resolved;
+      }
+
+      const description = options?.description ?? prompt.slice(0, 80);
+      const isBackground = !(options?.foreground ?? false);
+
+      return manager.spawn(session.pi, session.ctx, type, prompt, {
+        description,
+        model,
+        maxTurns: options?.maxTurns,
+        thinkingLevel: options?.thinkingLevel,
+        isolated: options?.isolated,
+        inheritContext: options?.inheritContext,
+        bypassQueue: options?.bypassQueue,
+        isolation: options?.isolation,
+        isBackground,
+      });
     },
 
     getRecord(id: string): SubagentRecord | undefined {

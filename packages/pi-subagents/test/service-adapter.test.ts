@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SubagentsService } from "../src/service.js";
-import { createSubagentsService, toSubagentRecord } from "../src/service-adapter.js";
+import { type AdapterDeps, createSubagentsService, toSubagentRecord } from "../src/service-adapter.js";
 import type { AgentRecord } from "../src/types.js";
 
 describe("toSubagentRecord", () => {
@@ -181,5 +181,115 @@ describe("createSubagentsService — getRecord and listAgents", () => {
     // Verify serialization
     expect(list[0]).not.toHaveProperty("session");
     expect(list[1]).not.toHaveProperty("abortController");
+  });
+});
+
+describe("createSubagentsService — spawn", () => {
+  function createDeps(overrides: Partial<AdapterDeps> = {}): AdapterDeps {
+    return {
+      manager: {
+        spawn: vi.fn(() => "spawned-id"),
+        getRecord: vi.fn(),
+        listAgents: vi.fn(() => []),
+        abort: vi.fn(() => true),
+        waitForAll: vi.fn(async () => {}),
+        hasRunning: vi.fn(() => false),
+      },
+      resolveModel: vi.fn(() => ({ id: "claude-sonnet", provider: "anthropic" })),
+      getCtx: () => ({ pi: { fake: true }, ctx: { cwd: "/tmp" } }),
+      getModelRegistry: () => ({ find: () => null, getAll: () => [] }),
+      ...overrides,
+    };
+  }
+
+  it("throws when getCtx returns undefined (no active session)", () => {
+    const deps = createDeps({ getCtx: () => undefined });
+    const svc = createSubagentsService(deps);
+    expect(() => svc.spawn("Explore", "do something")).toThrow(
+      /no active session/i,
+    );
+  });
+
+  it("resolves string model names via resolveModel", () => {
+    const deps = createDeps();
+    const svc = createSubagentsService(deps);
+    svc.spawn("Explore", "check TODOs", { model: "haiku" });
+    expect(deps.resolveModel).toHaveBeenCalledWith("haiku", expect.anything());
+  });
+
+  it("throws on model resolution failure", () => {
+    const deps = createDeps({
+      resolveModel: () => 'Model not found: "bad-model".\n\nAvailable models:\n  anthropic/claude-sonnet',
+    });
+    const svc = createSubagentsService(deps);
+    expect(() => svc.spawn("Explore", "task", { model: "bad-model" })).toThrow(
+      /Model not found/,
+    );
+  });
+
+  it("delegates to manager.spawn with resolved model", () => {
+    const resolvedModel = { id: "claude-sonnet", provider: "anthropic" };
+    const deps = createDeps({ resolveModel: () => resolvedModel });
+    const svc = createSubagentsService(deps);
+    const id = svc.spawn("Explore", "check TODOs", { model: "sonnet", maxTurns: 5 });
+    expect(id).toBe("spawned-id");
+    expect(deps.manager.spawn).toHaveBeenCalledWith(
+      expect.anything(), // pi
+      expect.anything(), // ctx
+      "Explore",
+      "check TODOs",
+      expect.objectContaining({
+        model: resolvedModel,
+        maxTurns: 5,
+        isBackground: true,
+      }),
+    );
+  });
+
+  it("spawns as foreground when options.foreground is true", () => {
+    const deps = createDeps();
+    const svc = createSubagentsService(deps);
+    svc.spawn("Plan", "plan work", { foreground: true });
+    expect(deps.manager.spawn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "Plan",
+      "plan work",
+      expect.objectContaining({ isBackground: false }),
+    );
+  });
+
+  it("uses truncated prompt as default description", () => {
+    const deps = createDeps();
+    const svc = createSubagentsService(deps);
+    const longPrompt = "x".repeat(200);
+    svc.spawn("Explore", longPrompt);
+    expect(deps.manager.spawn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "Explore",
+      longPrompt,
+      expect.objectContaining({ description: "x".repeat(80) }),
+    );
+  });
+
+  it("uses provided description over default", () => {
+    const deps = createDeps();
+    const svc = createSubagentsService(deps);
+    svc.spawn("Explore", "long prompt here", { description: "short desc" });
+    expect(deps.manager.spawn).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "Explore",
+      "long prompt here",
+      expect.objectContaining({ description: "short desc" }),
+    );
+  });
+
+  it("does not call resolveModel when no model option is provided", () => {
+    const deps = createDeps();
+    const svc = createSubagentsService(deps);
+    svc.spawn("Explore", "quick check");
+    expect(deps.resolveModel).not.toHaveBeenCalled();
   });
 });
