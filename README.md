@@ -60,7 +60,7 @@ pnpm install
 ```bash
 pnpm run check    # typecheck all packages
 pnpm run test     # test all packages
-pnpm run lint     # biome + markdownlint
+pnpm run lint     # biome + rumdl
 pnpm run lint:fix # auto-fix lint issues
 ```
 
