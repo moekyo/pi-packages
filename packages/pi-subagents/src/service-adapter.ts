@@ -5,8 +5,68 @@
  * (stripping non-serializable fields), and session gating.
  */
 
-import type { SubagentRecord } from "./service.js";
+import type { ModelRegistry } from "./model-resolver.js";
+import type { SubagentRecord, SubagentsService } from "./service.js";
 import type { AgentRecord } from "./types.js";
+
+/** Narrow interface for the AgentManager — avoids coupling to the concrete class. */
+export interface AgentManagerLike {
+  spawn(pi: unknown, ctx: unknown, type: string, prompt: string, options: unknown): string;
+  getRecord(id: string): AgentRecord | undefined;
+  listAgents(): AgentRecord[];
+  abort(id: string): boolean;
+  waitForAll(): Promise<void>;
+  hasRunning(): boolean;
+}
+
+/** Dependencies injected into the adapter factory. */
+export interface AdapterDeps {
+  manager: AgentManagerLike;
+  resolveModel: (input: string, registry: ModelRegistry) => unknown | string;
+  getCtx: () => { pi: unknown; ctx: unknown } | undefined;
+  getModelRegistry: () => ModelRegistry | undefined;
+}
+
+/** Create a SubagentsService backed by the given dependencies. */
+export function createSubagentsService(deps: AdapterDeps): SubagentsService {
+  const { manager } = deps;
+
+  return {
+    spawn(_type: string, _prompt: string, _options?) {
+      // TODO: implement in step 4
+      throw new Error("Not implemented");
+    },
+
+    getRecord(id: string): SubagentRecord | undefined {
+      const record = manager.getRecord(id);
+      return record ? toSubagentRecord(record) : undefined;
+    },
+
+    listAgents(): SubagentRecord[] {
+      return manager.listAgents().map(toSubagentRecord);
+    },
+
+    abort(_id: string): boolean {
+      // TODO: implement in step 5
+      throw new Error("Not implemented");
+    },
+
+    async steer(_id: string, _message: string): Promise<boolean> {
+      // TODO: implement in step 5
+      throw new Error("Not implemented");
+    },
+
+    async waitForAll(): Promise<void> {
+      // TODO: implement in step 5
+      throw new Error("Not implemented");
+    },
+
+    hasRunning(): boolean {
+      // TODO: implement in step 5
+      throw new Error("Not implemented");
+    },
+  };
+}
 
 /**
  * Convert an internal AgentRecord to a serializable SubagentRecord.
