@@ -57,15 +57,13 @@ When working in this package:
 index.ts ──wires──> agent-manager.ts ──calls──> agent-runner.ts
     │                    │                       ├── prompts.ts
     │                    ├── worktree.ts          ├── context.ts
-    │                    ├── usage.ts             ├── memory.ts
-    │                    └── schedule.ts          ├── skill-loader.ts
-    ├── tools (Agent,             │                  └── env.ts
-    │   get_subagent_result,      └── schedule-store.ts
+    │                    └── usage.ts             ├── memory.ts
+    ├── tools (Agent,                              ├── skill-loader.ts
+    │   get_subagent_result,                      └── env.ts
     │   steer_subagent)
     ├── ui/
     │   ├── agent-widget.ts
-    │   ├── conversation-viewer.ts
-    │   └── schedule-menu.ts
+    │   └── conversation-viewer.ts
     ├── agent-types.ts ──uses──> default-agents.ts, custom-agents.ts
     ├── settings.ts
     ├── cross-extension-rpc.ts
@@ -82,7 +80,7 @@ index.ts ──wires──> agent-manager.ts ──calls──> agent-runner.ts
 
 | Module             | Responsibility                                                                                                                                                                                                         |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.ts`         | Extension entry point. Registers tools, the `/agents` command, lifecycle hooks, the agent widget, the scheduler, notification rendering, batch grouping, RPC handlers, and settings persistence.                       |
+| `index.ts`         | Extension entry point. Registers tools, the `/agents` command, lifecycle hooks, the agent widget, notification rendering, batch grouping, RPC handlers, and settings persistence.                                      |
 | `agent-manager.ts` | Manages agent lifecycle: spawn, resume, abort. Enforces a configurable concurrency limit (default 4) by queuing excess background agents.                                                                              |
 | `agent-runner.ts`  | Core execution engine. Creates agent sessions, assembles system prompts, binds extensions, applies active-tool filtering (Patch 2), injects `<active_agent>` tag (Patch 3), runs the agent loop, and collects results. |
 | `types.ts`         | Shared type definitions: `AgentConfig`, `AgentRecord`, `SubagentType`, `JoinMode`, `MemoryScope`, `IsolationMode`, etc.                                                                                                |
@@ -115,17 +113,9 @@ index.ts ──wires──> agent-manager.ts ──calls──> agent-runner.ts
 | `invocation-config.ts` | Merges per-call tool parameters with agent config defaults for the final invocation config. |
 | `output-file.ts`       | Streaming JSONL output file for agent transcripts.                                          |
 
-#### Scheduling
-
-| Module              | Responsibility                                                                                  |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| `schedule.ts`       | Timer-driven dispatcher for scheduled subagents. Supports cron, interval, and one-shot formats. |
-| `schedule-store.ts` | File-backed persistence for scheduled jobs. Session-scoped, PID-locked, atomic writes.          |
-
 #### UI
 
 | Module                      | Responsibility                                                                            |
 | --------------------------- | ----------------------------------------------------------------------------------------- |
 | `ui/agent-widget.ts`        | Persistent widget showing running/completed agents with animated spinners and live stats. |
 | `ui/conversation-viewer.ts` | Live conversation overlay for viewing an agent's full session.                            |
-| `ui/schedule-menu.ts`       | `/agents → Scheduled jobs` submenu for listing and cancelling scheduled jobs.             |

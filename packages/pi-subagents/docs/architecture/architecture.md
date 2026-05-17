@@ -48,14 +48,11 @@ invocation-config.ts  — merge tool params with agent config
 output-file.ts        — JSONL transcript streaming
 settings.ts           — persistent operational settings
 
-schedule.ts           — cron/interval/one-shot job dispatch  ← removing
-schedule-store.ts     — file-backed schedule persistence     ← removing
 cross-extension-rpc.ts — RPC over pi.events                  ← replacing
 group-join.ts         — batch completion notifications
 
 ui/agent-widget.ts       — above-editor live status widget
 ui/conversation-viewer.ts — scrollable session overlay
-ui/schedule-menu.ts      — /agents schedule submenu          ← removing
 ```
 
 ### Coupling today
@@ -63,8 +60,7 @@ ui/schedule-menu.ts      — /agents schedule submenu          ← removing
 The widget reads agent state by holding a direct reference to
 `AgentManager` and polling a shared mutable `Map<string, AgentActivity>`
 every 80 ms. The conversation viewer subscribes directly to `AgentSession`
-objects. The scheduler holds a direct `AgentManager` reference and calls
-`manager.spawn()`.
+objects.
 
 Cross-extension consumers use an ad-hoc RPC layer over `pi.events`
 (`subagents:rpc:spawn`, `subagents:rpc:stop`, `subagents:rpc:ping`) with
@@ -342,10 +338,10 @@ Add the `SubagentsAPI` interface, serializable types, and `Symbol.for()`
 accessor functions as public exports of this package. No behavioral
 changes to the core yet.
 
-### Phase 2: Remove scheduling
+### Phase 2: Remove scheduling ✓ (done — issue #52)
 
-Delete `schedule.ts`, `schedule-store.ts`, `ui/schedule-menu.ts`. Remove
-the `schedule` parameter from the `Agent` tool schema. Remove scheduler
+Deleted `schedule.ts`, `schedule-store.ts`, `ui/schedule-menu.ts`. Removed
+the `schedule` parameter from the `Agent` tool schema. Removed scheduler
 setup and lifecycle hooks from `index.ts`.
 
 ### Phase 3: Remove group-join, output-file, ad-hoc RPC
