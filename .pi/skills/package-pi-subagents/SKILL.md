@@ -9,22 +9,25 @@ description: |
 
 Pi extension that adds Claude Code-style autonomous subagent dispatch to the Pi coding agent.
 
-This package is a friendly fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
-It carries a small number of patches needed for downstream consumers (notably [RepOne](https://github.com/Tiny-IG-Software/repone)) that intend to use it as a normal Pi extension dependency:
+This package is a **hard fork** of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
+The fork diverges intentionally from upstream with material scope reduction and a typed API boundary.
+See `docs/architecture/architecture.md` for the full decomposition plan and `docs/decisions/0001-deferred-patches.md` (superseded) for the original thin-patch rationale.
+
+The fork carries three original patches from the thin-patch era, still present in the codebase:
 
 1. **Peer-dep rename** — peer dependencies point at `@earendil-works/pi-*` (the active scope) rather than the deprecated `@mariozechner/pi-*` scope.
-2. **Patch 2 (post-bind active-tool re-filter)** — `runAgent` re-runs the active-tool filter after `session.bindExtensions(...)` so extension-registered tools land in the child's active tool set. Without this, the `extensions: string[]` allowlist branch is functionally dead for extension tools.
+2. **Patch 2 (post-bind active-tool re-filter)** — `runAgent` re-runs the active-tool filter after `session.bindExtensions(...)` so extension-registered tools land in the child's active tool set.
 3. **Patch 3 (active_agent tag)** — `runAgent` prepends `<active_agent name="${agentConfig.name}"/>` to every assembled child system prompt so `@gotgenes/pi-permission-system` can resolve per-agent `permission:` frontmatter inside the child.
 
-See `docs/decisions/0001-deferred-patches.md` for a fourth patch (mirror parent resource paths) that was scoped out, and the rationale for not opening upstream PRs yet.
+Upstream PRs for these patches ([#71](https://github.com/tintinweb/pi-subagents/pull/71), [#72](https://github.com/tintinweb/pi-subagents/pull/72), [#73](https://github.com/tintinweb/pi-subagents/pull/73)) are open but the fork continues independently regardless.
 
 ## Implementation Priorities
 
-- Keep scope tight — this fork stays as close to upstream as possible.
-- Maintain compatibility with upstream's public API.
-- Keep the patch set minimal and clearly identified in the code (search for `Patch 2 (RepOne` / `Patch 3 (RepOne` comments).
-- Track the upstream `tintinweb/pi-subagents` repository for fixes and incorporate them as merges or cherry-picks.
-- When in doubt about whether a change should land here or be proposed upstream, prefer upstream.
+- Follow the phased plan in `docs/architecture/architecture.md`.
+- Narrow core — the extension owns agent spawning, execution, and result retrieval; everything else is a consumer.
+- Typed API boundary — export `SubagentsAPI` via `Symbol.for()` accessors so other extensions can spawn agents without importing this package directly.
+- Remove scheduling, ad-hoc RPC, group-join, and output-file subsystems (see architecture doc for phase plan).
+- Cherry-pick upstream fixes when they align with this fork's scope; do not track upstream as a merge target.
 
 ## Code Style
 
@@ -41,10 +44,10 @@ Use `vi.hoisted(...)` for module-level mocks, matching the existing patterns in 
 
 When working in this package:
 
-1. The two RepOne-specific patches are clearly marked in source — search for `// Patch 2 (RepOne` or `// Patch 3 (RepOne` to find them.
-2. Do not introduce a third or fourth patch without first documenting the rationale in `docs/decisions/`.
-3. Upstream PRs to `tintinweb/pi-subagents` for Patches 2 and 3 are deferred pending production validation in RepOne — see `docs/decisions/0001-deferred-patches.md`.
-4. When syncing with upstream (rare), reapply the peer-dep rename and the two patches; the upstream `vitest` suite is the canary that nothing regressed.
+1. The two RepOne-specific patches are marked in source — search for `// Patch 2 (RepOne` or `// Patch 3 (RepOne` to find them.
+2. New features and removals follow the phase plan in `docs/architecture/architecture.md`. Document architectural decisions in `docs/decisions/`.
+3. The upstream test suite is run periodically as a regression canary for the `agent-runner` core.
+4. Modules marked `← removing` or `← replacing` in the architecture doc's current-state listing are slated for deletion — do not add features to them.
 
 ## Architecture
 
