@@ -21,6 +21,7 @@ import { BUILTIN_TOOL_NAMES, getAgentConfig, getAllTypes, getAvailableTypes, get
 import { loadCustomAgents } from "./custom-agents.js";
 import { resolveAgentInvocationConfig } from "./invocation-config.js";
 import { type ModelRegistry, resolveInvocationModel, resolveModel } from "./model-resolver.js";
+import { buildEventData, createNotificationSystem } from "./notification.js";
 import { createOutputFilePath, streamToOutputFile, writeInitialEntry } from "./output-file.js";
 import { createNotificationRenderer } from "./renderer.js";
 import { publishSubagentsService, unpublishSubagentsService } from "./service.js";
@@ -43,7 +44,7 @@ import {
   SPINNER,
   type UICtx,
 } from "./ui/agent-widget.js";
-import { addUsage, getLifetimeTotal, getSessionContextPercent, type LifetimeUsage } from "./usage.js";
+import { addUsage, getSessionContextPercent, type LifetimeUsage } from "./usage.js";
 
 // ---- Shared helpers (re-exported from tools/helpers) ----
 
@@ -94,16 +95,7 @@ function createActivityTracker(maxTurns?: number, onStreamUpdate?: () => void) {
   return { state, callbacks };
 }
 
-/** Human-readable status label for agent completion. */
-function getStatusLabel(status: string, error?: string): string {
-  switch (status) {
-    case "error": return `Error: ${error ?? "unknown"}`;
-    case "aborted": return "Aborted (max turns exceeded)";
-    case "steered": return "Wrapped up (turn limit)";
-    case "stopped": return "Stopped";
-    default: return "Done";
-  }
-}
+
 
 /** Parenthetical status note for completed agent result text. */
 function getStatusNote(status: string): string {
@@ -115,38 +107,7 @@ function getStatusNote(status: string): string {
   }
 }
 
-/** Escape XML special characters to prevent injection in structured notifications. */
-function escapeXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
-/** Format a structured task notification matching Claude Code's <task-notification> XML. */
-function formatTaskNotification(record: AgentRecord, resultMaxLen: number): string {
-  const status = getStatusLabel(record.status, record.error);
-  const durationMs = record.completedAt ? record.completedAt - record.startedAt : 0;
-  const totalTokens = getLifetimeTotal(record.lifetimeUsage);
-  const contextPercent = getSessionContextPercent(record.session);
-  const ctxXml = contextPercent !== null ? `<context_percent>${Math.round(contextPercent)}</context_percent>` : "";
-  const compactXml = record.compactionCount ? `<compactions>${record.compactionCount}</compactions>` : "";
-
-  const resultPreview = record.result
-    ? record.result.length > resultMaxLen
-      ? record.result.slice(0, resultMaxLen) + "\n...(truncated, use get_subagent_result for full output)"
-      : record.result
-    : "No output.";
-
-  return [
-    `<task-notification>`,
-    `<task-id>${record.id}</task-id>`,
-    record.toolCallId ? `<tool-use-id>${escapeXml(record.toolCallId)}</tool-use-id>` : null,
-    record.outputFile ? `<output-file>${escapeXml(record.outputFile)}</output-file>` : null,
-    `<status>${escapeXml(status)}</status>`,
-    `<summary>Agent "${escapeXml(record.description)}" ${record.status}</summary>`,
-    `<result>${escapeXml(resultPreview)}</result>`,
-    `<usage><total_tokens>${totalTokens}</total_tokens><tool_uses>${record.toolUses}</tool_uses>${ctxXml}${compactXml}<duration_ms>${durationMs}</duration_ms></usage>`,
-    `</task-notification>`,
-  ].filter(Boolean).join('\n');
-}
 
 /** Build AgentDetails from a base + record-specific fields. */
 function buildDetails(
@@ -169,28 +130,7 @@ function buildDetails(
   };
 }
 
-/** Build notification details for the custom message renderer. */
-function buildNotificationDetails(record: AgentRecord, resultMaxLen: number, activity?: AgentActivity): NotificationDetails {
-  const totalTokens = getLifetimeTotal(record.lifetimeUsage);
 
-  return {
-    id: record.id,
-    description: record.description,
-    status: record.status,
-    toolUses: record.toolUses,
-    turnCount: activity?.turnCount ?? 0,
-    maxTurns: activity?.maxTurns,
-    totalTokens,
-    durationMs: record.completedAt ? record.completedAt - record.startedAt : 0,
-    outputFile: record.outputFile,
-    error: record.error,
-    resultPreview: record.result
-      ? record.result.length > resultMaxLen
-        ? record.result.slice(0, resultMaxLen) + "…"
-        : record.result
-      : "No output.",
-  };
-}
 
 export default function (pi: ExtensionAPI) {
   // ---- Register custom notification renderer ----
@@ -205,79 +145,20 @@ export default function (pi: ExtensionAPI) {
   // Initial load
   reloadCustomAgents();
 
-  // ---- Agent activity tracking + widget ----
+  // ---- Agent activity tracking ----
   const agentActivity = new Map<string, AgentActivity>();
 
-  // ---- Cancellable pending notifications ----
-  // Holds notifications briefly so get_subagent_result can cancel them
-  // before they reach pi.sendMessage (fire-and-forget).
-  const pendingNudges = new Map<string, ReturnType<typeof setTimeout>>();
-  const NUDGE_HOLD_MS = 200;
+  // ---- Notification system ----
+  // Widget assigned after AgentManager construction; arrow closures capture by reference.
+  let widget: AgentWidget;
+  const notifications = createNotificationSystem({
+    sendMessage: (msg, opts) => pi.sendMessage(msg as any, opts as any),
+    agentActivity,
+    markFinished: (id) => widget.markFinished(id),
+    updateWidget: () => widget.update(),
+  });
 
-  function scheduleNudge(key: string, send: () => void, delay = NUDGE_HOLD_MS) {
-    cancelNudge(key);
-    pendingNudges.set(key, setTimeout(() => {
-      pendingNudges.delete(key);
-      try { send(); } catch { /* ignore stale completion side-effect errors */ }
-    }, delay));
-  }
-
-  function cancelNudge(key: string) {
-    const timer = pendingNudges.get(key);
-    if (timer != null) {
-      clearTimeout(timer);
-      pendingNudges.delete(key);
-    }
-  }
-
-  // ---- Individual nudge helper (async join mode) ----
-  function emitIndividualNudge(record: AgentRecord) {
-    if (record.resultConsumed) return;  // re-check at send time
-
-    const notification = formatTaskNotification(record, 500);
-    const footer = record.outputFile ? `\nFull transcript available at: ${record.outputFile}` : '';
-
-    pi.sendMessage<NotificationDetails>({
-      customType: "subagent-notification",
-      content: notification + footer,
-      display: true,
-      details: buildNotificationDetails(record, 500, agentActivity.get(record.id)),
-    }, { deliverAs: "followUp", triggerTurn: true });
-  }
-
-  function sendIndividualNudge(record: AgentRecord) {
-    agentActivity.delete(record.id);
-    widget.markFinished(record.id);
-    scheduleNudge(record.id, () => emitIndividualNudge(record));
-    widget.update();
-  }
-
-  /** Helper: build event data for lifecycle events from an AgentRecord. */
-  function buildEventData(record: AgentRecord) {
-    const durationMs = record.completedAt ? record.completedAt - record.startedAt : Date.now() - record.startedAt;
-    // All three fields are lifetime-accumulated (Σ over every assistant message_end),
-    // so they survive compaction together — input + output ≤ total always.
-    // tokens is omitted when nothing was ever produced (e.g. agent errored before
-    // any message_end fired), preserving prior payload shape.
-    const u = record.lifetimeUsage;
-    const total = getLifetimeTotal(u);
-    const tokens = total > 0
-      ? { input: u.input, output: u.output, total }
-      : undefined;
-    return {
-      id: record.id,
-      type: record.type,
-      description: record.description,
-      result: record.result,
-      error: record.error,
-      status: record.status,
-      toolUses: record.toolUses,
-      durationMs,
-      tokens,
-    };
-  }
-
-  // Background completion: emit lifecycle event and send individual nudge
+  // Background completion: emit lifecycle event and delegate to notification system
   const manager = new AgentManager((record) => {
     // Emit lifecycle event based on terminal status
     const isError = record.status === "error" || record.status === "stopped" || record.status === "aborted";
@@ -297,14 +178,11 @@ export default function (pi: ExtensionAPI) {
 
     // Skip notification if result was already consumed via get_subagent_result
     if (record.resultConsumed) {
-      agentActivity.delete(record.id);
-      widget.markFinished(record.id);
-      widget.update();
+      notifications.cleanupCompleted(record.id);
       return;
     }
 
-    sendIndividualNudge(record);
-    widget.update();
+    notifications.sendCompletion(record);
   }, undefined, (record) => {
     // Emit started event when agent transitions to running (including from queue)
     pi.events.emit("subagents:started", {
@@ -350,13 +228,12 @@ export default function (pi: ExtensionAPI) {
     unpublishSubagentsService();
     currentCtx = undefined;
     manager.abortAll();
-    for (const timer of pendingNudges.values()) clearTimeout(timer);
-    pendingNudges.clear();
+    notifications.dispose();
     manager.dispose();
   });
 
   // Live widget: show running agents above editor
-  const widget = new AgentWidget(manager, agentActivity);
+  widget = new AgentWidget(manager, agentActivity);
 
   // Grab UI context from first tool execution + clear lingering widget on new turn
   pi.on("tool_execution_start", async (_event, ctx) => {
@@ -862,7 +739,7 @@ Guidelines:
       // Setting the flag here prevents a redundant follow-up notification.
       if (params.wait && record.status === "running" && record.promise) {
         record.resultConsumed = true;
-        cancelNudge(params.agent_id);
+        notifications.cancelNudge(params.agent_id);
         await record.promise;
       }
 
@@ -892,7 +769,7 @@ Guidelines:
       // Mark result as consumed — suppresses the completion notification
       if (record.status !== "running" && record.status !== "queued") {
         record.resultConsumed = true;
-        cancelNudge(params.agent_id);
+        notifications.cancelNudge(params.agent_id);
       }
 
       // Verbose: include full conversation
