@@ -1,0 +1,89 @@
+import { describe, expect, it, vi } from "vitest";
+import { createSteerTool } from "../../src/tools/steer-tool.js";
+import type { AgentRecord } from "../../src/types.js";
+
+function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
+  return {
+    id: "agent-1",
+    type: "general-purpose",
+    description: "Test task",
+    status: "running",
+    toolUses: 3,
+    startedAt: 1000,
+    lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
+    session: { fake: true },
+    ...overrides,
+  } as AgentRecord;
+}
+
+function makeDeps(records: Map<string, AgentRecord> = new Map()) {
+  return {
+    getRecord: (id: string) => records.get(id),
+    emitEvent: vi.fn(),
+    steerAgent: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+async function execute(
+  deps: ReturnType<typeof makeDeps>,
+  params: { agent_id: string; message: string },
+) {
+  const tool = createSteerTool(deps);
+  return tool.execute("tc-1", params, new AbortController().signal, undefined, {} as any);
+}
+
+describe("createSteerTool", () => {
+  it("returns tool definition with correct name", () => {
+    const tool = createSteerTool(makeDeps());
+    expect(tool.name).toBe("steer_subagent");
+  });
+
+  it("returns not-found message for unknown agent ID", async () => {
+    const result = await execute(makeDeps(), { agent_id: "unknown", message: "hi" });
+    expect(result.content[0].text).toContain("Agent not found");
+  });
+
+  it("rejects steering a non-running agent", async () => {
+    const records = new Map([["agent-1", makeRecord({ status: "completed" })]]);
+    const result = await execute(makeDeps(records), { agent_id: "agent-1", message: "hi" });
+    expect(result.content[0].text).toContain("not running");
+    expect(result.content[0].text).toContain("completed");
+  });
+
+  it("queues steer when session is not ready", async () => {
+    const record = makeRecord({ session: undefined });
+    const records = new Map([["agent-1", record]]);
+    const deps = makeDeps(records);
+    const result = await execute(deps, { agent_id: "agent-1", message: "redirect" });
+    expect(result.content[0].text).toContain("queued");
+    expect(record.pendingSteers).toEqual(["redirect"]);
+    expect(deps.emitEvent).toHaveBeenCalledWith("subagents:steered", {
+      id: "agent-1",
+      message: "redirect",
+    });
+  });
+
+  it("sends steer and emits event on success", async () => {
+    const record = makeRecord();
+    const records = new Map([["agent-1", record]]);
+    const deps = makeDeps(records);
+    const result = await execute(deps, { agent_id: "agent-1", message: "change plan" });
+    expect(deps.steerAgent).toHaveBeenCalledWith(record.session, "change plan");
+    expect(deps.emitEvent).toHaveBeenCalledWith("subagents:steered", {
+      id: "agent-1",
+      message: "change plan",
+    });
+    expect(result.content[0].text).toContain("Steering message sent");
+    expect(result.content[0].text).toContain("3 tool uses");
+  });
+
+  it("returns error message when steerAgent throws", async () => {
+    const record = makeRecord();
+    const records = new Map([["agent-1", record]]);
+    const deps = makeDeps(records);
+    deps.steerAgent.mockRejectedValue(new Error("session closed"));
+    const result = await execute(deps, { agent_id: "agent-1", message: "hi" });
+    expect(result.content[0].text).toContain("Failed to steer agent");
+    expect(result.content[0].text).toContain("session closed");
+  });
+});
