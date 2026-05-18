@@ -15,7 +15,7 @@ Before pushing, make sure local `HEAD` is current with the remote:
 ## 2. Push
 
 - Determine the current branch (`git branch --show-current`).
-- `git push origin HEAD` (or `<branch>:<branch>`).
+- `git push`.
 - If the push is rejected as non-fast-forward, stop and report — do not force-push.
 
 ## 3. Verify CI on the pushed commit
