@@ -208,6 +208,20 @@ describe("resolveModel", () => {
 describe("resolveInvocationModel", () => {
   const parentModel = { id: "claude-opus-4-6", provider: "anthropic" };
 
+  describe("config-specified model silent fallback (modelFromParams false)", () => {
+    it("returns parent model when config-specified model fails to resolve", () => {
+      const result = resolveInvocationModel(parentModel, "nonexistent-model", false, makeRegistry());
+      expect(result).toEqual({ model: parentModel });
+      expect(result.error).toBeUndefined();
+    });
+
+    it("falls back to null parent when config-specified model fails", () => {
+      const result = resolveInvocationModel(null, "nonexistent-model", false, makeRegistry());
+      expect(result).toEqual({ model: null });
+      expect(result.error).toBeUndefined();
+    });
+  });
+
   describe("user-specified model failure (modelFromParams true)", () => {
     it("returns error when params-specified model fails to resolve", () => {
       const result = resolveInvocationModel(parentModel, "nonexistent-model", true, makeRegistry());
