@@ -54,6 +54,7 @@ describe("formatTaskNotification", () => {
     toolUses: 3,
     startedAt: 1000,
     completedAt: 2000,
+    compactionCount: 0,
     lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
   };
 
@@ -101,6 +102,7 @@ describe("buildNotificationDetails", () => {
     toolUses: 2,
     startedAt: 1000,
     completedAt: 3000,
+    compactionCount: 0,
     lifetimeUsage: { input: 100, output: 200, cacheWrite: 0 },
   };
 
@@ -140,6 +142,7 @@ describe("buildEventData", () => {
     toolUses: 5,
     startedAt: 1000,
     completedAt: 2000,
+    compactionCount: 0,
     lifetimeUsage: { input: 1000, output: 500, cacheWrite: 0 },
   };
 
@@ -203,6 +206,7 @@ describe("createNotificationSystem", () => {
     toolUses: 2,
     startedAt: 1000,
     completedAt: 2000,
+    compactionCount: 0,
     lifetimeUsage: { input: 100, output: 200, cacheWrite: 0 },
   };
 

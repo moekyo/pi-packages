@@ -10,6 +10,7 @@ function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
     status: "running",
     toolUses: 3,
     startedAt: 1000,
+    compactionCount: 0,
     lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
     session: { fake: true },
     ...overrides,

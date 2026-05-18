@@ -39,9 +39,9 @@ describe("createNotificationRenderer", () => {
       stubTheme() as any,
     );
     expect(result).toBeDefined();
-    expect(result!.text).toContain("[success:✓]");
-    expect(result!.text).toContain("**Test agent**");
-    expect(result!.text).toContain("completed");
+    expect((result as any).text).toContain("[success:✓]");
+    expect((result as any).text).toContain("**Test agent**");
+    expect((result as any).text).toContain("completed");
   });
 
   it("renders error status with error icon", () => {
@@ -52,8 +52,8 @@ describe("createNotificationRenderer", () => {
       stubTheme() as any,
     );
     expect(result).toBeDefined();
-    expect(result!.text).toContain("[error:✗]");
-    expect(result!.text).toContain("error");
+    expect((result as any).text).toContain("[error:✗]");
+    expect((result as any).text).toContain("error");
   });
 
   it("renders steered status as completed (steered)", () => {
@@ -63,7 +63,7 @@ describe("createNotificationRenderer", () => {
       { expanded: false },
       stubTheme() as any,
     );
-    expect(result!.text).toContain("completed (steered)");
+    expect((result as any).text).toContain("completed (steered)");
   });
 
   it("shows full result lines when expanded", () => {
@@ -73,9 +73,9 @@ describe("createNotificationRenderer", () => {
       { expanded: true },
       stubTheme() as any,
     );
-    expect(result!.text).toContain("line1");
-    expect(result!.text).toContain("line2");
-    expect(result!.text).toContain("line3");
+    expect((result as any).text).toContain("line1");
+    expect((result as any).text).toContain("line2");
+    expect((result as any).text).toContain("line3");
   });
 
   it("shows collapsed preview when not expanded", () => {
@@ -85,8 +85,8 @@ describe("createNotificationRenderer", () => {
       { expanded: false },
       stubTheme() as any,
     );
-    expect(result!.text).toContain("⎿");
-    expect(result!.text).toContain("short result");
+    expect((result as any).text).toContain("⎿");
+    expect((result as any).text).toContain("short result");
   });
 
   it("shows output file link when present", () => {
@@ -96,7 +96,7 @@ describe("createNotificationRenderer", () => {
       { expanded: false },
       stubTheme() as any,
     );
-    expect(result!.text).toContain("/tmp/transcript.jsonl");
+    expect((result as any).text).toContain("/tmp/transcript.jsonl");
   });
 
   it("includes stats line with tool uses and tokens", () => {
@@ -106,7 +106,7 @@ describe("createNotificationRenderer", () => {
       { expanded: false },
       stubTheme() as any,
     );
-    expect(result!.text).toContain("7 tool uses");
-    expect(result!.text).toContain("5.0k token");
+    expect((result as any).text).toContain("7 tool uses");
+    expect((result as any).text).toContain("5.0k token");
   });
 });

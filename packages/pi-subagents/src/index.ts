@@ -24,19 +24,15 @@ import { createSubagentsService } from "./service-adapter.js";
 import { applyAndEmitLoaded, saveAndEmitChanged } from "./settings.js";
 import { createAgentTool } from "./tools/agent-tool.js";
 import { createGetResultTool } from "./tools/get-result-tool.js";
-import { getModelLabelFromConfig, } from "./tools/helpers.js";
+import { getModelLabelFromConfig } from "./tools/helpers.js";
 import { createSteerTool } from "./tools/steer-tool.js";
-import { type NotificationDetails, } from "./types.js";
+import { type NotificationDetails } from "./types.js";
 import { createAgentsMenuHandler } from "./ui/agent-menu.js";
 import {
   type AgentActivity,
   AgentWidget,
   type UICtx,
 } from "./ui/agent-widget.js";
-
-
-
-
 
 export default function (pi: ExtensionAPI) {
   // ---- Register custom notification renderer ----
@@ -172,8 +168,6 @@ export default function (pi: ExtensionAPI) {
     ].join("\n");
   };
 
-
-
   const typeListText = buildTypeListText();
 
   // Apply persisted settings on startup and emit `subagents:settings_loaded`.
@@ -192,8 +186,8 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerTool(defineTool(createAgentTool({
     manager: {
-      spawn: (ctx, type, prompt, opts) => manager.spawn(pi, ctx, type, prompt, opts),
-      spawnAndWait: (ctx, type, prompt, opts) => manager.spawnAndWait(pi, ctx, type, prompt, opts),
+      spawn: (ctx, type, prompt, opts) => manager.spawn(pi, ctx as any, type, prompt, opts as any),
+      spawnAndWait: (ctx, type, prompt, opts) => manager.spawnAndWait(pi, ctx as any, type, prompt, opts as any),
       resume: (id, prompt, signal) => manager.resume(id, prompt, signal),
       getRecord: (id) => manager.getRecord(id),
       getMaxConcurrent: () => manager.getMaxConcurrent(),
@@ -211,14 +205,14 @@ export default function (pi: ExtensionAPI) {
     typeListText,
     availableTypesText: getAvailableTypes().join(", "),
     agentDir: getAgentDir(),
-  })));
+  }) as any));
 
   // ---- get_subagent_result tool ----
 
   pi.registerTool(defineTool(createGetResultTool({
     getRecord: (id) => manager.getRecord(id),
     cancelNudge: (key) => notifications.cancelNudge(key),
-    getConversation: (session) => getAgentConversation(session),
+    getConversation: (session) => getAgentConversation(session as any),
   })));
 
   // ---- steer_subagent tool ----
@@ -226,7 +220,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(defineTool(createSteerTool({
     getRecord: (id) => manager.getRecord(id),
     emitEvent: (name, data) => pi.events.emit(name, data),
-    steerAgent: (session, message) => steerAgent(session, message),
+    steerAgent: (session, message) => steerAgent(session as any, message),
   })));
 
   // ---- /agents interactive menu ----
@@ -235,7 +229,7 @@ export default function (pi: ExtensionAPI) {
     manager: {
       listAgents: () => manager.listAgents(),
       getRecord: (id) => manager.getRecord(id),
-      spawnAndWait: (piArg, ctx, type, prompt, opts) => manager.spawnAndWait(piArg ?? pi, ctx, type, prompt, opts),
+      spawnAndWait: (piArg, ctx, type, prompt, opts) => manager.spawnAndWait((piArg ?? pi) as any, ctx as any, type, prompt, opts as any),
       getMaxConcurrent: () => manager.getMaxConcurrent(),
       setMaxConcurrent: (n) => manager.setMaxConcurrent(n),
     },
@@ -245,7 +239,7 @@ export default function (pi: ExtensionAPI) {
       const cfg = getAgentConfig(type);
       if (!cfg?.model) return 'inherit';
       if (registry) {
-        const resolved = resolveModel(cfg.model, registry);
+        const resolved = resolveModel(cfg.model, registry as any);
         if (typeof resolved === 'string') return 'inherit';
       }
       return getModelLabelFromConfig(cfg.model);
@@ -266,6 +260,6 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand('agents', {
     description: 'Manage agents',
-    handler: async (_args, ctx) => { await agentsMenuHandler(ctx); },
+    handler: async (_args, ctx) => { await agentsMenuHandler(ctx as any); },
   });
 }

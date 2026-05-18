@@ -13,6 +13,7 @@ function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
     toolUses: 3,
     startedAt: 1000,
     completedAt: 2000,
+    compactionCount: 0,
     lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
     ...overrides,
   };
@@ -132,7 +133,7 @@ describe("Agent tool — resume path", () => {
 
   it("returns result text on successful resume", async () => {
     const deps = makeDeps();
-    deps.manager.getRecord = vi.fn().mockReturnValue(makeRecord({ session: {} }));
+    deps.manager.getRecord = vi.fn().mockReturnValue(makeRecord({ session: {} as any }));
     deps.manager.resume = vi.fn().mockResolvedValue(makeRecord({ result: "Resumed output." }));
     const result = await execute(deps, {
       prompt: "continue",

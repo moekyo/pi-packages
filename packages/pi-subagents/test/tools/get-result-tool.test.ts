@@ -13,6 +13,7 @@ function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
     startedAt: 1000,
     completedAt: 2000,
     lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
+    compactionCount: 0,
     ...overrides,
   };
 }
@@ -25,7 +26,7 @@ function makeDeps(records: Map<string, AgentRecord> = new Map()) {
   };
 }
 
-async function execute(deps: ReturnType<typeof makeDeps>, params: Record<string, unknown>) {
+async function execute(deps: ReturnType<typeof makeDeps>, params: { agent_id: string; wait?: boolean; verbose?: boolean }) {
   const tool = createGetResultTool(deps);
   return tool.execute("tc-1", params, new AbortController().signal, undefined, {} as any);
 }
@@ -87,7 +88,7 @@ describe("createGetResultTool", () => {
       promise: Promise.resolve().then(() => {
         record.status = "completed";
         record.result = "Finished after wait.";
-      }),
+      }) as Promise<string>,
     });
     const records = new Map([["agent-1", record]]);
     const deps = makeDeps(records);

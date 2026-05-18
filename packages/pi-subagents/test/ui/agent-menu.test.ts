@@ -13,6 +13,7 @@ function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
     startedAt: 1000,
     completedAt: 2000,
     lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
+    compactionCount: 0,
     ...overrides,
   };
 }
