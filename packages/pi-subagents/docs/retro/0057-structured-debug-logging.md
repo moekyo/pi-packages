@@ -42,3 +42,36 @@ Shipped as `pi-subagents-v5.1.0`, then followed up with a `refactor:` commit con
 1. `packages/pi-subagents/src/debug.ts` — replaced `export const DEBUG` with `export function isDebug()`.
 2. `packages/pi-subagents/test/debug.test.ts` — simplified to static import + `vi.stubEnv()` only; removed all `vi.resetModules()` + dynamic `import()` calls.
 3. `.pi/skills/testing/SKILL.md` — added bullet: prefer reading `process.env` inside functions; `vi.stubEnv()` alone is insufficient for module-level constants.
+
+## Follow-up Retrospective (2026-05-19T11:15:00Z)
+
+### Session summary
+
+The user asked how many `process.*` reads exist in `pi-subagents`.
+Audit found 9 sites: 4 acceptable (wiring layer, detection functions, injectable defaults), 2 genuine injection gaps, and 1 mild case.
+Filed #76 (`AgentManager.dispose()` reads `process.cwd()` without a stored `cwd`) and #77 (`createAgentsMenuHandler` hardcodes `process.cwd()` when `AgentMenuDeps` already injects the personal-side equivalent).
+
+### Observations
+
+#### What went well
+
+- The `isDebug()` refactor naturally led the user to ask a broader design question about `process.*` access patterns, producing two well-scoped follow-up issues without manual triage.
+- The audit categorization (genuinely problematic vs. acceptable) was clean — presenting a table with verdicts per site let the user decide scope without re-reading source.
+
+#### What caused friction (agent side)
+
+- `premature-convergence` — The original plan accepted the module-level `DEBUG` constant without checking how the rest of the codebase reads `process.env`.
+  The code-style skill said "keep IO at the edges" but didn't name `process.*` specifically, so the rule wasn't applied.
+  Impact: one post-ship `refactor:` commit to replace `DEBUG` with `isDebug()`; the pattern was technically correct but inconsistent with codebase conventions.
+  (user-caught)
+
+#### What caused friction (user side)
+
+- Nothing notable.
+  The user's two redirecting questions ("should that be a function?" and "how many places access `process.*`?") were well-timed interventions that broadened scope productively.
+
+### Changes made
+
+1. `.pi/skills/code-style/SKILL.md` — added bullet: do not read `process.env`, `process.cwd()`, or `process.platform` inside library/utility functions; accept the value as a parameter.
+2. Filed #76 — inject `cwd` into `AgentManager` constructor.
+3. Filed #77 — add `projectAgentsDir` to `AgentMenuDeps`.

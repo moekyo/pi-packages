@@ -17,6 +17,8 @@ Load this skill when implementing, refactoring, or reviewing TypeScript code.
 - Keep modules focused and composable (one concern per file).
 - Prefer explicit configuration over hidden behavior.
 - Business logic should be pure functions wherever possible — keep IO at the edges.
+- Do not read `process.env`, `process.cwd()`, or `process.platform` inside library/utility functions — accept the value as a parameter.
+  Reading `process.*` inside a function hides a dependency on global state and forces tests to stub or reset modules.
 
 ### Pi SDK boundaries
 
