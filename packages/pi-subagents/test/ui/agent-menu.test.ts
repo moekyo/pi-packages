@@ -38,6 +38,10 @@ function makeDeps(overrides: Partial<AgentMenuDeps> = {}): AgentMenuDeps {
     saveSettings: vi.fn().mockReturnValue({ message: "Saved", level: "info" }),
     emitEvent: vi.fn(),
     personalAgentsDir: "/home/.pi/agents",
+    getDefaultMaxTurns: vi.fn().mockReturnValue(undefined),
+    getGraceTurns: vi.fn().mockReturnValue(5),
+    setDefaultMaxTurns: vi.fn(),
+    setGraceTurns: vi.fn(),
     ...overrides,
   };
 }

@@ -68,34 +68,10 @@ function filterActiveTools(
   });
 }
 
-/** Default max turns. undefined = unlimited (no turn limit). */
-let defaultMaxTurns: number | undefined;
-
 /** Normalize max turns. undefined or 0 = unlimited, otherwise minimum 1. */
 export function normalizeMaxTurns(n: number | undefined): number | undefined {
   if (n == null || n === 0) return undefined;
   return Math.max(1, n);
-}
-
-/** Get the default max turns value. undefined = unlimited. */
-export function getDefaultMaxTurns(): number | undefined {
-  return defaultMaxTurns;
-}
-/** Set the default max turns value. undefined or 0 = unlimited, otherwise minimum 1. */
-export function setDefaultMaxTurns(n: number | undefined): void {
-  defaultMaxTurns = normalizeMaxTurns(n);
-}
-
-/** Additional turns allowed after the soft limit steer message. */
-let graceTurns = 5;
-
-/** Get the grace turns value. */
-export function getGraceTurns(): number {
-  return graceTurns;
-}
-/** Set the grace turns value (minimum 1). */
-export function setGraceTurns(n: number): void {
-  graceTurns = Math.max(1, n);
 }
 
 /**
@@ -435,7 +411,7 @@ export async function runAgent(
   // Track turns for graceful max_turns enforcement
   let turnCount = 0;
   const maxTurns = normalizeMaxTurns(
-    options.maxTurns ?? agentConfig?.maxTurns ?? options.defaultMaxTurns ?? defaultMaxTurns,
+    options.maxTurns ?? agentConfig?.maxTurns ?? options.defaultMaxTurns,
   );
   let softLimitReached = false;
   let aborted = false;
@@ -451,7 +427,7 @@ export async function runAgent(
           session.steer(
             "You have reached your turn limit. Wrap up immediately — provide your final answer now.",
           );
-        } else if (softLimitReached && turnCount >= maxTurns + (options.graceTurns ?? graceTurns)) {
+        } else if (softLimitReached && turnCount >= maxTurns + (options.graceTurns ?? 5)) {
           aborted = true;
           session.abort();
         }

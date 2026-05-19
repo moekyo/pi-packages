@@ -205,6 +205,7 @@ export default function (pi: ExtensionAPI) {
     typeListText,
     availableTypesText: getAvailableTypes().join(", "),
     agentDir: getAgentDir(),
+    getDefaultMaxTurns: () => runtime.defaultMaxTurns,
   }) as any));
 
   // ---- get_subagent_result tool ----
@@ -249,6 +250,14 @@ export default function (pi: ExtensionAPI) {
       defaultMaxTurns: runtime.defaultMaxTurns ?? 0,
       graceTurns: runtime.graceTurns,
     }),
+    getDefaultMaxTurns: () => runtime.defaultMaxTurns,
+    getGraceTurns: () => runtime.graceTurns,
+    setDefaultMaxTurns: (n) => {
+      runtime.defaultMaxTurns = normalizeMaxTurns(n);
+    },
+    setGraceTurns: (n) => {
+      runtime.graceTurns = Math.max(1, n);
+    },
     saveSettings: (settings, successMsg) => saveAndEmitChanged(
       settings,
       successMsg,

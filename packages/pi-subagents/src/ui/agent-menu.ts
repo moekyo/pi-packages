@@ -1,11 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import {
-  getDefaultMaxTurns,
-  getGraceTurns,
-  setDefaultMaxTurns,
-  setGraceTurns,
-} from "../agent-runner.js";
+
 import {
   BUILTIN_TOOL_NAMES,
   getAgentConfig,
@@ -42,6 +37,14 @@ export interface AgentMenuDeps {
   ) => { message: string; level: string };
   emitEvent: (name: string, data: unknown) => void;
   personalAgentsDir: string;
+  /** Returns the runtime default max turns (undefined = unlimited). */
+  getDefaultMaxTurns: () => number | undefined;
+  /** Returns the runtime grace turns value. */
+  getGraceTurns: () => number;
+  /** Updates the runtime default max turns (undefined = unlimited). */
+  setDefaultMaxTurns: (n: number | undefined) => void;
+  /** Updates the runtime grace turns value (minimum 1). */
+  setGraceTurns: (n: number) => void;
 }
 
 // ---- Narrow UI context types ----
@@ -620,8 +623,8 @@ ${systemPrompt}
   async function showSettings(ctx: MenuContext) {
     const choice = await ctx.ui.select("Settings", [
       `Max concurrency (current: ${deps.manager.getMaxConcurrent()})`,
-      `Default max turns (current: ${getDefaultMaxTurns() ?? "unlimited"})`,
-      `Grace turns (current: ${getGraceTurns()})`,
+      `Default max turns (current: ${deps.getDefaultMaxTurns() ?? "unlimited"})`,
+      `Grace turns (current: ${deps.getGraceTurns()})`,
     ]);
     if (!choice) return;
 
@@ -642,15 +645,15 @@ ${systemPrompt}
     } else if (choice.startsWith("Default max turns")) {
       const val = await ctx.ui.input(
         "Default max turns before wrap-up (0 = unlimited)",
-        String(getDefaultMaxTurns() ?? 0),
+        String(deps.getDefaultMaxTurns() ?? 0),
       );
       if (val) {
         const n = parseInt(val, 10);
         if (n === 0) {
-          setDefaultMaxTurns(undefined);
+          deps.setDefaultMaxTurns(undefined);
           notifyApplied(ctx, "Default max turns set to unlimited");
         } else if (n >= 1) {
-          setDefaultMaxTurns(n);
+          deps.setDefaultMaxTurns(n);
           notifyApplied(ctx, `Default max turns set to ${n}`);
         } else {
           ctx.ui.notify("Must be 0 (unlimited) or a positive integer.", "warning");
@@ -659,12 +662,12 @@ ${systemPrompt}
     } else if (choice.startsWith("Grace turns")) {
       const val = await ctx.ui.input(
         "Grace turns after wrap-up steer",
-        String(getGraceTurns()),
+        String(deps.getGraceTurns()),
       );
       if (val) {
         const n = parseInt(val, 10);
         if (n >= 1) {
-          setGraceTurns(n);
+          deps.setGraceTurns(n);
           notifyApplied(ctx, `Grace turns set to ${n}`);
         } else {
           ctx.ui.notify("Must be a positive integer.", "warning");

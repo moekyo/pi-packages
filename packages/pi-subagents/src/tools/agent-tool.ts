@@ -1,6 +1,6 @@
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { getDefaultMaxTurns, normalizeMaxTurns } from "../agent-runner.js";
+import { normalizeMaxTurns } from "../agent-runner.js";
 import { getAgentConfig, resolveType } from "../agent-types.js";
 import { resolveAgentInvocationConfig } from "../invocation-config.js";
 import { resolveInvocationModel } from "../model-resolver.js";
@@ -146,6 +146,8 @@ export interface AgentToolDeps {
   typeListText: string;
   availableTypesText: string;
   agentDir: string;
+  /** Returns the runtime default max turns (undefined = unlimited). */
+  getDefaultMaxTurns: () => number | undefined;
 }
 
 // ---- Factory ----
@@ -396,7 +398,7 @@ Guidelines:
           ? (model?.name ?? effectiveModelId).replace(/^Claude\s+/i, "").toLowerCase()
           : undefined;
       const effectiveMaxTurns = normalizeMaxTurns(
-        resolvedConfig.maxTurns ?? getDefaultMaxTurns(),
+        resolvedConfig.maxTurns ?? deps.getDefaultMaxTurns(),
       );
       const agentInvocation: AgentInvocation = {
         modelName,

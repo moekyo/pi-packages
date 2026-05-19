@@ -41,6 +41,7 @@ function makeDeps(overrides: Partial<AgentToolDeps> = {}): AgentToolDeps {
     typeListText: "- general-purpose: General purpose agent",
     availableTypesText: "general-purpose, Explore, Plan",
     agentDir: "/home/user/.pi",
+    getDefaultMaxTurns: vi.fn().mockReturnValue(undefined),
     ...overrides,
   };
 }
