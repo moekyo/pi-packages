@@ -1,3 +1,4 @@
+import { debugLog } from "./debug.js";
 import type { AgentRecord, NotificationDetails } from "./types.js";
 import type { AgentActivity } from "./ui/agent-widget.js";
 import { getLifetimeTotal, getSessionContextPercent } from "./usage.js";
@@ -142,8 +143,8 @@ export function createNotificationSystem(deps: NotificationDeps): NotificationSy
         pendingNudges.delete(key);
         try {
           send();
-        } catch {
-          /* ignore stale completion side-effect errors */
+        } catch (err) {
+          debugLog("notification render", err);
         }
       }, delay),
     );

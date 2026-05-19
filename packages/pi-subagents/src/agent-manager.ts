@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSession, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { resumeAgent, runAgent, type ToolActivity } from "./agent-runner.js";
+import { debugLog } from "./debug.js";
 import type { AgentInvocation, AgentRecord, IsolationMode, SubagentType, ThinkingLevel } from "./types.js";
 import { addUsage } from "./usage.js";
 import { cleanupWorktree, createWorktree, pruneWorktrees, } from "./worktree.js";
@@ -230,7 +231,7 @@ export class AgentManager {
 
         // Final flush of streaming output file
         if (record.outputCleanup) {
-          try { record.outputCleanup(); } catch { /* ignore */ }
+          try { record.outputCleanup(); } catch (err) { debugLog("outputCleanup", err); }
           record.outputCleanup = undefined;
         }
 
@@ -246,7 +247,7 @@ export class AgentManager {
 
         if (options.isBackground) {
           this.runningBackground--;
-          try { this.onComplete?.(record); } catch { /* ignore completion side-effect errors */ }
+          try { this.onComplete?.(record); } catch (err) { debugLog("onComplete callback", err); }
           this.drainQueue();
         }
         return responseText;
@@ -263,7 +264,7 @@ export class AgentManager {
 
         // Final flush of streaming output file on error
         if (record.outputCleanup) {
-          try { record.outputCleanup(); } catch { /* ignore */ }
+          try { record.outputCleanup(); } catch (err) { debugLog("outputCleanup on error", err); }
           record.outputCleanup = undefined;
         }
 
@@ -272,7 +273,7 @@ export class AgentManager {
           try {
             const wtResult = cleanupWorktree(ctx.cwd, record.worktree, options.description);
             record.worktreeResult = wtResult;
-          } catch { /* ignore cleanup errors */ }
+          } catch (err) { debugLog("cleanupWorktree on agent error", err); }
         }
 
         if (options.isBackground) {
@@ -477,6 +478,6 @@ export class AgentManager {
     }
     this.agents.clear();
     // Prune any orphaned git worktrees (crash recovery)
-    try { pruneWorktrees(process.cwd()); } catch { /* ignore */ }
+    try { pruneWorktrees(process.cwd()); } catch (err) { debugLog("pruneWorktrees on dispose", err); }
   }
 }
