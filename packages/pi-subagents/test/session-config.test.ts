@@ -158,3 +158,140 @@ describe("assembleSessionConfig — default agent shape", () => {
     );
   });
 });
+
+describe("assembleSessionConfig — model resolution", () => {
+  it("returns undefined model when no option, no config model, no parent", () => {
+    const result = assembleSessionConfig("Explore", ctx, {}, mockEnv);
+
+    expect(result.model).toBeUndefined();
+  });
+
+  it("options.model wins over config model and parent model", () => {
+    const explicitModel = { provider: "anthropic", id: "claude-opus-4" } as any;
+    mockGetAgentConfig.mockReturnValueOnce({
+      name: "Explore",
+      description: "test",
+      extensions: false as const,
+      skills: false as const,
+      systemPrompt: "prompt",
+      promptMode: "replace" as const,
+      model: "anthropic/claude-haiku-4",
+    });
+
+    const result = assembleSessionConfig(
+      "Explore",
+      { ...ctx, parentModel: { provider: "anthropic", id: "claude-haiku-4" } as any },
+      { model: explicitModel },
+      mockEnv,
+    );
+
+    expect(result.model).toBe(explicitModel);
+  });
+
+  it("config model string resolves via registry when available", () => {
+    const resolvedModel = { provider: "anthropic", id: "claude-opus-4" } as any;
+    mockGetAgentConfig.mockReturnValueOnce({
+      name: "Explore",
+      description: "test",
+      extensions: false as const,
+      skills: false as const,
+      systemPrompt: "prompt",
+      promptMode: "replace" as const,
+      model: "anthropic/claude-opus-4",
+    });
+    mockRegistry.find.mockReturnValueOnce(resolvedModel);
+    mockRegistry.getAvailable.mockReturnValueOnce([
+      { provider: "anthropic", id: "claude-opus-4" },
+    ]);
+
+    const result = assembleSessionConfig("Explore", ctx, {}, mockEnv);
+
+    expect(mockRegistry.find).toHaveBeenCalledWith("anthropic", "claude-opus-4");
+    expect(result.model).toBe(resolvedModel);
+  });
+
+  it("falls back to parentModel when config model string is not in registry", () => {
+    const parentModel = { provider: "anthropic", id: "claude-haiku-4" } as any;
+    mockGetAgentConfig.mockReturnValueOnce({
+      name: "Explore",
+      description: "test",
+      extensions: false as const,
+      skills: false as const,
+      systemPrompt: "prompt",
+      promptMode: "replace" as const,
+      model: "anthropic/unknown-model",
+    });
+    mockRegistry.find.mockReturnValueOnce(undefined);
+    mockRegistry.getAvailable.mockReturnValueOnce([]);
+
+    const result = assembleSessionConfig(
+      "Explore",
+      { ...ctx, parentModel },
+      {},
+      mockEnv,
+    );
+
+    expect(result.model).toBe(parentModel);
+  });
+
+  it("falls back to parentModel when config model is not available (not in getAvailable)", () => {
+    const parentModel = { provider: "anthropic", id: "claude-haiku-4" } as any;
+    const foundModel = { provider: "anthropic", id: "claude-opus-4" } as any;
+    mockGetAgentConfig.mockReturnValueOnce({
+      name: "Explore",
+      description: "test",
+      extensions: false as const,
+      skills: false as const,
+      systemPrompt: "prompt",
+      promptMode: "replace" as const,
+      model: "anthropic/claude-opus-4",
+    });
+    // Model exists in registry but NOT in available set
+    mockRegistry.find.mockReturnValueOnce(foundModel);
+    mockRegistry.getAvailable.mockReturnValueOnce([]);
+
+    const result = assembleSessionConfig(
+      "Explore",
+      { ...ctx, parentModel },
+      {},
+      mockEnv,
+    );
+
+    expect(result.model).toBe(parentModel);
+  });
+
+  it("falls back to parentModel when config model has no slash", () => {
+    const parentModel = { provider: "anthropic", id: "claude-haiku-4" } as any;
+    mockGetAgentConfig.mockReturnValueOnce({
+      name: "Explore",
+      description: "test",
+      extensions: false as const,
+      skills: false as const,
+      systemPrompt: "prompt",
+      promptMode: "replace" as const,
+      model: "claude-opus-4",   // no provider/ prefix
+    });
+
+    const result = assembleSessionConfig(
+      "Explore",
+      { ...ctx, parentModel },
+      {},
+      mockEnv,
+    );
+
+    expect(result.model).toBe(parentModel);
+  });
+
+  it("returns parentModel when no config model and no option model", () => {
+    const parentModel = { provider: "anthropic", id: "claude-haiku-4" } as any;
+
+    const result = assembleSessionConfig(
+      "Explore",
+      { ...ctx, parentModel },
+      {},
+      mockEnv,
+    );
+
+    expect(result.model).toBe(parentModel);
+  });
+});
