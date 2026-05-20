@@ -14,6 +14,7 @@ vi.mock("../src/worktree.js", () => ({
 }));
 
 import { runAgent } from "../src/agent-runner.js";
+import { pruneWorktrees } from "../src/worktree.js";
 
 const mockPi = {} as any;
 const mockCtx = { cwd: "/tmp" } as any;
@@ -37,7 +38,7 @@ describe("AgentManager — Bug 1 race condition (resultConsumed vs onComplete)",
 
   it("reproduces bug: onComplete fires with resultConsumed=false when set after await", async () => {
     let seenConsumed: boolean | undefined;
-    manager = new AgentManager((r) => {
+    manager = new AgentManager("/test-cwd", (r) => {
       seenConsumed = r.resultConsumed;
     });
     resolvedRun();
@@ -58,7 +59,7 @@ describe("AgentManager — Bug 1 race condition (resultConsumed vs onComplete)",
 
   it("fix: onComplete sees resultConsumed=true when pre-marked before await", async () => {
     let seenConsumed: boolean | undefined;
-    manager = new AgentManager((r) => {
+    manager = new AgentManager("/test-cwd", (r) => {
       seenConsumed = r.resultConsumed;
     });
     resolvedRun();
@@ -78,7 +79,7 @@ describe("AgentManager — Bug 1 race condition (resultConsumed vs onComplete)",
 
   it("normal case: onComplete fires with resultConsumed falsy when no explicit polling", async () => {
     let completedRecord: AgentRecord | undefined;
-    manager = new AgentManager((r) => {
+    manager = new AgentManager("/test-cwd", (r) => {
       completedRecord = r;
     });
     resolvedRun();
@@ -95,7 +96,7 @@ describe("AgentManager — Bug 1 race condition (resultConsumed vs onComplete)",
 
   it("onComplete is not called for foreground agents", async () => {
     let onCompleteCalled = false;
-    manager = new AgentManager(() => {
+    manager = new AgentManager("/test-cwd", () => {
       onCompleteCalled = true;
     });
     resolvedRun();
@@ -116,7 +117,7 @@ describe("AgentManager — completion callbacks", () => {
   });
 
   it("does not let onComplete errors turn a completed agent into a failed run", async () => {
-    manager = new AgentManager(() => {
+    manager = new AgentManager("/test-cwd", () => {
       throw new Error("stale extension context");
     });
     resolvedRun();
@@ -139,7 +140,7 @@ describe("AgentManager — cleanup timer", () => {
   });
 
   it("does not keep the process alive on its own", () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
 
     expect((manager as any).cleanupInterval.hasRef()).toBe(false);
   });
@@ -153,7 +154,7 @@ describe("AgentManager — Bug 3 clearCompleted", () => {
   });
 
   it("clearCompleted removes completed records", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     resolvedRun();
 
     const id = manager.spawn(mockPi, mockCtx, "general-purpose", "test", {
@@ -169,7 +170,7 @@ describe("AgentManager — Bug 3 clearCompleted", () => {
 
   it("clearCompleted does not remove running or queued agents", async () => {
     // Use maxConcurrent=0 to keep agents queued, then spawn one running via foreground
-    manager = new AgentManager(undefined, 1);
+    manager = new AgentManager("/test-cwd", undefined, 1);
 
     // Mock runAgent to never resolve (keeps agent "running")
     vi.mocked(runAgent).mockImplementation(
@@ -201,7 +202,7 @@ describe("AgentManager — Bug 3 clearCompleted", () => {
   });
 
   it("clearCompleted calls dispose on sessions of removed records", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     const disposeSpy = vi.fn();
     const sess = { dispose: disposeSpy };
     vi.mocked(runAgent).mockResolvedValue({
@@ -223,7 +224,7 @@ describe("AgentManager — Bug 3 clearCompleted", () => {
   });
 
   it("clearCompleted removes error and stopped records", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     vi.mocked(runAgent).mockRejectedValue(new Error("boom"));
 
     const id = manager.spawn(mockPi, mockCtx, "general-purpose", "test", {
@@ -248,7 +249,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   });
 
   it("spawn initializes lifetimeUsage to zeros and compactionCount to 0", () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     // Don't resolve the run — we just want to inspect the record at spawn time.
     vi.mocked(runAgent).mockImplementation(() => new Promise(() => {}));
 
@@ -265,7 +266,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   });
 
   it("onAssistantUsage from runAgent accumulates into record.lifetimeUsage", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
 
     // Capture the options passed to runAgent so we can drive callbacks
     let captured: any;
@@ -290,7 +291,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   });
 
   it("onCompaction from runAgent increments record.compactionCount", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     const compactSeen: any[] = [];
 
     vi.mocked(runAgent).mockImplementation(async (_ctx, _type, _prompt, opts: any) => {
@@ -301,7 +302,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
       return { responseText: "done", session: mockSession(), aborted: false, steered: false };
     });
 
-    manager = new AgentManager(undefined, undefined, undefined, (record, info) => {
+    manager = new AgentManager("/test-cwd", undefined, undefined, undefined, (record, info) => {
       compactSeen.push({ count: record.compactionCount, reason: info.reason });
     });
 
@@ -319,7 +320,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   });
 
   it("resume() also accumulates usage and increments compactions on the same record", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
 
     // First, spawn with a session that resume can latch onto
     const session = { ...mockSession() };
@@ -367,7 +368,7 @@ describe("AgentManager — getRunConfig threads defaultMaxTurns and graceTurns i
 
   it("passes defaultMaxTurns and graceTurns from getRunConfig to runAgent", async () => {
     const getRunConfig = vi.fn(() => ({ defaultMaxTurns: 10, graceTurns: 3 }));
-    manager = new AgentManager(undefined, undefined, undefined, undefined, getRunConfig);
+    manager = new AgentManager("/test-cwd", undefined, undefined, undefined, undefined, getRunConfig);
     resolvedRun();
     vi.mocked(runAgent).mockClear();
 
@@ -384,7 +385,7 @@ describe("AgentManager — getRunConfig threads defaultMaxTurns and graceTurns i
   });
 
   it("omits defaultMaxTurns and graceTurns from runAgent when no getRunConfig is provided", async () => {
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     resolvedRun();
     vi.mocked(runAgent).mockClear();
 
@@ -401,6 +402,15 @@ describe("AgentManager — getRunConfig threads defaultMaxTurns and graceTurns i
   });
 });
 
+describe("AgentManager — dispose uses injected cwd", () => {
+  it("calls pruneWorktrees with the cwd passed to the constructor", () => {
+    const manager = new AgentManager("/test-cwd");
+    vi.mocked(pruneWorktrees).mockClear();
+    manager.dispose();
+    expect(vi.mocked(pruneWorktrees)).toHaveBeenCalledWith("/test-cwd");
+  });
+});
+
 describe("AgentManager — isolation: worktree fails loud, no silent fallback", () => {
   let manager: AgentManager;
 
@@ -413,7 +423,7 @@ describe("AgentManager — isolation: worktree fails loud, no silent fallback", 
     vi.mocked(createWorktree).mockReturnValueOnce(undefined);
     vi.mocked(runAgent).mockClear();
 
-    manager = new AgentManager();
+    manager = new AgentManager("/test-cwd");
     expect(() => manager.spawn(mockPi, mockCtx, "general-purpose", "test", {
       description: "test",
       isolation: "worktree",

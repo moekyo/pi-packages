@@ -61,7 +61,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Background completion: emit lifecycle event and delegate to notification system
-  const manager = new AgentManager((record) => {
+  const manager = new AgentManager(process.cwd(), (record) => {
     // Emit lifecycle event based on terminal status
     const isError = record.status === "error" || record.status === "stopped" || record.status === "aborted";
     const eventData = buildEventData(record);

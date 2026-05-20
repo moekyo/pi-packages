@@ -72,6 +72,7 @@ export class AgentManager {
   private onComplete?: OnAgentComplete;
   private onStart?: OnAgentStart;
   private onCompact?: OnAgentCompact;
+  private readonly cwd: string;
   private maxConcurrent: number;
   private getRunConfig?: () => RunConfig;
 
@@ -81,12 +82,14 @@ export class AgentManager {
   private runningBackground = 0;
 
   constructor(
+    cwd: string,
     onComplete?: OnAgentComplete,
     maxConcurrent = DEFAULT_MAX_CONCURRENT,
     onStart?: OnAgentStart,
     onCompact?: OnAgentCompact,
     getRunConfig?: () => RunConfig,
   ) {
+    this.cwd = cwd;
     this.onComplete = onComplete;
     this.onStart = onStart;
     this.onCompact = onCompact;
@@ -485,6 +488,6 @@ export class AgentManager {
     }
     this.agents.clear();
     // Prune any orphaned git worktrees (crash recovery)
-    try { pruneWorktrees(process.cwd()); } catch (err) { debugLog("pruneWorktrees on dispose", err); }
+    try { pruneWorktrees(this.cwd); } catch (err) { debugLog("pruneWorktrees on dispose", err); }
   }
 }
