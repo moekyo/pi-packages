@@ -1,3 +1,4 @@
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import type { AgentRecord } from "../types.js";
 import { getSessionContextPercent } from "../usage.js";
@@ -7,7 +8,7 @@ import { formatLifetimeTokens, textResult } from "./helpers.js";
 export interface SteerToolDeps {
   getRecord: (id: string) => AgentRecord | undefined;
   emitEvent: (name: string, data: unknown) => void;
-  steerAgent: (session: unknown, message: string) => Promise<void>;
+  steerAgent: (session: AgentSession, message: string) => Promise<void>;
 }
 
 /** Create the steer_subagent tool definition (without Pi SDK wrapper). */

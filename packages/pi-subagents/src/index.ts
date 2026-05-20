@@ -220,7 +220,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(defineTool(createSteerTool({
     getRecord: (id) => manager.getRecord(id),
     emitEvent: (name, data) => pi.events.emit(name, data),
-    steerAgent: (session, message) => steerAgent(session as any, message),
+    steerAgent: (session, message) => steerAgent(session, message),
   })));
 
   // ---- /agents interactive menu ----
