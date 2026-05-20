@@ -129,6 +129,23 @@ export interface RunResult {
   steered: boolean;
 }
 
+/** Options for resuming an existing agent session. */
+export interface ResumeOptions {
+  onToolActivity?: (activity: ToolActivity) => void;
+  onAssistantUsage?: (usage: { input: number; output: number; cacheWrite: number }) => void;
+  onCompaction?: (info: { reason: "manual" | "threshold" | "overflow"; tokensBefore: number }) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * Execution boundary: decouples AgentManager (lifecycle management) from the
+ * SDK session orchestration in runAgent/resumeAgent.
+ */
+export interface AgentRunner {
+  run(ctx: ExtensionContext, type: SubagentType, prompt: string, options: RunOptions): Promise<RunResult>;
+  resume(session: AgentSession, prompt: string, options?: ResumeOptions): Promise<string>;
+}
+
 /**
  * Subscribe to a session and collect the last assistant message text.
  * Returns an object with a `getText()` getter and an `unsubscribe` function.
@@ -375,19 +392,7 @@ export async function runAgent(
 export async function resumeAgent(
   session: AgentSession,
   prompt: string,
-  options: {
-    onToolActivity?: (activity: ToolActivity) => void;
-    onAssistantUsage?: (usage: {
-      input: number;
-      output: number;
-      cacheWrite: number;
-    }) => void;
-    onCompaction?: (info: {
-      reason: "manual" | "threshold" | "overflow";
-      tokensBefore: number;
-    }) => void;
-    signal?: AbortSignal;
-  } = {},
+  options: ResumeOptions = {},
 ): Promise<string> {
   const collector = collectResponseText(session);
   const cleanupAbort = forwardAbortSignal(session, options.signal);
