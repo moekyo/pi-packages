@@ -57,8 +57,8 @@ export default function (pi: ExtensionAPI) {
   const notifications = createNotificationSystem({
     sendMessage: (msg, opts) => pi.sendMessage(msg as any, opts as any),
     agentActivity: runtime.agentActivity,
-    markFinished: (id) => runtime.widget!.markFinished(id),
-    updateWidget: () => runtime.widget!.update(),
+    markFinished: (id) => runtime.markFinished(id),
+    updateWidget: () => runtime.updateWidget(),
   });
 
   // Background completion: emit lifecycle event and delegate to notification system
@@ -123,7 +123,7 @@ export default function (pi: ExtensionAPI) {
   publishSubagentsService(service);
 
   pi.on("session_start", async (_event, ctx) => {
-    runtime.currentCtx = { pi, ctx };
+    runtime.setSessionContext(pi, ctx);
     manager.clearCompleted();
   });
 
@@ -135,7 +135,7 @@ export default function (pi: ExtensionAPI) {
   // If the session is going down, there's nothing left to consume agent results.
   pi.on("session_shutdown", async () => {
     unpublishSubagentsService();
-    runtime.currentCtx = undefined;
+    runtime.clearSessionContext();
     manager.abortAll();
     notifications.dispose();
     manager.dispose();
@@ -146,8 +146,8 @@ export default function (pi: ExtensionAPI) {
 
   // Grab UI context from first tool execution + clear lingering widget on new turn
   pi.on("tool_execution_start", async (_event, ctx) => {
-    runtime.widget!.setUICtx(ctx.ui as UICtx);
-    runtime.widget!.onTurnStart();
+    runtime.setUICtx(ctx.ui as UICtx);
+    runtime.onTurnStart();
   });
 
   /** Build the full type list text dynamically from the unified registry. */
@@ -201,10 +201,10 @@ export default function (pi: ExtensionAPI) {
       listAgents: () => manager.listAgents(),
     },
     widget: {
-      setUICtx: (ctx) => runtime.widget!.setUICtx(ctx as UICtx),
-      ensureTimer: () => runtime.widget!.ensureTimer(),
-      update: () => runtime.widget!.update(),
-      markFinished: (id) => runtime.widget!.markFinished(id),
+      setUICtx: (ctx) => runtime.setUICtx(ctx as UICtx),
+      ensureTimer: () => runtime.ensureTimer(),
+      update: () => runtime.updateWidget(),
+      markFinished: (id) => runtime.markFinished(id),
     },
     agentActivity: runtime.agentActivity,
     emitEvent: (name, data) => pi.events.emit(name, data),
