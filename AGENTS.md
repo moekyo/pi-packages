@@ -40,6 +40,10 @@ Before implementing, refactoring, or reviewing code, load the `code-style` skill
 
 Before writing or editing markdown files, load the `markdown-conventions` skill.
 
+## Mermaid
+
+Before authoring or reviewing Mermaid diagrams, load the `mermaid` skill.
+
 ## Documentation Frontmatter
 
 Docs under `docs/plans/` and `docs/retro/` use YAML frontmatter for structured metadata.
