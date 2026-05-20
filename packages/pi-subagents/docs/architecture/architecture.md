@@ -374,14 +374,13 @@ These build on Phase 1 and should land after it.
    - Removed all runtime imports of `agent-runner.ts` and `worktree.ts` from `agent-manager.ts` (only `import type` remains).
    - Migrated all tests from `vi.mock()` module stubs to `vi.fn()` interface stubs.
 
-3. **gotgenes/pi-packages#87** — Evolve `SubagentRuntime` from data bag to object with methods
-   - Add session-context methods (`setSessionContext`, `clearSessionContext`) and widget delegation methods (`setUICtx`, `onTurnStart`, `markFinished`, `updateWidget`, `ensureTimer`).
+3. **gotgenes/pi-packages#87** ✓ — Evolve `SubagentRuntime` from data bag to object with methods
+   - Added session-context methods (`setSessionContext`, `clearSessionContext`) and widget delegation methods (`setUICtx`, `onTurnStart`, `markFinished`, `updateWidget`, `ensureTimer`).
    - Prerequisite for #70 — without runtime methods, extracted handlers would move LoD violations and output-argument smells into handler classes.
 
-4. **gotgenes/pi-packages#70** — Extract event handlers into `src/handlers/`
-   - Move the four inline lambdas (`session_start`, `session_before_switch`, `session_shutdown`, `tool_execution_start`) into named handler modules.
-   - Requires Issues #69 and #87 because handlers need the `SubagentRuntime` with methods as their deps.
-   - Target: `src/index.ts` ≤150 lines.
+4. **gotgenes/pi-packages#70** ✓ — Extract event handlers into `src/handlers/`
+   - Moved the four inline lambdas (`session_start`, `session_before_switch`, `session_shutdown`, `tool_execution_start`) into `SessionLifecycleHandler` and `ToolStartHandler` classes.
+   - Handlers call methods on narrow runtime interfaces — no raw field writes, no `widget!` reach-throughs.
 
 ### Phase 3: Interface polish
 
@@ -407,7 +406,7 @@ Small cleanups that are safest after the structural changes settle.
 ### Dependency graph
 
 ```text
-#69 (SubagentRuntime) ✓ ──► #87 (runtime methods) ─┬─► #70 (handler extraction)
+#69 (SubagentRuntime) ✓ ──► #87 (runtime methods) ✓ ─┬─► #70 (handler extraction) ✓
                                                    │
 #71 (pure assembler) ✓                              │
 #80 (config lookup) ✓                               │
@@ -427,11 +426,11 @@ Small cleanups that are safest after the structural changes settle.
 The recommended sequence is:
 
 ```text
-#69 ✓ → #71 ✓ → #80 ✓ → #76 ✓ → #84 ✓ → #72 ✓ → #87 → #70 → #66 → #77 → #61
+#69 ✓ → #71 ✓ → #80 ✓ → #76 ✓ → #84 ✓ → #72 ✓ → #87 ✓ → #70 ✓ → #66 → #77 → #61
 ```
 
-Phase 1 is complete; Phase 2 is in progress.
-The next issue is #87 (runtime methods), which unblocks #70 (handler extraction).
+Phase 1 is complete; Phase 2 is complete.
+The next issue is #66 (replace `as any` casts with proper SDK types).
 Issue #22 is a parallel cross-extension track and does not gate the structural work.
 
 ## Relationship with upstream
