@@ -264,6 +264,7 @@ export default function (pi: ExtensionAPI) {
     ),
     emitEvent: (name, data) => pi.events.emit(name, data),
     personalAgentsDir: join(getAgentDir(), 'agents'),
+    projectAgentsDir: join(process.cwd(), '.pi', 'agents'),
   });
 
   pi.registerCommand('agents', {

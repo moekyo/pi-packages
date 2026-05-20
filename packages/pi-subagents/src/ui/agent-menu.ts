@@ -41,6 +41,7 @@ export interface AgentMenuDeps {
   ) => { message: string; level: string };
   emitEvent: (name: string, data: unknown) => void;
   personalAgentsDir: string;
+  projectAgentsDir: string;
   /** Returns the runtime default max turns (undefined = unlimited). */
   getDefaultMaxTurns: () => number | undefined;
   /** Returns the runtime grace turns value. */
@@ -60,12 +61,10 @@ export interface AgentMenuDeps {
  * Returns a function suitable for `pi.registerCommand("agents", { handler })`.
  */
 export function createAgentsMenuHandler(deps: AgentMenuDeps) {
-  const projectAgentsDir = () => join(process.cwd(), ".pi", "agents");
-
   function findAgentFile(
     name: string,
   ): { path: string; location: "project" | "personal" } | undefined {
-    const projectPath = join(projectAgentsDir(), `${name}.md`);
+    const projectPath = join(deps.projectAgentsDir, `${name}.md`);
     if (existsSync(projectPath)) return { path: projectPath, location: "project" };
     const personalPath = join(deps.personalAgentsDir, `${name}.md`);
     if (existsSync(personalPath)) return { path: personalPath, location: "personal" };
@@ -309,7 +308,7 @@ export function createAgentsMenuHandler(deps: AgentMenuDeps) {
     if (!location) return;
 
     const targetDir = location.startsWith("Project")
-      ? projectAgentsDir()
+      ? deps.projectAgentsDir
       : deps.personalAgentsDir;
     mkdirSync(targetDir, { recursive: true });
 
@@ -375,7 +374,7 @@ export function createAgentsMenuHandler(deps: AgentMenuDeps) {
     if (!location) return;
 
     const targetDir = location.startsWith("Project")
-      ? projectAgentsDir()
+      ? deps.projectAgentsDir
       : deps.personalAgentsDir;
     mkdirSync(targetDir, { recursive: true });
 
@@ -413,7 +412,7 @@ export function createAgentsMenuHandler(deps: AgentMenuDeps) {
     if (!location) return;
 
     const targetDir = location.startsWith("Project")
-      ? projectAgentsDir()
+      ? deps.projectAgentsDir
       : deps.personalAgentsDir;
 
     const method = await ctx.ui.select("Creation method", [

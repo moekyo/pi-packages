@@ -1,6 +1,50 @@
-import { describe, expect, it, vi } from "vitest";
-import type { AgentRecord } from "../../src/types.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentConfig, AgentRecord } from "../../src/types.js";
 import { type AgentMenuDeps, createAgentsMenuHandler } from "../../src/ui/agent-menu.js";
+
+const { mockExistsSync, mockGetAllTypes, mockResolveAgentConfig, mockResolveType } = vi.hoisted(() => ({
+  mockExistsSync: vi.fn((): boolean => false),
+  mockGetAllTypes: vi.fn((): string[] => []),
+  mockResolveAgentConfig: vi.fn((): AgentConfig => ({
+    name: "test-agent",
+    description: "A test agent",
+    systemPrompt: "You are a test agent.",
+    promptMode: "replace" as const,
+    extensions: true,
+    skills: true,
+    isDefault: true,
+    source: "default" as const,
+  })),
+  mockResolveType: vi.fn((): string | undefined => "test-agent"),
+}));
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    existsSync: mockExistsSync,
+    mkdirSync: vi.fn(),
+    readFileSync: vi.fn(),
+    unlinkSync: vi.fn(),
+    default: {
+      ...actual,
+      existsSync: mockExistsSync,
+      mkdirSync: vi.fn(),
+      readFileSync: vi.fn(),
+      unlinkSync: vi.fn(),
+    },
+  };
+});
+
+vi.mock("../../src/agent-types.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/agent-types.js")>();
+  return {
+    ...actual,
+    getAllTypes: mockGetAllTypes,
+    resolveAgentConfig: mockResolveAgentConfig,
+    resolveType: mockResolveType,
+  };
+});
 
 function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
   return {
@@ -38,6 +82,7 @@ function makeDeps(overrides: Partial<AgentMenuDeps> = {}): AgentMenuDeps {
     saveSettings: vi.fn().mockReturnValue({ message: "Saved", level: "info" }),
     emitEvent: vi.fn(),
     personalAgentsDir: "/home/.pi/agents",
+    projectAgentsDir: "/test-project/.pi/agents",
     getDefaultMaxTurns: vi.fn().mockReturnValue(undefined),
     getGraceTurns: vi.fn().mockReturnValue(5),
     setDefaultMaxTurns: vi.fn(),
@@ -60,6 +105,13 @@ function makeCtx(selectResults: (string | undefined)[] = []) {
     modelRegistry: {},
   };
 }
+
+beforeEach(() => {
+  mockExistsSync.mockClear();
+  mockGetAllTypes.mockClear();
+  mockResolveAgentConfig.mockClear();
+  mockResolveType.mockClear();
+});
 
 describe("createAgentsMenuHandler", () => {
   it("returns a handler function", () => {
@@ -108,6 +160,26 @@ describe("createAgentsMenuHandler", () => {
     await handler(ctx as any);
     const options = ctx.ui.select.mock.calls[0][1] as string[];
     expect(options.some((o: string) => o.startsWith("Running agents ("))).toBe(true);
+  });
+});
+
+describe("agent menu — projectAgentsDir injection", () => {
+  it("uses injected projectAgentsDir when resolving agent files", async () => {
+    mockGetAllTypes.mockReturnValue(["test-agent"]);
+    const deps = makeDeps({ projectAgentsDir: "/test-project/.pi/agents" });
+    let selectCall = 0;
+    const ctx = makeCtx([]);
+    ctx.ui.select = vi.fn().mockImplementation((_title: string, options: string[]) => {
+      selectCall++;
+      if (selectCall === 1) return "Agent types (1)"; // main menu
+      if (selectCall === 2) return options[0]; // pick first agent type
+      return undefined; // cancel everything else
+    });
+
+    const handler = createAgentsMenuHandler(deps);
+    await handler(ctx as any);
+
+    expect(mockExistsSync).toHaveBeenCalledWith("/test-project/.pi/agents/test-agent.md");
   });
 });
 
