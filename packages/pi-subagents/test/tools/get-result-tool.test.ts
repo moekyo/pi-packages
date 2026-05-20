@@ -71,8 +71,7 @@ describe("createGetResultTool", () => {
       status: "running",
       completedAt: undefined,
       promise: Promise.resolve().then(() => {
-        record.status = "completed";
-        record.result = "Finished after wait.";
+        record.markCompleted("Finished after wait.");
       }) as Promise<string>,
     });
     const records = new Map([["agent-1", record]]);

@@ -3,7 +3,6 @@
  */
 
 import type { ThinkingLevel } from "@earendil-works/pi-ai";
-import type { LifetimeUsage } from "./usage.js";
 
 export type { AgentRecordInit, AgentRecordStatus } from "./agent-record.js";
 

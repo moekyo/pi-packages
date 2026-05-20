@@ -52,12 +52,21 @@ export class AgentRecord {
 	readonly description: string;
 	readonly invocation?: AgentInvocation;
 
-	// Transition state — public for now (encapsulated in cycle 6)
-	status: AgentRecordStatus;
-	result?: string;
-	error?: string;
-	startedAt: number;
-	completedAt?: number;
+	// Transition state — encapsulated behind getters, mutated only via transition methods
+	private _status: AgentRecordStatus;
+	get status(): AgentRecordStatus { return this._status; }
+
+	private _result?: string;
+	get result(): string | undefined { return this._result; }
+
+	private _error?: string;
+	get error(): string | undefined { return this._error; }
+
+	private _startedAt: number;
+	get startedAt(): number { return this._startedAt; }
+
+	private _completedAt?: number;
+	get completedAt(): number | undefined { return this._completedAt; }
 
 	// Non-transition mutable state
 	toolUses: number;
@@ -79,11 +88,11 @@ export class AgentRecord {
 		this.description = init.description;
 		this.invocation = init.invocation;
 
-		this.status = init.status ?? "queued";
-		this.result = init.result;
-		this.error = init.error;
-		this.startedAt = init.startedAt ?? Date.now();
-		this.completedAt = init.completedAt;
+		this._status = init.status ?? "queued";
+		this._result = init.result;
+		this._error = init.error;
+		this._startedAt = init.startedAt ?? Date.now();
+		this._completedAt = init.completedAt;
 
 		this.toolUses = init.toolUses ?? 0;
 		this.lifetimeUsage = init.lifetimeUsage ?? { input: 0, output: 0, cacheWrite: 0 };
@@ -101,8 +110,8 @@ export class AgentRecord {
 
 	/** Transition to running state. Sets status and startedAt. */
 	markRunning(startedAt: number): void {
-		this.status = "running";
-		this.startedAt = startedAt;
+		this._status = "running";
+		this._startedAt = startedAt;
 	}
 
 	/**
@@ -110,10 +119,10 @@ export class AgentRecord {
 	 * Always sets result and completedAt (??=). Only changes status if not stopped.
 	 */
 	markCompleted(result: string, completedAt?: number): void {
-		this.result = result;
-		this.completedAt ??= completedAt ?? Date.now();
-		if (this.status !== "stopped") {
-			this.status = "completed";
+		this._result = result;
+		this._completedAt ??= completedAt ?? Date.now();
+		if (this._status !== "stopped") {
+			this._status = "completed";
 		}
 	}
 
@@ -122,10 +131,10 @@ export class AgentRecord {
 	 * Always sets result and completedAt (??=). Only changes status if not stopped.
 	 */
 	markAborted(result: string, completedAt?: number): void {
-		this.result = result;
-		this.completedAt ??= completedAt ?? Date.now();
-		if (this.status !== "stopped") {
-			this.status = "aborted";
+		this._result = result;
+		this._completedAt ??= completedAt ?? Date.now();
+		if (this._status !== "stopped") {
+			this._status = "aborted";
 		}
 	}
 
@@ -134,10 +143,10 @@ export class AgentRecord {
 	 * Always sets result and completedAt (??=). Only changes status if not stopped.
 	 */
 	markSteered(result: string, completedAt?: number): void {
-		this.result = result;
-		this.completedAt ??= completedAt ?? Date.now();
-		if (this.status !== "stopped") {
-			this.status = "steered";
+		this._result = result;
+		this._completedAt ??= completedAt ?? Date.now();
+		if (this._status !== "stopped") {
+			this._status = "steered";
 		}
 	}
 
@@ -146,25 +155,25 @@ export class AgentRecord {
 	 * Always sets error (formatted) and completedAt (??=). Only changes status if not stopped.
 	 */
 	markError(error: unknown, completedAt?: number): void {
-		this.error = error instanceof Error ? error.message : String(error);
-		this.completedAt ??= completedAt ?? Date.now();
-		if (this.status !== "stopped") {
-			this.status = "error";
+		this._error = error instanceof Error ? error.message : String(error);
+		this._completedAt ??= completedAt ?? Date.now();
+		if (this._status !== "stopped") {
+			this._status = "error";
 		}
 	}
 
 	/** Transition to stopped state. Always valid — no guard. */
 	markStopped(completedAt?: number): void {
-		this.status = "stopped";
-		this.completedAt = completedAt ?? Date.now();
+		this._status = "stopped";
+		this._completedAt = completedAt ?? Date.now();
 	}
 
 	/** Reset for resume: running status, new startedAt, clear completedAt/result/error. */
 	resetForResume(startedAt: number): void {
-		this.status = "running";
-		this.startedAt = startedAt;
-		this.completedAt = undefined;
-		this.result = undefined;
-		this.error = undefined;
+		this._status = "running";
+		this._startedAt = startedAt;
+		this._completedAt = undefined;
+		this._result = undefined;
+		this._error = undefined;
 	}
 }

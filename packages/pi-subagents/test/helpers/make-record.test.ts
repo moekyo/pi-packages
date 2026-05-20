@@ -4,18 +4,16 @@ import { createTestRecord } from "./make-record.js";
 describe("createTestRecord", () => {
 	it("returns a completed record with expected defaults", () => {
 		const record = createTestRecord();
-		expect(record).toEqual({
-			id: "agent-1",
-			type: "general-purpose",
-			description: "Test task",
-			status: "completed",
-			result: "All done.",
-			toolUses: 3,
-			startedAt: 1000,
-			completedAt: 2000,
-			compactionCount: 0,
-			lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 },
-		});
+		expect(record.id).toBe("agent-1");
+		expect(record.type).toBe("general-purpose");
+		expect(record.description).toBe("Test task");
+		expect(record.status).toBe("completed");
+		expect(record.result).toBe("All done.");
+		expect(record.toolUses).toBe(3);
+		expect(record.startedAt).toBe(1000);
+		expect(record.completedAt).toBe(2000);
+		expect(record.compactionCount).toBe(0);
+		expect(record.lifetimeUsage).toEqual({ input: 500, output: 500, cacheWrite: 0 });
 	});
 
 	it("applies overrides to defaults", () => {
