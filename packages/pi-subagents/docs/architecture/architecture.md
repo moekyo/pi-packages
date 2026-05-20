@@ -37,7 +37,7 @@ worktree.ts           — git worktree isolation
 usage.ts              — token usage tracking
 model-resolver.ts     — fuzzy model name resolution
 invocation-config.ts  — merge tool params with agent config
-output-file.ts        — JSONL transcript streaming
+session-dir.ts        — subagent session directory derivation
 settings.ts           — persistent operational settings
 
 cross-extension-rpc.ts — RPC over pi.events                  ← replacing
@@ -114,18 +114,18 @@ There is also a `Symbol.for("pi-subagents:manager")` export on `globalThis` that
 - **Group join** (`group-join.ts`) — 141 LOC removed.
   The grouped notification batching adds complexity for a marginal UX improvement.
   Individual completion notifications are sufficient.
-- **Output file** (`output-file.ts`) — 96 LOC removed.
-  JSONL transcript streaming is a consumer concern; a separate extension can subscribe to lifecycle events and write transcripts.
+- **Output file** (`output-file.ts`) — replaced by `session-dir.ts` + `SessionManager.create()` (#61).
+  Subagent transcripts are now written in Pi's official JSONL session format via the SDK's `SessionManager`, nested under the parent session directory.
 
 ### Estimated impact
 
-| Subsystem removed | LOC removed | LOC removed from index.ts |
-| ----------------- | ----------- | ------------------------- |
-| Scheduling        | 612         | ~200                      |
-| Ad-hoc RPC        | 80          | ~50                       |
-| Group join        | 141         | ~100                      |
-| Output file       | 83          | ~50                       |
-| **Total**         | **~916**    | **~400**                  |
+| Subsystem removed | LOC removed   | LOC removed from index.ts |
+| ----------------- | ------------- | ------------------------- |
+| Scheduling        | 612           | ~200                      |
+| Ad-hoc RPC        | 80            | ~50                       |
+| Group join        | 141           | ~100                      |
+| Output file       | 83 (replaced) | ~50                       |
+| **Total**         | **~916**      | **~400**                  |
 
 After removal and `index.ts` decomposition, the core shrinks from ~6,300 to ~5,400 LOC, and `index.ts` shrinks from ~1,894 to ~1,300 LOC.
 
@@ -314,9 +314,10 @@ Deleted `schedule.ts`, `schedule-store.ts`, `ui/schedule-menu.ts`.
 Removed the `schedule` parameter from the `Agent` tool schema.
 Removed scheduler setup and lifecycle hooks from `index.ts`.
 
-### Phase 3: Remove group-join, output-file, ad-hoc RPC
+### Phase 3: Remove group-join, ad-hoc RPC; replace output-file
 
-Delete `group-join.ts`, `output-file.ts`, `cross-extension-rpc.ts`.
+Delete `group-join.ts`, `cross-extension-rpc.ts`.
+Replace `output-file.ts` with `SessionManager.create()` + `session-dir.ts` (#61).
 Simplify `index.ts` to use direct individual notifications.
 Emit lifecycle events on `pi.events` for external consumers.
 
@@ -395,8 +396,9 @@ Small cleanups that are safest after the structural changes settle.
 
 ### Phase 4: Features and cross-cutting concerns
 
-1. **gotgenes/pi-packages#61** — Port transcript logging to Pi's official JSONL session format
-   - Feature work that should happen after structural refactoring is complete so the output-file subsystem has a stable home.
+1. **gotgenes/pi-packages#61** ✓ — Port transcript logging to Pi's official JSONL session format
+   - Replaced `output-file.ts` with `SessionManager.create()` + `session-dir.ts`.
+   - Subagent sessions are persisted under `<parent-session-dir>/<parent-session-basename>/tasks/` with `parentSession` header linking.
 
 2. **gotgenes/pi-packages#22** — Parent-session resolution for `nicobailon/pi-subagents` children
    - Cross-extension issue that spans `pi-permission-system` and `pi-subagents`.
@@ -417,7 +419,7 @@ Small cleanups that are safest after the structural changes settle.
 #66 (type casts) ◄─────(after structural changes settle)
 #77 (projectAgentsDir) ◄─(after #66 or parallel)
 
-#61 (transcript format) ◄(after structural refactor)
+#61 (transcript format) ✓
 #22 (parent session) ◄──(cross-extension, independent)
 ```
 
@@ -426,10 +428,11 @@ Small cleanups that are safest after the structural changes settle.
 The recommended sequence is:
 
 ```text
-#69 ✓ → #71 ✓ → #80 ✓ → #76 ✓ → #84 ✓ → #72 ✓ → #87 ✓ → #70 ✓ → #66 → #77 → #61
+#69 ✓ → #71 ✓ → #80 ✓ → #76 ✓ → #84 ✓ → #72 ✓ → #87 ✓ → #70 ✓ → #66 → #77 → #61 ✓
 ```
 
 Phase 1 is complete; Phase 2 is complete.
+Issue #61 (transcript format) is complete.
 The next issue is #66 (replace `as any` casts with proper SDK types).
 Issue #22 is a parallel cross-extension track and does not gate the structural work.
 

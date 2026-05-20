@@ -74,7 +74,7 @@ index.ts ──wires──> agent-manager.ts ──calls──> agent-runner.ts
     ├── model-resolver.ts
     ├── invocation-config.ts
     ├── types.ts
-    └── output-file.ts
+    └── session-dir.ts
 ```
 
 ### Module Descriptions
@@ -122,7 +122,7 @@ index.ts ──wires──> agent-manager.ts ──calls──> agent-runner.ts
 | `usage.ts`             | Token usage tracking. Defines `LifetimeUsage` shape and provides accumulator operators.     |
 | `model-resolver.ts`    | Resolves model strings to model instances. Tries exact match first, then fuzzy match.       |
 | `invocation-config.ts` | Merges per-call tool parameters with agent config defaults for the final invocation config. |
-| `output-file.ts`       | Streaming JSONL output file for agent transcripts.                                          |
+| `session-dir.ts`       | Derives subagent session directory from the parent session file path.                       |
 
 #### UI
 
