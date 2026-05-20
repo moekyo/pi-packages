@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.2](https://github.com/gotgenes/pi-packages/compare/pi-github-tools-v4.0.1...pi-github-tools-v4.0.2) (2026-05-20)
+
+
+### Miscellaneous Chores
+
+* enforce MD029 ordered list numbering ([95f8574](https://github.com/gotgenes/pi-packages/commit/95f8574ea0309b9c519785442bc357ffde29ee4a))
+
 ## [4.0.1](https://github.com/gotgenes/pi-packages/compare/pi-github-tools-v4.0.0...pi-github-tools-v4.0.1) (2026-05-19)
 
 

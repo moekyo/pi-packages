@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v5.6.0...pi-subagents-v5.7.0) (2026-05-20)
+
+
+### Features
+
+* add session-context methods to SubagentRuntime ([3bbc6af](https://github.com/gotgenes/pi-packages/commit/3bbc6af5c3d9e6faef2112f6c92f991c4b27e38d))
+* add widget delegation methods to SubagentRuntime ([36350f4](https://github.com/gotgenes/pi-packages/commit/36350f413f44f432b14b0a42e27df2c8f5444a08))
+
+
+### Documentation
+
+* add [#87](https://github.com/gotgenes/pi-packages/issues/87) to architecture roadmap and fix package scope hallucinations ([ddee1a0](https://github.com/gotgenes/pi-packages/commit/ddee1a011acc3e20d17d2bdf46cc4603604c092d))
+* plan evolving SubagentRuntime from data bag to object with methods ([#87](https://github.com/gotgenes/pi-packages/issues/87)) ([4f2f16a](https://github.com/gotgenes/pi-packages/commit/4f2f16a8eea67e4959a754d172a9238b4b8662b1))
+* plan extract event handlers from index.ts ([#70](https://github.com/gotgenes/pi-packages/issues/70)) ([5fc115f](https://github.com/gotgenes/pi-packages/commit/5fc115f61bc52c5c88630ea7c869e1e34bde0130))
+* **retro:** add retro notes for issue [#72](https://github.com/gotgenes/pi-packages/issues/72) ([5b53189](https://github.com/gotgenes/pi-packages/commit/5b53189d6242b6f2262b9e7cd2d9dbdbe2a28c60))
+* update architecture roadmap with [#72](https://github.com/gotgenes/pi-packages/issues/72), [#76](https://github.com/gotgenes/pi-packages/issues/76), [#80](https://github.com/gotgenes/pi-packages/issues/80), [#84](https://github.com/gotgenes/pi-packages/issues/84) status ([176cb68](https://github.com/gotgenes/pi-packages/commit/176cb682001b21b7c223656b353b8cf2af412b0c))
+
 ## [5.6.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v5.5.0...pi-subagents-v5.6.0) (2026-05-20)
 
 

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.2](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v6.0.1...pi-permission-system-v6.0.2) (2026-05-20)
+
+
+### Miscellaneous Chores
+
+* enforce MD029 ordered list numbering ([95f8574](https://github.com/gotgenes/pi-packages/commit/95f8574ea0309b9c519785442bc357ffde29ee4a))
+
 ## [6.0.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v6.0.0...pi-permission-system-v6.0.1) (2026-05-19)
 
 
