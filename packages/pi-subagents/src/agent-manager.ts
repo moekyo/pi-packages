@@ -182,8 +182,7 @@ export class AgentManager {
       worktreeCwd = wt.path;
     }
 
-    record.status = "running";
-    record.startedAt = Date.now();
+    record.markRunning(Date.now());
     if (options.isBackground) this.runningBackground++;
     this.onStart?.(record);
 
@@ -242,26 +241,25 @@ export class AgentManager {
       },
     })
       .then(({ responseText, session, aborted, steered, sessionFile }) => {
-        // Don't overwrite status if externally stopped via abort()
-        if (record.status !== "stopped") {
-          record.status = aborted ? "aborted" : steered ? "steered" : "completed";
-        }
-        record.result = responseText;
-        record.session = session;
-        record.completedAt ??= Date.now();
-        if (sessionFile) record.outputFile = sessionFile;
-
         detach();
 
-        // Clean up worktree if used
+        // Clean up worktree before transition so the final result includes branch text
+        let finalResult = responseText;
         if (record.worktree) {
           const wtResult = this.worktrees.cleanup(record.worktree, options.description);
           record.worktreeResult = wtResult;
           if (wtResult.hasChanges && wtResult.branch) {
-            record.result = (record.result ?? "") +
-              `\n\n---\nChanges saved to branch \`${wtResult.branch}\`. Merge with: \`git merge ${wtResult.branch}\``;
+            finalResult += `\n\n---\nChanges saved to branch \`${wtResult.branch}\`. Merge with: \`git merge ${wtResult.branch}\``;
           }
         }
+
+        // Transition — guards against overwriting externally-stopped status
+        if (aborted) record.markAborted(finalResult);
+        else if (steered) record.markSteered(finalResult);
+        else record.markCompleted(finalResult);
+
+        record.session = session;
+        if (sessionFile) record.outputFile = sessionFile;
 
         if (options.isBackground) {
           this.runningBackground--;
@@ -271,16 +269,9 @@ export class AgentManager {
         return responseText;
       })
       .catch((err) => {
-        // Don't overwrite status if externally stopped via abort()
-        if (record.status !== "stopped") {
-          record.status = "error";
-        }
-        record.error = err instanceof Error ? err.message : String(err);
-        record.completedAt ??= Date.now();
+        record.markError(err);
 
         detach();
-
-
 
         // Best-effort worktree cleanup on error
         if (record.worktree) {
@@ -312,9 +303,7 @@ export class AgentManager {
       } catch (err) {
         // Late failure (e.g. strict worktree-isolation) — surface on the record
         // so the user/agent can see it via /agents, then keep draining.
-        record.status = "error";
-        record.error = err instanceof Error ? err.message : String(err);
-        record.completedAt = Date.now();
+        record.markError(err);
         this.onComplete?.(record);
       }
     }
@@ -348,11 +337,7 @@ export class AgentManager {
     const record = this.agents.get(id);
     if (!record?.session) return undefined;
 
-    record.status = "running";
-    record.startedAt = Date.now();
-    record.completedAt = undefined;
-    record.result = undefined;
-    record.error = undefined;
+    record.resetForResume(Date.now());
 
     try {
       const responseText = await this.runner.resume(record.session, prompt, {
@@ -368,13 +353,9 @@ export class AgentManager {
         },
         signal,
       });
-      record.status = "completed";
-      record.result = responseText;
-      record.completedAt = Date.now();
+      record.markCompleted(responseText);
     } catch (err) {
-      record.status = "error";
-      record.error = err instanceof Error ? err.message : String(err);
-      record.completedAt = Date.now();
+      record.markError(err);
     }
 
     return record;
@@ -397,15 +378,13 @@ export class AgentManager {
     // Remove from queue if queued
     if (record.status === "queued") {
       this.queue = this.queue.filter(q => q.id !== id);
-      record.status = "stopped";
-      record.completedAt = Date.now();
+      record.markStopped();
       return true;
     }
 
     if (record.status !== "running") return false;
     record.abortController?.abort();
-    record.status = "stopped";
-    record.completedAt = Date.now();
+    record.markStopped();
     return true;
   }
 
@@ -450,8 +429,7 @@ export class AgentManager {
     for (const queued of this.queue) {
       const record = this.agents.get(queued.id);
       if (record) {
-        record.status = "stopped";
-        record.completedAt = Date.now();
+        record.markStopped();
         count++;
       }
     }
@@ -460,8 +438,7 @@ export class AgentManager {
     for (const record of this.agents.values()) {
       if (record.status === "running") {
         record.abortController?.abort();
-        record.status = "stopped";
-        record.completedAt = Date.now();
+        record.markStopped();
         count++;
       }
     }
