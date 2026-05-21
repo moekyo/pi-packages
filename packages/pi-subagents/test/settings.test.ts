@@ -8,6 +8,7 @@ import {
   loadSettings,
   persistToastFor,
   type SettingsAppliers,
+  SettingsManager,
   saveAndEmitChanged,
   saveSettings,
 } from "../src/settings.js";
@@ -389,6 +390,93 @@ describe("settings persistence", () => {
       } finally {
         rmSync(filePosingAsCwd, { force: true });
       }
+    });
+  });
+});
+
+describe("SettingsManager", () => {
+  describe("constructor defaults", () => {
+    it("defaults to defaultMaxTurns: undefined (unlimited)", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      expect(sm.defaultMaxTurns).toBeUndefined();
+    });
+
+    it("defaults to graceTurns: 5", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      expect(sm.graceTurns).toBe(5);
+    });
+
+    it("defaults to maxConcurrent: 4", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      expect(sm.maxConcurrent).toBe(4);
+    });
+  });
+
+  describe("defaultMaxTurns setter normalization", () => {
+    it("stores a positive value as-is", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.defaultMaxTurns = 10;
+      expect(sm.defaultMaxTurns).toBe(10);
+    });
+
+    it("maps 0 to undefined (unlimited)", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.defaultMaxTurns = 10;
+      sm.defaultMaxTurns = 0;
+      expect(sm.defaultMaxTurns).toBeUndefined();
+    });
+
+    it("maps undefined to undefined", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.defaultMaxTurns = 10;
+      sm.defaultMaxTurns = undefined;
+      expect(sm.defaultMaxTurns).toBeUndefined();
+    });
+
+    it("clamps values below 1 (but not 0) to 1", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.defaultMaxTurns = -5;
+      expect(sm.defaultMaxTurns).toBe(1);
+    });
+  });
+
+  describe("graceTurns setter normalization", () => {
+    it("stores a positive value as-is", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.graceTurns = 10;
+      expect(sm.graceTurns).toBe(10);
+    });
+
+    it("clamps 0 to 1", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.graceTurns = 0;
+      expect(sm.graceTurns).toBe(1);
+    });
+
+    it("clamps negative values to 1", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.graceTurns = -3;
+      expect(sm.graceTurns).toBe(1);
+    });
+  });
+
+  describe("maxConcurrent setter normalization", () => {
+    it("stores a positive value as-is", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.maxConcurrent = 8;
+      expect(sm.maxConcurrent).toBe(8);
+    });
+
+    it("clamps 0 to 1", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.maxConcurrent = 0;
+      expect(sm.maxConcurrent).toBe(1);
+    });
+
+    it("clamps negative values to 1", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: "/tmp" });
+      sm.maxConcurrent = -2;
+      expect(sm.maxConcurrent).toBe(1);
     });
   });
 });

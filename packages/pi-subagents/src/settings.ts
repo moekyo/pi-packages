@@ -26,6 +26,61 @@ export interface SettingsAppliers {
 /** Emit callback — a subset of `pi.events.emit` to keep helpers testable. */
 export type SettingsEmit = (event: string, payload: unknown) => void;
 
+const DEFAULT_MAX_CONCURRENT = 4;
+const DEFAULT_GRACE_TURNS = 5;
+
+/**
+ * Owns all three in-memory settings values and their load/save/persist cycle.
+ * Replaces the scattered free-function + SettingsAppliers callback pattern.
+ */
+export class SettingsManager {
+  private _defaultMaxTurns: number | undefined = undefined;
+  private _graceTurns: number = DEFAULT_GRACE_TURNS;
+  private _maxConcurrent: number = DEFAULT_MAX_CONCURRENT;
+
+  private readonly emit: SettingsEmit;
+  private readonly cwd: string;
+
+  constructor(deps: { emit: SettingsEmit; cwd: string }) {
+    this.emit = deps.emit;
+    this.cwd = deps.cwd;
+  }
+
+  // ── defaultMaxTurns: 0 or undefined → unlimited (undefined); else max(1, n) ──
+
+  get defaultMaxTurns(): number | undefined {
+    return this._defaultMaxTurns;
+  }
+
+  set defaultMaxTurns(n: number | undefined) {
+    if (n == null || n === 0) {
+      this._defaultMaxTurns = undefined;
+    } else {
+      this._defaultMaxTurns = Math.max(1, n);
+    }
+  }
+
+  // ── graceTurns: minimum 1 ──
+
+  get graceTurns(): number {
+    return this._graceTurns;
+  }
+
+  set graceTurns(n: number) {
+    this._graceTurns = Math.max(1, n);
+  }
+
+  // ── maxConcurrent: minimum 1 ──
+
+  get maxConcurrent(): number {
+    return this._maxConcurrent;
+  }
+
+  set maxConcurrent(n: number) {
+    this._maxConcurrent = Math.max(1, n);
+  }
+}
+
 // Sanity ceilings — prevent hand-edited configs from asking for values that
 // make no operational sense (e.g. 1e6 concurrent subagents). Permissive enough
 // that any realistic power-user setting passes through.
