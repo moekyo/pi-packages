@@ -5,31 +5,42 @@ import { SessionLifecycleHandler } from "../../src/handlers/lifecycle.js";
 describe("SessionLifecycleHandler", () => {
   let runtime: LifecycleRuntime;
   let manager: LifecycleManager;
-  let disposeNotifications: () => void;
-  let unpublishService: () => void;
+  let mockSetSessionContext: ReturnType<typeof vi.fn<LifecycleRuntime["setSessionContext"]>>;
+  let mockClearSessionContext: ReturnType<typeof vi.fn<LifecycleRuntime["clearSessionContext"]>>;
+  let mockClearCompleted: ReturnType<typeof vi.fn<LifecycleManager["clearCompleted"]>>;
+  let mockAbortAll: ReturnType<typeof vi.fn<LifecycleManager["abortAll"]>>;
+  let mockDispose: ReturnType<typeof vi.fn<LifecycleManager["dispose"]>>;
+  let mockDisposeNotifications: ReturnType<typeof vi.fn<() => void>>;
+  let mockUnpublishService: ReturnType<typeof vi.fn<() => void>>;
   let handler: SessionLifecycleHandler;
 
   const fakePi = { name: "fake-pi" };
 
   beforeEach(() => {
+    mockSetSessionContext = vi.fn();
+    mockClearSessionContext = vi.fn();
+    mockClearCompleted = vi.fn();
+    mockAbortAll = vi.fn();
+    mockDispose = vi.fn();
+    mockDisposeNotifications = vi.fn();
+    mockUnpublishService = vi.fn();
+
     runtime = {
-      setSessionContext: vi.fn(),
-      clearSessionContext: vi.fn(),
+      setSessionContext: mockSetSessionContext,
+      clearSessionContext: mockClearSessionContext,
     };
     manager = {
-      clearCompleted: vi.fn(),
-      abortAll: vi.fn(),
-      dispose: vi.fn(),
+      clearCompleted: mockClearCompleted,
+      abortAll: mockAbortAll,
+      dispose: mockDispose,
     };
-    disposeNotifications = vi.fn<() => void>();
-    unpublishService = vi.fn<() => void>();
 
     handler = new SessionLifecycleHandler(
       fakePi,
       runtime,
       manager,
-      disposeNotifications,
-      unpublishService,
+      mockDisposeNotifications,
+      mockUnpublishService,
     );
   });
 
@@ -45,10 +56,10 @@ describe("SessionLifecycleHandler", () => {
 
     it("sets context before clearing completed", () => {
       const callOrder: string[] = [];
-      (runtime.setSessionContext as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      mockSetSessionContext.mockImplementation(() => {
         callOrder.push("setSessionContext");
       });
-      (manager.clearCompleted as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      mockClearCompleted.mockImplementation(() => {
         callOrder.push("clearCompleted");
       });
 
@@ -70,24 +81,24 @@ describe("SessionLifecycleHandler", () => {
     it("calls all cleanup steps", async () => {
       await handler.handleSessionShutdown();
 
-      expect(unpublishService).toHaveBeenCalled();
-      expect(runtime.clearSessionContext).toHaveBeenCalled();
-      expect(manager.abortAll).toHaveBeenCalled();
-      expect(disposeNotifications).toHaveBeenCalled();
-      expect(manager.dispose).toHaveBeenCalled();
+      expect(mockUnpublishService).toHaveBeenCalled();
+      expect(mockClearSessionContext).toHaveBeenCalled();
+      expect(mockAbortAll).toHaveBeenCalled();
+      expect(mockDisposeNotifications).toHaveBeenCalled();
+      expect(mockDispose).toHaveBeenCalled();
     });
 
     it("calls cleanup in correct order", async () => {
       const callOrder: string[] = [];
-      vi.mocked(unpublishService).mockImplementation(() => { callOrder.push("unpublishService"); });
-      vi.mocked(runtime.clearSessionContext).mockImplementation(() => {
+      mockUnpublishService.mockImplementation(() => { callOrder.push("unpublishService"); });
+      mockClearSessionContext.mockImplementation(() => {
         callOrder.push("clearSessionContext");
       });
-      vi.mocked(manager.abortAll).mockImplementation(() => {
+      mockAbortAll.mockImplementation(() => {
         callOrder.push("abortAll");
       });
-      vi.mocked(disposeNotifications).mockImplementation(() => { callOrder.push("disposeNotifications"); });
-      vi.mocked(manager.dispose).mockImplementation(() => {
+      mockDisposeNotifications.mockImplementation(() => { callOrder.push("disposeNotifications"); });
+      mockDispose.mockImplementation(() => {
         callOrder.push("dispose");
       });
 
