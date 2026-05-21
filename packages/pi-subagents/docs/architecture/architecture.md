@@ -413,15 +413,14 @@ The 6 settings-related fields in `AgentMenuDeps` collapsed to `settings: AgentMe
 
 Impact: reduced `AgentMenuDeps` from 13 → 8 fields; `AgentToolDeps` from 8 → 7 fields.
 
-#### A2b. `SettingsManager` apply methods (#118)
+#### ~~A2b. `SettingsManager` apply methods (#118)~~ — **Done**
 
-Eliminate the cross-collaborator orchestration in `showSettings`.
-The menu currently mutates `settings`, pokes `manager.notifyConcurrencyChanged()`, then calls `settings.saveAndNotify()` — it knows too much about the consequence chain.
-Add `applyMaxConcurrent(n)`, `applyDefaultMaxTurns(n)`, `applyGraceTurns(n)` methods that own the full lifecycle: normalize → apply → notify interested parties (via callback) → persist → emit event → return toast.
-`SettingsManager` accepts an `onMaxConcurrentChanged` callback wired to `manager.notifyConcurrencyChanged()` at init.
-`notifyConcurrencyChanged` disappears from `AgentMenuManager`.
+Added `applyMaxConcurrent(n)`, `applyDefaultMaxTurns(n)`, `applyGraceTurns(n)` to `SettingsManager`.
+Each owns the full consequence chain: normalize → set in memory → notify callback → persist → emit event → return toast.
+`SettingsManager` accepts an `onMaxConcurrentChanged` callback (wired to `manager.notifyConcurrencyChanged()` at init).
+`notifyConcurrencyChanged` removed from `AgentMenuManager`; `showSettings` now makes a single apply call per setting.
 
-Impact: eliminates LoD / Tell-Don't-Ask violation; menu no longer coordinates between settings and manager.
+Impact: eliminates LoD / Tell-Don't-Ask violation in `showSettings`; menu no longer coordinates between settings and manager.
 
 #### A3. `AgentActivityTracker` class (#110)
 
