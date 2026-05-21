@@ -553,6 +553,82 @@ describe("SettingsManager", () => {
     });
   });
 
+  describe("applyDefaultMaxTurns()", () => {
+    let projectDir: string;
+    let originalAgentDirEnv: string | undefined;
+
+    beforeEach(() => {
+      projectDir = mkdtempSync(join(tmpdir(), "pi-sm-apply-dmt-"));
+      originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+      process.env.PI_CODING_AGENT_DIR = mkdtempSync(join(tmpdir(), "pi-sm-apply-dmt-global-"));
+    });
+
+    afterEach(() => {
+      if (originalAgentDirEnv == null) delete process.env.PI_CODING_AGENT_DIR;
+      else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+      rmSync(projectDir, { recursive: true, force: true });
+    });
+
+    it("sets to unlimited when 0 is passed and reports 'unlimited' in toast", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir });
+      const toast = sm.applyDefaultMaxTurns(0);
+      expect(sm.defaultMaxTurns).toBeUndefined();
+      expect(toast).toEqual({ message: "Default max turns set to unlimited", level: "info" });
+    });
+
+    it("sets to the given value and includes it in the toast", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir });
+      const toast = sm.applyDefaultMaxTurns(10);
+      expect(sm.defaultMaxTurns).toBe(10);
+      expect(toast.message).toBe("Default max turns set to 10");
+    });
+
+    it("does not call onMaxConcurrentChanged", () => {
+      const onChanged = vi.fn();
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir, onMaxConcurrentChanged: onChanged });
+      sm.applyDefaultMaxTurns(5);
+      expect(onChanged).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("applyGraceTurns()", () => {
+    let projectDir: string;
+    let originalAgentDirEnv: string | undefined;
+
+    beforeEach(() => {
+      projectDir = mkdtempSync(join(tmpdir(), "pi-sm-apply-gt-"));
+      originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+      process.env.PI_CODING_AGENT_DIR = mkdtempSync(join(tmpdir(), "pi-sm-apply-gt-global-"));
+    });
+
+    afterEach(() => {
+      if (originalAgentDirEnv == null) delete process.env.PI_CODING_AGENT_DIR;
+      else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+      rmSync(projectDir, { recursive: true, force: true });
+    });
+
+    it("sets graceTurns and reports the post-normalization value in toast", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir });
+      const toast = sm.applyGraceTurns(3);
+      expect(sm.graceTurns).toBe(3);
+      expect(toast).toEqual({ message: "Grace turns set to 3", level: "info" });
+    });
+
+    it("normalizes 0 to 1 and reports the post-normalization value in toast", () => {
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir });
+      const toast = sm.applyGraceTurns(0);
+      expect(sm.graceTurns).toBe(1);
+      expect(toast.message).toBe("Grace turns set to 1");
+    });
+
+    it("does not call onMaxConcurrentChanged", () => {
+      const onChanged = vi.fn();
+      const sm = new SettingsManager({ emit: vi.fn(), cwd: projectDir, onMaxConcurrentChanged: onChanged });
+      sm.applyGraceTurns(5);
+      expect(onChanged).not.toHaveBeenCalled();
+    });
+  });
+
   describe("constructor onMaxConcurrentChanged callback", () => {
     it("constructs without callback without throwing", () => {
       expect(() => new SettingsManager({ emit: vi.fn(), cwd: "/tmp" })).not.toThrow();

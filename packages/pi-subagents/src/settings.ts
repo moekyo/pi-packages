@@ -115,6 +115,24 @@ export class SettingsManager {
   }
 
   /**
+   * Set defaultMaxTurns, persist, and return the toast.
+   * Pass 0 for unlimited (maps to undefined internally).
+   */
+  applyDefaultMaxTurns(n: number): { message: string; level: "info" | "warning" } {
+    this.defaultMaxTurns = n === 0 ? undefined : n; // setter normalizes further
+    const label = this.defaultMaxTurns == null ? "unlimited" : String(this.defaultMaxTurns);
+    return this.saveAndNotify(`Default max turns set to ${label}`);
+  }
+
+  /**
+   * Set graceTurns, persist, and return the toast.
+   */
+  applyGraceTurns(n: number): { message: string; level: "info" | "warning" } {
+    this.graceTurns = n; // setter normalizes: max(1, n)
+    return this.saveAndNotify(`Grace turns set to ${this.graceTurns}`);
+  }
+
+  /**
    * Persist the current snapshot, emit `subagents:settings_changed`,
    * and return the toast the UI should display.
    */
