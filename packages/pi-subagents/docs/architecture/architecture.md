@@ -82,7 +82,7 @@ Record statistics (tool uses, token usage, compaction counts) are updated by `re
 UI streaming (active tools, response text, turn counts) is handled by `ui/ui-observer.ts`, which subscribes to the same session events independently.
 Neither observer wraps or forwards the other — both subscribe directly to the session.
 
-The widget reads agent state by polling a shared `Map<string, AgentActivity>` on `SubagentRuntime` every 80 ms. The conversation viewer subscribes directly to `AgentSession` objects.
+The widget reads agent state by polling a shared `Map<string, AgentActivityTracker>` on `SubagentRuntime` every 80 ms. The conversation viewer subscribes directly to `AgentSession` objects.
 
 Cross-extension consumers use the typed `SubagentsService` API published via `Symbol.for("@gotgenes/pi-subagents:service")` on `globalThis`.
 
@@ -381,7 +381,7 @@ Each step is sequenced so it makes the next step easier.
 | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ~~Global mutable state~~   | ~~`agent-types.ts`~~                     | **Fixed #108**: `AgentTypeRegistry` class; `reloadCustomAgents` callback removed from `AgentToolDeps` and `AgentMenuDeps`                                                 |
 | Closure bag as class       | `createNotificationSystem()`             | Returns 4 functions sharing closure state (`pendingNudges`, timers)                                                                                                       |
-| Mutable state bag          | `AgentActivity` (7 fields)               | Written by `ui-observer.ts`, read by widget, notification, agent-tool                                                                                                     |
+| ~~Mutable state bag~~      | ~~`AgentActivity` (7 fields)~~           | **Fixed #110**: `AgentActivityTracker` class; `ui-observer.ts` calls transition methods; widget, notification, agent-tool use read-only accessors                         |
 | ~~Settings relay~~         | ~~`AgentMenuDeps` (13 fields)~~          | **Fixed #109**: `SettingsManager` class; 6 callback fields collapsed to `settings: SettingsManager`; `AgentMenuDeps` now 8 fields                                         |
 | Post-construction mutation | `AgentRecord` non-transition state       | `session`, `outputFile`, `worktree`, `promise` written by external code after construction                                                                                |
 | Fire-and-forget callbacks  | `AgentManagerOptions`                    | `onStart`, `onComplete`, `onCompact` wired as closures in `index.ts`                                                                                                      |
@@ -422,11 +422,12 @@ Each owns the full consequence chain: normalize → set in memory → notify cal
 
 Impact: eliminates LoD / Tell-Don't-Ask violation in `showSettings`; menu no longer coordinates between settings and manager.
 
-#### A3. `AgentActivityTracker` class (#110)
+#### ~~A3. `AgentActivityTracker` class (#110)~~ — **Done**
 
-Wrap the 7-field mutable `AgentActivity` interface with transition methods (`onToolStart()`, `onToolEnd()`, `onMessageUpdate()`, `onTurnEnd()`).
-`ui-observer.ts` calls tracker methods instead of writing raw fields.
-The notification system, widget, and agent-tool receive a proper collaborator instead of reaching into a shared `Map<string, AgentActivity>`.
+Wrapped the 7-field mutable `AgentActivity` interface in an `AgentActivityTracker` class (`src/ui/agent-activity-tracker.ts`).
+`ui-observer.ts` calls transition methods (`onToolStart`, `onToolEnd`, `onMessageStart`, `onMessageUpdate`, `onTurnEnd`, `onUsageUpdate`, `setSession`).
+The notification system, widget, conversation viewer, and agent-tool use read-only accessors.
+The shared map on `SubagentRuntime` is now `Map<string, AgentActivityTracker>`.
 
 Impact: eliminates output-argument writes in `ui-observer.ts`, makes the mutation contract explicit.
 
@@ -489,7 +490,7 @@ The 654-line file splits along a natural seam.
 | ------------------------------------------ | ---------------------------------------------------------------------------- | ------- |
 | Module-scoped mutable state                | ~~1 (`agent-types.ts` Map)~~                                                 | **0** ✓ |
 | Closure-bag "classes"                      | ~~2~~ 1 (`createNotificationSystem`; settings free functions **fixed #109**) | 0       |
-| Externally-mutated state bags              | 2 (`AgentActivity`, `AgentRecord` non-transition fields)                     | 0       |
+| Externally-mutated state bags              | ~~2~~ 1 (`AgentRecord` non-transition fields; `AgentActivity` **fixed #110**)| 0       |
 | `AgentManagerOptions` fields               | 8                                                                            | 5       |
 | `AgentToolDeps` fields                     | ~~9~~ **7** (−6 registry #108, −1 settings #109 → +1 settings obj)           | ~5      |
 | `AgentMenuDeps` fields                     | ~~13~~ **8** (−6 settings #109 collapsed to 1; −1 registry #108)             | ~6 ✓    |
