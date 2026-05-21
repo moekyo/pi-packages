@@ -377,17 +377,17 @@ Each step is sequenced so it makes the next step easier.
 
 ### Current smells
 
-| Smell                      | Location                                 | Evidence                                                                                                                                                                  |
-| -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ~~Global mutable state~~   | ~~`agent-types.ts`~~                     | **Fixed #108**: `AgentTypeRegistry` class; `reloadCustomAgents` callback removed from `AgentToolDeps` and `AgentMenuDeps`                                                 |
-| Closure bag as class       | `createNotificationSystem()`             | Returns 4 functions sharing closure state (`pendingNudges`, timers)                                                                                                       |
-| ~~Mutable state bag~~      | ~~`AgentActivity` (7 fields)~~           | **Fixed #110**: `AgentActivityTracker` class; `ui-observer.ts` calls transition methods; widget, notification, agent-tool use read-only accessors                         |
-| ~~Settings relay~~         | ~~`AgentMenuDeps` (13 fields)~~          | **Fixed #109**: `SettingsManager` class; 6 callback fields collapsed to `settings: SettingsManager`; `AgentMenuDeps` now 8 fields                                         |
-| Post-construction mutation | `AgentRecord` non-transition state       | `session`, `outputFile`, `worktree`, `promise` written by external code after construction                                                                                |
-| Fire-and-forget callbacks  | `AgentManagerOptions`                    | `onStart`, `onComplete`, `onCompact` wired as closures in `index.ts`                                                                                                      |
-| Duplicate `SpawnOptions`   | `service.ts` + `agent-manager.ts`        | Two incompatible shapes (JSON-friendly vs runtime types) with the same name                                                                                               |
-| Type dumping ground        | `types.ts`                               | `NotificationDetails` used only by notification/renderer; ~~`DEFAULT_AGENT_NAMES` moved to `AgentTypeRegistry` (#108)~~; `AgentConfig` (21 fields) consumers use 2–4 each |
-| Wide dependency bags       | `AgentToolDeps` (7), `AgentMenuDeps` (8) | Settings narrowed (#109); registry narrowed (#108); more narrowing planned in D steps                                                                                     |
+| Smell                          | Location                                 | Evidence                                                                                                                                                                  |
+| ------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~Global mutable state~~       | ~~`agent-types.ts`~~                     | **Fixed #108**: `AgentTypeRegistry` class; `reloadCustomAgents` callback removed from `AgentToolDeps` and `AgentMenuDeps`                                                 |
+| Closure bag as class           | `createNotificationSystem()`             | Returns 4 functions sharing closure state (`pendingNudges`, timers)                                                                                                       |
+| ~~Mutable state bag~~          | ~~`AgentActivity` (7 fields)~~           | **Fixed #110**: `AgentActivityTracker` class; `ui-observer.ts` calls transition methods; widget, notification, agent-tool use read-only accessors                         |
+| ~~Settings relay~~             | ~~`AgentMenuDeps` (13 fields)~~          | **Fixed #109**: `SettingsManager` class; 6 callback fields collapsed to `settings: SettingsManager`; `AgentMenuDeps` now 8 fields                                         |
+| ~~Post-construction mutation~~ | ~~`AgentRecord` non-transition state~~   | **Fixed #111**: `ExecutionState`, `WorktreeState`, `NotificationState` collaborators; `pendingSteers` moved to `AgentManager`; stats encapsulated behind mutation methods |
+| Fire-and-forget callbacks      | `AgentManagerOptions`                    | `onStart`, `onComplete`, `onCompact` wired as closures in `index.ts`                                                                                                      |
+| Duplicate `SpawnOptions`       | `service.ts` + `agent-manager.ts`        | Two incompatible shapes (JSON-friendly vs runtime types) with the same name                                                                                               |
+| Type dumping ground            | `types.ts`                               | `NotificationDetails` used only by notification/renderer; ~~`DEFAULT_AGENT_NAMES` moved to `AgentTypeRegistry` (#108)~~; `AgentConfig` (21 fields) consumers use 2–4 each |
+| Wide dependency bags           | `AgentToolDeps` (7), `AgentMenuDeps` (8) | Settings narrowed (#109); registry narrowed (#108); more narrowing planned in D steps                                                                                     |
 
 ### Step A: Extract state into classes (foundation, parallel)
 
@@ -431,15 +431,16 @@ The shared map on `SubagentRuntime` is now `Map<string, AgentActivityTracker>`.
 
 Impact: eliminates output-argument writes in `ui-observer.ts`, makes the mutation contract explicit.
 
-### Step B: Split `AgentRecord` lifecycle state (#111)
+### ~~Step B: Split `AgentRecord` lifecycle state (#111)~~ — **Done**
 
-`AgentRecord` is currently constructed in `spawn()` before most of its state exists, then mutated across 4 files as information trickles in.
-The fix is not setter methods — it's splitting along lifecycle boundaries so each object is born complete.
+Split post-construction mutation into phase-specific collaborators, each born complete:
 
-- **`AgentRecord`** stays as identity + status state machine (what we know at spawn time).
-- **Execution state** (`session`, `promise`, `outputFile`) → a new object constructed when the runner creates the session, injected as a complete collaborator.
-- **Worktree state** (`worktree` info, cleanup result) → a new object constructed when isolation is set up, only exists for worktree agents.
-- **`pendingSteers`** moves to a queue on the manager (where they're buffered), not a field on the record.
+- **`ExecutionState`** (`session`, `outputFile`) — constructed in `onSessionCreated`, attached as `record.execution`.
+- **`WorktreeState`** (`path`, `branch`, `cleanupResult`) — constructed at worktree setup, attached as `record.worktreeState`.
+- **`NotificationState`** (`toolCallId`, `resultConsumed`) — constructed by agent-tool after spawn, attached as `record.notification`.
+- **`pendingSteers`** moved to `Map<string, string[]>` on `AgentManager`; steer-tool and service-adapter call `manager.queueSteer()`.
+- Stats (`toolUses`, `lifetimeUsage`, `compactionCount`) encapsulated behind mutation methods (`incrementToolUses`, `addUsage`, `incrementCompactions`) with read-only getters.
+- `AgentRecordInit` trimmed from 19 optional fields to 4 construction-time fields.
 
 Each piece is born complete at the moment its information is available.
 The record doesn't accumulate half-baked state — it receives fully constructed collaborators.
@@ -486,17 +487,17 @@ The 654-line file splits along a natural seam.
 
 ### Expected impact
 
-| Metric                                     | Before                                                                       | After   |
-| ------------------------------------------ | ---------------------------------------------------------------------------- | ------- |
-| Module-scoped mutable state                | ~~1 (`agent-types.ts` Map)~~                                                 | **0** ✓ |
-| Closure-bag "classes"                      | ~~2~~ 1 (`createNotificationSystem`; settings free functions **fixed #109**) | 0       |
-| Externally-mutated state bags              | ~~2~~ 1 (`AgentRecord` non-transition fields; `AgentActivity` **fixed #110**)| 0       |
-| `AgentManagerOptions` fields               | 8                                                                            | 5       |
-| `AgentToolDeps` fields                     | ~~9~~ **7** (−6 registry #108, −1 settings #109 → +1 settings obj)           | ~5      |
-| `AgentMenuDeps` fields                     | ~~13~~ **8** (−6 settings #109 collapsed to 1; −1 registry #108)             | ~6 ✓    |
-| `SpawnOptions` callback fields             | 1 (`onSessionCreated`)                                                       | 0       |
-| Callbacks threaded through deps            | ~~8~~ 0 remaining settings callbacks (**fixed #109**); `emitEvent` ×3 remain | 0       |
-| Types in `types.ts` without a natural home | 4                                                                            | 0       |
+| Metric                                     | Before                                                                           | After   |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ------- |
+| Module-scoped mutable state                | ~~1 (`agent-types.ts` Map)~~                                                     | **0** ✓ |
+| Closure-bag "classes"                      | ~~2~~ 1 (`createNotificationSystem`; settings free functions **fixed #109**)     | 0       |
+| Externally-mutated state bags              | ~~2~~ ~~1~~ **0** (`AgentRecord` **fixed #111**; `AgentActivity` **fixed #110**) | 0 ✓     |
+| `AgentManagerOptions` fields               | 8                                                                                | 5       |
+| `AgentToolDeps` fields                     | ~~9~~ **7** (−6 registry #108, −1 settings #109 → +1 settings obj)               | ~5      |
+| `AgentMenuDeps` fields                     | ~~13~~ **8** (−6 settings #109 collapsed to 1; −1 registry #108)                 | ~6 ✓    |
+| `SpawnOptions` callback fields             | 1 (`onSessionCreated`)                                                           | 0       |
+| Callbacks threaded through deps            | ~~8~~ 0 remaining settings callbacks (**fixed #109**); `emitEvent` ×3 remain     | 0       |
+| Types in `types.ts` without a natural home | 4                                                                                | 0       |
 
 ### Dependency graph
 
