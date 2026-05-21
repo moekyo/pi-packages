@@ -7,6 +7,7 @@ import { AgentTypeRegistry } from "../agent-types.js";
 import { resolveAgentInvocationConfig } from "../invocation-config.js";
 import { resolveInvocationModel } from "../model-resolver.js";
 
+import { NotificationState } from "../notification-state.js";
 import type { AgentInvocation, AgentRecord, SubagentType } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import {
@@ -430,6 +431,9 @@ Guidelines:
 
         const record = deps.manager.getRecord(id);
         if (record) {
+          // Born complete: notification-state object owns toolCallId + resultConsumed.
+          record.notification = new NotificationState(toolCallId);
+          // Keep legacy field in sync during migration
           record.toolCallId = toolCallId;
         }
 
@@ -451,7 +455,7 @@ Guidelines:
             `Agent ID: ${id}\n` +
             `Type: ${displayName}\n` +
             `Description: ${params.description}\n` +
-            (record?.outputFile ? `Output file: ${record.outputFile}\n` : "") +
+            ((record?.execution?.outputFile ?? record?.outputFile) ? `Output file: ${record?.execution?.outputFile ?? record?.outputFile}\n` : "") +
             (isQueued
               ? `Position: queued (max ${deps.manager.getMaxConcurrent()} concurrent)\n`
               : "") +
