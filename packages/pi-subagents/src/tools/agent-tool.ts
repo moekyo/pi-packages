@@ -3,7 +3,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import type { SpawnOptions } from "../agent-manager.js";
 import { normalizeMaxTurns } from "../agent-runner.js";
-import { resolveAgentConfig, resolveType } from "../agent-types.js";
+import { AgentTypeRegistry } from "../agent-types.js";
 import { resolveAgentInvocationConfig } from "../invocation-config.js";
 import { resolveInvocationModel } from "../model-resolver.js";
 
@@ -108,7 +108,7 @@ export interface AgentToolDeps {
   widget: AgentToolWidget;
   agentActivity: Map<string, AgentActivity>;
   emitEvent: (name: string, data: unknown) => void;
-  reloadCustomAgents: () => void;
+  registry: AgentTypeRegistry;
   typeListText: string;
   availableTypesText: string;
   agentDir: string;
@@ -327,17 +327,17 @@ Guidelines:
       deps.widget.setUICtx(ctx.ui as UICtx);
 
       // Reload custom agents so new .pi/agents/*.md files are picked up without restart
-      deps.reloadCustomAgents();
+      deps.registry.reload();
 
       const rawType = params.subagent_type as SubagentType;
-      const resolved = resolveType(rawType);
+      const resolved = deps.registry.resolveType(rawType);
       const subagentType = resolved ?? "general-purpose";
       const fellBack = resolved === undefined;
 
       const displayName = getDisplayName(subagentType);
 
       // Get agent config for invocation resolution
-      const customConfig = resolveAgentConfig(subagentType);
+      const customConfig = deps.registry.resolveAgentConfig(subagentType);
 
       const resolvedConfig = resolveAgentInvocationConfig(customConfig, params);
 

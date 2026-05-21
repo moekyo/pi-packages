@@ -198,7 +198,7 @@ export default function (pi: ExtensionAPI) {
     },
     agentActivity: runtime.agentActivity,
     emitEvent: (name, data) => pi.events.emit(name, data),
-    reloadCustomAgents,
+    registry,
     typeListText,
     availableTypesText: getAvailableTypes().join(", "),
     agentDir: getAgentDir(),

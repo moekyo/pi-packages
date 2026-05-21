@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { AgentTypeRegistry } from "../../src/agent-types.js";
 import { type AgentToolDeps, createAgentTool } from "../../src/tools/agent-tool.js";
 import type { AgentActivity } from "../../src/ui/agent-widget.js";
 import { createTestRecord } from "../helpers/make-record.js";
+
+const testRegistry = new AgentTypeRegistry(() => new Map());
 
 function makeDeps(overrides: Partial<AgentToolDeps> = {}): AgentToolDeps {
   return {
@@ -21,7 +24,7 @@ function makeDeps(overrides: Partial<AgentToolDeps> = {}): AgentToolDeps {
     },
     agentActivity: new Map<string, AgentActivity>(),
     emitEvent: vi.fn(),
-    reloadCustomAgents: vi.fn(),
+    registry: testRegistry,
     typeListText: "- general-purpose: General purpose agent",
     availableTypesText: "general-purpose, Explore, Plan",
     agentDir: "/home/user/.pi",
@@ -69,14 +72,16 @@ describe("createAgentTool", () => {
     expect(tool.description).toContain("- Explore: fast explorer");
   });
 
-  it("calls reloadCustomAgents on each execute", async () => {
+  it("calls registry.reload() on each execute", async () => {
+    const reloadSpy = vi.spyOn(testRegistry, "reload");
     const deps = makeDeps();
     await execute(deps, {
       prompt: "test",
       description: "test",
       subagent_type: "general-purpose",
     });
-    expect(deps.reloadCustomAgents).toHaveBeenCalledOnce();
+    expect(reloadSpy).toHaveBeenCalledOnce();
+    reloadSpy.mockRestore();
   });
 
   it("sets UI context on widget at start of execute", async () => {
