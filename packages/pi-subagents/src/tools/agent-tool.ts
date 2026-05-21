@@ -8,8 +8,8 @@ import { resolveAgentInvocationConfig } from "../invocation-config.js";
 import { resolveInvocationModel } from "../model-resolver.js";
 
 import type { AgentInvocation, AgentRecord, SubagentType } from "../types.js";
+import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import {
-  type AgentActivity,
   type AgentDetails,
   buildInvocationTags,
   describeActivity,
@@ -25,19 +25,6 @@ import type { LifetimeUsage } from "../usage.js";
 import { formatLifetimeTokens, textResult } from "./helpers.js";
 
 // ---- Agent-tool-specific helpers ----
-
-/** Create a fresh AgentActivity state for tracking UI progress. */
-function createAgentActivity(maxTurns?: number): AgentActivity {
-  return {
-    activeTools: new Map(),
-    toolUses: 0,
-    turnCount: 1,
-    maxTurns,
-    responseText: "",
-    session: undefined,
-    lifetimeUsage: { input: 0, output: 0, cacheWrite: 0 },
-  };
-}
 
 /** Parenthetical status note for completed agent result text. */
 export function getStatusNote(status: string): string {
@@ -66,7 +53,7 @@ export function buildDetails(
     session?: any;
     lifetimeUsage: LifetimeUsage;
   },
-  activity?: AgentActivity,
+  activity?: AgentActivityTracker,
   overrides?: Partial<AgentDetails>,
 ): AgentDetails {
   return {
@@ -106,7 +93,7 @@ export interface AgentToolWidget {
 export interface AgentToolDeps {
   manager: AgentToolManager;
   widget: AgentToolWidget;
-  agentActivity: Map<string, AgentActivity>;
+  agentActivity: Map<string, AgentActivityTracker>;
   emitEvent: (name: string, data: unknown) => void;
   registry: AgentTypeRegistry;
   typeListText: string;
@@ -415,7 +402,7 @@ Guidelines:
 
       // Background execution
       if (runInBackground) {
-        const bgState = createAgentActivity(effectiveMaxTurns);
+        const bgState = new AgentActivityTracker(effectiveMaxTurns);
 
         let id: string;
 
@@ -433,7 +420,7 @@ Guidelines:
             isolation,
             invocation: agentInvocation,
             onSessionCreated: (session: any) => {
-              bgState.session = session;
+              bgState.setSession(session);
               subscribeUIObserver(session, bgState);
             },
           });
@@ -487,7 +474,7 @@ Guidelines:
       const startedAt = Date.now();
       let fgId: string | undefined;
 
-      const fgState = createAgentActivity(effectiveMaxTurns);
+      const fgState = new AgentActivityTracker(effectiveMaxTurns);
       let unsubUI: (() => void) | undefined;
 
       const streamUpdate = () => {
@@ -535,7 +522,7 @@ Guidelines:
             parentSessionFile: ctx.sessionManager.getSessionFile(),
             parentSessionId: ctx.sessionManager.getSessionId(),
             onSessionCreated: (session: any) => {
-              fgState.session = session;
+              fgState.setSession(session);
               unsubUI = subscribeUIObserver(session, fgState, streamUpdate);
               for (const a of deps.manager.listAgents()) {
                 if (a.session === session) {

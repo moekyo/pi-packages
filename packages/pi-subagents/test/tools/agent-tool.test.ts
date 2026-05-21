@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "../../src/agent-types.js";
 import { type AgentToolDeps, createAgentTool } from "../../src/tools/agent-tool.js";
-import type { AgentActivity } from "../../src/ui/agent-widget.js";
+import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createTestRecord } from "../helpers/make-record.js";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
@@ -22,7 +22,7 @@ function makeDeps(overrides: Partial<AgentToolDeps> = {}): AgentToolDeps {
       update: vi.fn(),
       markFinished: vi.fn(),
     },
-    agentActivity: new Map<string, AgentActivity>(),
+    agentActivity: new Map<string, AgentActivityTracker>(),
     emitEvent: vi.fn(),
     registry: testRegistry,
     typeListText: "- general-purpose: General purpose agent",
