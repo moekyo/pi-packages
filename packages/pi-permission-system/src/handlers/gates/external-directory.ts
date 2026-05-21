@@ -6,11 +6,7 @@ import {
 } from "../../path-utils";
 import { deriveApprovalPattern } from "../../session-rules";
 import type { GateResult } from "./descriptor";
-import {
-  formatExternalDirectoryAskPrompt,
-  formatExternalDirectoryDenyReason,
-  formatExternalDirectoryUserDeniedReason,
-} from "./external-directory-messages";
+import { formatExternalDirectoryAskPrompt } from "./external-directory-messages";
 import type { ToolCallContext } from "./types";
 
 /**
@@ -80,20 +76,12 @@ export function describeExternalDirectoryGate(
   return {
     surface: "external_directory",
     input: { path: normalizedExtPath },
-    messages: {
-      denyReason: formatExternalDirectoryDenyReason(
-        tcc.toolName,
-        externalDirectoryPath,
-        tcc.cwd,
-        tcc.agentName ?? undefined,
-      ),
-      unavailableReason: `Accessing '${externalDirectoryPath}' outside the working directory requires approval, but no interactive UI is available.`,
-      userDeniedReason: (decision) =>
-        formatExternalDirectoryUserDeniedReason(
-          tcc.toolName,
-          externalDirectoryPath,
-          decision.denialReason,
-        ),
+    denialContext: {
+      kind: "external_directory",
+      toolName: tcc.toolName,
+      pathValue: externalDirectoryPath,
+      cwd: tcc.cwd,
+      agentName: tcc.agentName ?? undefined,
     },
     sessionApproval: {
       surface: "external_directory",

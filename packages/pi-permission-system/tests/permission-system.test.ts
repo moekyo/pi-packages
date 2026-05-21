@@ -1874,10 +1874,11 @@ test("tool_call blocks path-bearing tools outside cwd when external_directory is
     });
 
     expect(result.block).toBe(true);
-    expect(String(result.reason)).toMatch(
-      /external directory permission denial/i,
-    );
-    expect(String(result.reason)).toMatch(/repo-sibling/);
+    const reason = String(result.reason);
+    expect(reason).toContain("is not permitted to run tool 'read'");
+    expect(reason).toContain("repo-sibling");
+    expect(reason).toContain("[pi-permission-system]");
+    expect(reason).not.toContain("Hard stop");
   } finally {
     await harness.cleanup();
     rmSync(rootDir, { recursive: true, force: true });
@@ -2003,10 +2004,13 @@ test("tool_call blocks bash command with external path when external_directory i
     });
 
     expect(result.block).toBe(true);
-    expect(String(result.reason)).toMatch(
-      /external directory permission denial/i,
+    const reason = String(result.reason);
+    expect(reason).toContain(
+      "is not permitted to run bash command 'cat /etc/hosts'",
     );
-    expect(String(result.reason)).toMatch(/\/etc\/hosts/);
+    expect(reason).toContain("/etc/hosts");
+    expect(reason).toContain("[pi-permission-system]");
+    expect(reason).not.toContain("Hard stop");
   } finally {
     await harness.cleanup();
   }

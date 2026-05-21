@@ -4,11 +4,7 @@ import { deriveApprovalPattern } from "../../session-rules";
 import type { PermissionCheckResult } from "../../types";
 import { extractExternalPathsFromBashCommand } from "./bash-path-extractor";
 import type { GateResult } from "./descriptor";
-import {
-  formatBashExternalDirectoryAskPrompt,
-  formatBashExternalDirectoryDenyReason,
-  formatExternalDirectoryHardStopHint,
-} from "./external-directory-messages";
+import { formatBashExternalDirectoryAskPrompt } from "./external-directory-messages";
 import type { ToolCallContext } from "./types";
 
 /** Function type for checkPermission used by the descriptor factory. */
@@ -92,20 +88,12 @@ export async function describeBashExternalDirectoryGate(
   return {
     surface: "external_directory",
     input: {},
-    messages: {
-      denyReason: formatBashExternalDirectoryDenyReason(
-        command,
-        uncoveredPaths,
-        tcc.cwd,
-        tcc.agentName ?? undefined,
-      ),
-      unavailableReason: `Bash command '${command}' references path(s) outside the working directory and requires approval, but no interactive UI is available.`,
-      userDeniedReason: (decision) => {
-        const reasonSuffix = decision.denialReason
-          ? ` Reason: ${decision.denialReason}.`
-          : "";
-        return `User denied external directory access for bash command '${command}'.${reasonSuffix} ${formatExternalDirectoryHardStopHint()}`;
-      },
+    denialContext: {
+      kind: "bash_external_directory",
+      command,
+      externalPaths: uncoveredPaths,
+      cwd: tcc.cwd,
+      agentName: tcc.agentName ?? undefined,
     },
     sessionApproval: {
       surface: "external_directory",

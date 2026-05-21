@@ -9,14 +9,12 @@ vi.mock("node:os", () => {
   };
 });
 
+import { formatDenyReason } from "../src/denial-messages";
 import {
   extractExternalPathsFromBashCommand,
   extractTokensForPathRules,
 } from "../src/handlers/gates/bash-path-extractor";
-import {
-  formatBashExternalDirectoryAskPrompt,
-  formatBashExternalDirectoryDenyReason,
-} from "../src/handlers/gates/external-directory-messages";
+import { formatBashExternalDirectoryAskPrompt } from "../src/handlers/gates/external-directory-messages";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -859,35 +857,19 @@ describe("formatBashExternalDirectoryAskPrompt", () => {
   });
 });
 
-describe("formatBashExternalDirectoryDenyReason", () => {
-  test("includes command, external paths, and CWD", () => {
-    const result = formatBashExternalDirectoryDenyReason(
-      "cat /etc/hosts",
-      ["/etc/hosts"],
-      "/projects/my-app",
-    );
+describe("bash external-directory denial messages (centralized)", () => {
+  test("denial message includes command, paths, and extension tag", () => {
+    const result = formatDenyReason({
+      kind: "bash_external_directory",
+      command: "cat /etc/hosts",
+      externalPaths: ["/etc/hosts"],
+      cwd: "/projects/my-app",
+    });
     expect(result).toContain("cat /etc/hosts");
     expect(result).toContain("/etc/hosts");
     expect(result).toContain("/projects/my-app");
-  });
-
-  test("includes hard stop hint", () => {
-    const result = formatBashExternalDirectoryDenyReason(
-      "cat /etc/hosts",
-      ["/etc/hosts"],
-      "/projects/my-app",
-    );
-    expect(result).toContain("Hard stop");
-  });
-
-  test("includes agent name when provided", () => {
-    const result = formatBashExternalDirectoryDenyReason(
-      "cat /etc/hosts",
-      ["/etc/hosts"],
-      "/projects/my-app",
-      "my-agent",
-    );
-    expect(result).toContain("my-agent");
+    expect(result).toContain("[pi-permission-system]");
+    expect(result).not.toContain("Hard stop");
   });
 });
 

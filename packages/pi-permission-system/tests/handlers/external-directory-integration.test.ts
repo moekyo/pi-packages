@@ -11,12 +11,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  formatExternalDirectoryAskPrompt,
-  formatExternalDirectoryDenyReason,
-  formatExternalDirectoryHardStopHint,
-  formatExternalDirectoryUserDeniedReason,
-} from "../../src/handlers/gates/external-directory-messages";
+import { EXTENSION_TAG } from "../../src/denial-messages";
+import { formatExternalDirectoryAskPrompt } from "../../src/handlers/gates/external-directory-messages";
 import { PermissionGateHandler } from "../../src/handlers/permission-gate-handler";
 import {
   PERMISSIONS_DECISION_CHANNEL,
@@ -177,11 +173,6 @@ function getDecisionEvents(
 // ── Regression guard: helper presence ──────────────────────────────────────
 
 describe("external_directory helper regression guard", () => {
-  it("formatExternalDirectoryHardStopHint is a callable function", () => {
-    expect(typeof formatExternalDirectoryHardStopHint).toBe("function");
-    expect(formatExternalDirectoryHardStopHint()).toContain("Hard stop");
-  });
-
   it("formatExternalDirectoryAskPrompt is a callable function", () => {
     expect(typeof formatExternalDirectoryAskPrompt).toBe("function");
     expect(
@@ -189,19 +180,13 @@ describe("external_directory helper regression guard", () => {
     ).toContain("/outside/file");
   });
 
-  it("formatExternalDirectoryDenyReason is a callable function", () => {
-    expect(typeof formatExternalDirectoryDenyReason).toBe("function");
-    expect(
-      formatExternalDirectoryDenyReason("read", "/outside/file", "/project"),
-    ).toContain("Hard stop");
+  it("EXTENSION_TAG is the expected value", () => {
+    expect(EXTENSION_TAG).toBe("[pi-permission-system]");
   });
 
-  it("formatExternalDirectoryUserDeniedReason is a callable function", () => {
-    expect(typeof formatExternalDirectoryUserDeniedReason).toBe("function");
-    expect(
-      formatExternalDirectoryUserDeniedReason("read", "/outside/file"),
-    ).toContain("User denied");
-  });
+  // formatExternalDirectoryDenyReason, formatExternalDirectoryUserDeniedReason,
+  // and formatExternalDirectoryHardStopHint have moved to denial-messages.ts.
+  // Their behavior is tested in denial-messages.test.ts.
 });
 
 // ── Path scope: gate applicability ────────────────────────────────────────
@@ -386,13 +371,14 @@ describe("external_directory policy state — deny", () => {
     expect(result.reason).toContain(EXTERNAL_PATH);
   });
 
-  it("block reason contains the hard-stop hint", async () => {
+  it("block reason contains extension attribution", async () => {
     const { handler } = makeHandler({
       session: { checkPermission: makeCheckPermission("deny") },
     });
     const event = makeToolCallEvent("read", { path: EXTERNAL_PATH });
     const result = await handler.handleToolCall(event, makeCtx());
-    expect(result.reason).toContain("Hard stop");
+    expect(result.reason).toContain("[pi-permission-system]");
+    expect(result.reason).not.toContain("Hard stop");
   });
 
   it("writes review-log entry with resolution policy_denied", async () => {

@@ -45,54 +45,6 @@ function toolCtx(
   return { kind: "tool", check, agentName };
 }
 
-function pathCtx(
-  toolName: string,
-  pathValue: string,
-  agentName?: string,
-): Extract<DenialContext, { kind: "path" }> {
-  return { kind: "path", toolName, pathValue, agentName };
-}
-
-function extDirCtx(
-  toolName: string,
-  pathValue: string,
-  cwd: string,
-  agentName?: string,
-): Extract<DenialContext, { kind: "external_directory" }> {
-  return { kind: "external_directory", toolName, pathValue, cwd, agentName };
-}
-
-function bashExtDirCtx(
-  command: string,
-  externalPaths: string[],
-  cwd: string,
-  agentName?: string,
-): Extract<DenialContext, { kind: "bash_external_directory" }> {
-  return {
-    kind: "bash_external_directory",
-    command,
-    externalPaths,
-    cwd,
-    agentName,
-  };
-}
-
-function bashPathCtx(
-  command: string,
-  pathValue: string,
-  agentName?: string,
-): Extract<DenialContext, { kind: "bash_path" }> {
-  return { kind: "bash_path", command, pathValue, agentName };
-}
-
-function skillReadCtx(
-  skillName: string,
-  readPath: string,
-  agentName?: string,
-): Extract<DenialContext, { kind: "skill_read" }> {
-  return { kind: "skill_read", skillName, readPath, agentName };
-}
-
 // ── EXTENSION_TAG ──────────────────────────────────────────────────────────
 
 describe("EXTENSION_TAG", () => {
@@ -101,143 +53,200 @@ describe("EXTENSION_TAG", () => {
   });
 });
 
-// ── Shared assertions ──────────────────────────────────────────────────────
-
-function assertTagged(result: string): void {
-  expect(result).toContain("[pi-permission-system]");
-  expect(result).not.toContain("Hard stop");
-}
-
 // ── formatDenyReason ───────────────────────────────────────────────────────
 
 describe("formatDenyReason", () => {
   describe("tool context", () => {
-    test("includes tool name and extension tag", () => {
-      const result = formatDenyReason(toolCtx(toolCheck("write")));
-      expect(result).toContain("write");
-      assertTagged(result);
-    });
-
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(toolCtx(toolCheck("write"), "my-agent"));
-      expect(result).toContain("Agent 'my-agent'");
-    });
-
-    test("includes MCP target for mcp checks", () => {
-      const result = formatDenyReason(toolCtx(mcpCheck("server:do-thing")));
-      expect(result).toContain("MCP target 'server:do-thing'");
-      assertTagged(result);
-    });
-
-    test("includes bash command when present", () => {
-      const result = formatDenyReason(
-        toolCtx(toolCheck("bash", { command: "rm -rf /" })),
+    test("generic tool without agent", () => {
+      expect(formatDenyReason(toolCtx(toolCheck("write")))).toBe(
+        "is not permitted to run 'write'. [pi-permission-system]",
       );
-      expect(result).toContain("rm -rf /");
     });
 
-    test("includes matched pattern when present", () => {
-      const result = formatDenyReason(
-        toolCtx(
-          toolCheck("bash", { command: "rm -rf /", matchedPattern: "rm *" }),
+    test("generic tool with agent", () => {
+      expect(formatDenyReason(toolCtx(toolCheck("write"), "my-agent"))).toBe(
+        "Agent 'my-agent' is not permitted to run 'write'. [pi-permission-system]",
+      );
+    });
+
+    test("MCP target", () => {
+      expect(formatDenyReason(toolCtx(mcpCheck("server:do-thing")))).toBe(
+        "is not permitted to run MCP target 'server:do-thing'. [pi-permission-system]",
+      );
+    });
+
+    test("bash with command", () => {
+      expect(
+        formatDenyReason(toolCtx(toolCheck("bash", { command: "rm -rf /" }))),
+      ).toBe(
+        "is not permitted to run 'bash' command 'rm -rf /'. [pi-permission-system]",
+      );
+    });
+
+    test("bash with command and matched pattern", () => {
+      expect(
+        formatDenyReason(
+          toolCtx(
+            toolCheck("bash", {
+              command: "rm -rf /",
+              matchedPattern: "rm *",
+            }),
+          ),
         ),
+      ).toBe(
+        "is not permitted to run 'bash' command 'rm -rf /' (matched 'rm *'). [pi-permission-system]",
       );
-      expect(result).toContain("matched 'rm *'");
+    });
+
+    test("MCP source with target on non-mcp toolName", () => {
+      expect(
+        formatDenyReason(
+          toolCtx(
+            toolCheck("anything", { source: "mcp", target: "server:tool" }),
+          ),
+        ),
+      ).toBe(
+        "is not permitted to run MCP target 'server:tool'. [pi-permission-system]",
+      );
     });
   });
 
   describe("path context", () => {
-    test("includes tool name, path, and extension tag", () => {
-      const result = formatDenyReason(pathCtx("read", "/etc/passwd"));
-      expect(result).toContain("read");
-      expect(result).toContain("/etc/passwd");
-      assertTagged(result);
-    });
-
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(
-        pathCtx("read", "/etc/passwd", "sec-agent"),
+    test("without agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "path",
+          toolName: "read",
+          pathValue: "/etc/passwd",
+        }),
+      ).toBe(
+        "Current agent is not permitted to access path '/etc/passwd' via tool 'read'. [pi-permission-system]",
       );
-      expect(result).toContain("Agent 'sec-agent'");
     });
 
-    test("uses 'Current agent' without agent name", () => {
-      const result = formatDenyReason(pathCtx("read", "/etc/passwd"));
-      expect(result).toContain("Current agent");
+    test("with agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "path",
+          toolName: "read",
+          pathValue: "/etc/passwd",
+          agentName: "sec-agent",
+        }),
+      ).toBe(
+        "Agent 'sec-agent' is not permitted to access path '/etc/passwd' via tool 'read'. [pi-permission-system]",
+      );
     });
   });
 
   describe("external_directory context", () => {
-    test("includes tool name, path, cwd, and extension tag", () => {
-      const result = formatDenyReason(
-        extDirCtx("read", "/etc/passwd", "/project"),
+    test("without agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "external_directory",
+          toolName: "read",
+          pathValue: "/etc/passwd",
+          cwd: "/project",
+        }),
+      ).toBe(
+        "Current agent is not permitted to run tool 'read' for path '/etc/passwd' outside working directory '/project'. [pi-permission-system]",
       );
-      expect(result).toContain("read");
-      expect(result).toContain("/etc/passwd");
-      expect(result).toContain("/project");
-      assertTagged(result);
     });
 
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(
-        extDirCtx("read", "/etc/passwd", "/project", "sec-agent"),
+    test("with agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "external_directory",
+          toolName: "read",
+          pathValue: "/etc/passwd",
+          cwd: "/project",
+          agentName: "sec-agent",
+        }),
+      ).toBe(
+        "Agent 'sec-agent' is not permitted to run tool 'read' for path '/etc/passwd' outside working directory '/project'. [pi-permission-system]",
       );
-      expect(result).toContain("Agent 'sec-agent'");
     });
   });
 
   describe("bash_external_directory context", () => {
-    test("includes command, paths, cwd, and extension tag", () => {
-      const result = formatDenyReason(
-        bashExtDirCtx("cat /etc/hosts", ["/etc/hosts"], "/project"),
+    test("single path without agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "bash_external_directory",
+          command: "cat /etc/hosts",
+          externalPaths: ["/etc/hosts"],
+          cwd: "/project",
+        }),
+      ).toBe(
+        "Current agent is not permitted to run bash command 'cat /etc/hosts' which references path(s) outside working directory '/project': /etc/hosts. [pi-permission-system]",
       );
-      expect(result).toContain("cat /etc/hosts");
-      expect(result).toContain("/etc/hosts");
-      expect(result).toContain("/project");
-      assertTagged(result);
     });
 
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(
-        bashExtDirCtx("cat /etc/hosts", ["/etc/hosts"], "/project", "my-agent"),
+    test("multiple paths with agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "bash_external_directory",
+          command: "cp /etc/hosts /tmp/out",
+          externalPaths: ["/etc/hosts", "/tmp/out"],
+          cwd: "/project",
+          agentName: "my-agent",
+        }),
+      ).toBe(
+        "Agent 'my-agent' is not permitted to run bash command 'cp /etc/hosts /tmp/out' which references path(s) outside working directory '/project': /etc/hosts, /tmp/out. [pi-permission-system]",
       );
-      expect(result).toContain("Agent 'my-agent'");
     });
   });
 
   describe("bash_path context", () => {
-    test("includes command, path, and extension tag", () => {
-      const result = formatDenyReason(
-        bashPathCtx("cat /etc/passwd", "/etc/passwd"),
+    test("without agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "bash_path",
+          command: "cat /etc/passwd",
+          pathValue: "/etc/passwd",
+        }),
+      ).toBe(
+        "Current agent is not permitted to access path '/etc/passwd' via tool 'bash'. [pi-permission-system]",
       );
-      expect(result).toContain("/etc/passwd");
-      expect(result).toContain("bash");
-      assertTagged(result);
     });
 
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(
-        bashPathCtx("cat /etc/passwd", "/etc/passwd", "my-agent"),
+    test("with agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "bash_path",
+          command: "cat /etc/passwd",
+          pathValue: "/etc/passwd",
+          agentName: "my-agent",
+        }),
+      ).toBe(
+        "Agent 'my-agent' is not permitted to access path '/etc/passwd' via tool 'bash'. [pi-permission-system]",
       );
-      expect(result).toContain("Agent 'my-agent'");
     });
   });
 
   describe("skill_read context", () => {
-    test("includes skill name, read path, and extension tag", () => {
-      const result = formatDenyReason(
-        skillReadCtx("librarian", "/skills/librarian/SKILL.md"),
+    test("without agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "skill_read",
+          skillName: "librarian",
+          readPath: "/skills/librarian/SKILL.md",
+        }),
+      ).toBe(
+        "Current agent is not permitted to access skill 'librarian' via '/skills/librarian/SKILL.md'. [pi-permission-system]",
       );
-      expect(result).toContain("librarian");
-      expect(result).toContain("/skills/librarian/SKILL.md");
-      assertTagged(result);
     });
 
-    test("includes agent name when provided", () => {
-      const result = formatDenyReason(
-        skillReadCtx("librarian", "/skills/librarian/SKILL.md", "my-agent"),
+    test("with agent", () => {
+      expect(
+        formatDenyReason({
+          kind: "skill_read",
+          skillName: "librarian",
+          readPath: "/skills/librarian/SKILL.md",
+          agentName: "my-agent",
+        }),
+      ).toBe(
+        "Agent 'my-agent' is not permitted to access skill 'librarian' via '/skills/librarian/SKILL.md'. [pi-permission-system]",
       );
-      expect(result).toContain("Agent 'my-agent'");
     });
   });
 });
@@ -245,69 +254,88 @@ describe("formatDenyReason", () => {
 // ── formatUnavailableReason ────────────────────────────────────────────────
 
 describe("formatUnavailableReason", () => {
-  test("tool context — generic tool", () => {
-    const result = formatUnavailableReason(toolCtx(toolCheck("write")));
-    expect(result).toContain("write");
-    expect(result).toContain("no interactive UI");
-    assertTagged(result);
-  });
-
-  test("tool context — bash with command", () => {
-    const result = formatUnavailableReason(
-      toolCtx(toolCheck("bash", { command: "git push" })),
+  test("generic tool", () => {
+    expect(formatUnavailableReason(toolCtx(toolCheck("write")))).toBe(
+      "Using tool 'write' requires approval, but no interactive UI is available. [pi-permission-system]",
     );
-    expect(result).toContain("git push");
-    expect(result).toContain("no interactive UI");
   });
 
-  test("tool context — mcp", () => {
-    const result = formatUnavailableReason(toolCtx(mcpCheck("server:tool")));
-    expect(result).toContain("mcp");
-    expect(result).toContain("no interactive UI");
-  });
-
-  test("path context", () => {
-    const result = formatUnavailableReason(pathCtx("read", "/etc/passwd"));
-    expect(result).toContain("/etc/passwd");
-    expect(result).toContain("no interactive UI");
-    assertTagged(result);
-  });
-
-  test("external_directory context", () => {
-    const result = formatUnavailableReason(
-      extDirCtx("read", "/etc/passwd", "/project"),
+  test("bash with command", () => {
+    expect(
+      formatUnavailableReason(
+        toolCtx(toolCheck("bash", { command: "git push" })),
+      ),
+    ).toBe(
+      "Running bash command 'git push' requires approval, but no interactive UI is available. [pi-permission-system]",
     );
-    expect(result).toContain("/etc/passwd");
-    expect(result).toContain("outside the working directory");
-    assertTagged(result);
   });
 
-  test("bash_external_directory context", () => {
-    const result = formatUnavailableReason(
-      bashExtDirCtx("cat /etc/hosts", ["/etc/hosts"], "/project"),
+  test("mcp", () => {
+    expect(formatUnavailableReason(toolCtx(mcpCheck("server:tool")))).toBe(
+      "Using tool 'mcp' requires approval, but no interactive UI is available. [pi-permission-system]",
     );
-    expect(result).toContain("cat /etc/hosts");
-    expect(result).toContain("no interactive UI");
-    assertTagged(result);
   });
 
-  test("bash_path context", () => {
-    const result = formatUnavailableReason(
-      bashPathCtx("cat /etc/passwd", "/etc/passwd"),
+  test("path", () => {
+    expect(
+      formatUnavailableReason({
+        kind: "path",
+        toolName: "read",
+        pathValue: "/etc/passwd",
+      }),
+    ).toBe(
+      "Accessing '/etc/passwd' requires approval, but no interactive UI is available. [pi-permission-system]",
     );
-    expect(result).toContain("cat /etc/passwd");
-    expect(result).toContain("/etc/passwd");
-    expect(result).toContain("no interactive UI");
-    assertTagged(result);
   });
 
-  test("skill_read context", () => {
-    const result = formatUnavailableReason(
-      skillReadCtx("librarian", "/skills/librarian/SKILL.md"),
+  test("external_directory", () => {
+    expect(
+      formatUnavailableReason({
+        kind: "external_directory",
+        toolName: "read",
+        pathValue: "/etc/passwd",
+        cwd: "/project",
+      }),
+    ).toBe(
+      "Accessing '/etc/passwd' outside the working directory requires approval, but no interactive UI is available. [pi-permission-system]",
     );
-    expect(result).toContain("librarian");
-    expect(result).toContain("no interactive UI");
-    assertTagged(result);
+  });
+
+  test("bash_external_directory", () => {
+    expect(
+      formatUnavailableReason({
+        kind: "bash_external_directory",
+        command: "cat /etc/hosts",
+        externalPaths: ["/etc/hosts"],
+        cwd: "/project",
+      }),
+    ).toBe(
+      "Bash command 'cat /etc/hosts' references path(s) outside the working directory and requires approval, but no interactive UI is available. [pi-permission-system]",
+    );
+  });
+
+  test("bash_path", () => {
+    expect(
+      formatUnavailableReason({
+        kind: "bash_path",
+        command: "cat /etc/passwd",
+        pathValue: "/etc/passwd",
+      }),
+    ).toBe(
+      "Bash command 'cat /etc/passwd' accesses path '/etc/passwd' which requires approval, but no interactive UI is available. [pi-permission-system]",
+    );
+  });
+
+  test("skill_read", () => {
+    expect(
+      formatUnavailableReason({
+        kind: "skill_read",
+        skillName: "librarian",
+        readPath: "/skills/librarian/SKILL.md",
+      }),
+    ).toBe(
+      "Accessing skill 'librarian' requires approval, but no interactive UI is available. [pi-permission-system]",
+    );
   });
 });
 
@@ -315,125 +343,175 @@ describe("formatUnavailableReason", () => {
 
 describe("formatUserDeniedReason", () => {
   describe("tool context", () => {
-    test("includes tool name and extension tag", () => {
-      const result = formatUserDeniedReason(toolCtx(toolCheck("write")));
-      expect(result).toContain("write");
-      assertTagged(result);
-    });
-
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        toolCtx(toolCheck("write")),
-        "too risky",
+    test("generic tool without reason", () => {
+      expect(formatUserDeniedReason(toolCtx(toolCheck("write")))).toBe(
+        "User denied tool 'write'. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: too risky");
     });
 
-    test("omits reason suffix when not provided", () => {
-      const result = formatUserDeniedReason(toolCtx(toolCheck("write")));
-      expect(result).not.toContain("Reason:");
-    });
-
-    test("mentions bash command for bash checks", () => {
-      const result = formatUserDeniedReason(
-        toolCtx(toolCheck("bash", { command: "ls -la" })),
+    test("generic tool with reason", () => {
+      expect(
+        formatUserDeniedReason(toolCtx(toolCheck("write")), "too risky"),
+      ).toBe(
+        "User denied tool 'write'. Reason: too risky. [pi-permission-system]",
       );
-      expect(result).toContain("ls -la");
     });
 
-    test("mentions MCP target for mcp checks", () => {
-      const result = formatUserDeniedReason(toolCtx(mcpCheck("server:query")));
-      expect(result).toContain("server:query");
+    test("bash with command", () => {
+      expect(
+        formatUserDeniedReason(
+          toolCtx(toolCheck("bash", { command: "ls -la" })),
+        ),
+      ).toBe("User denied bash command 'ls -la'. [pi-permission-system]");
+    });
+
+    test("MCP target", () => {
+      expect(formatUserDeniedReason(toolCtx(mcpCheck("server:query")))).toBe(
+        "User denied MCP target 'server:query'. [pi-permission-system]",
+      );
     });
   });
 
   describe("path context", () => {
-    test("includes path and extension tag", () => {
-      const result = formatUserDeniedReason(pathCtx("read", "/etc/passwd"));
-      expect(result).toContain("/etc/passwd");
-      assertTagged(result);
+    test("without reason", () => {
+      expect(
+        formatUserDeniedReason({
+          kind: "path",
+          toolName: "read",
+          pathValue: "/etc/passwd",
+        }),
+      ).toBe(
+        "User denied access to path '/etc/passwd'. [pi-permission-system]",
+      );
     });
 
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        pathCtx("read", "/etc/passwd"),
-        "sensitive",
+    test("with reason", () => {
+      expect(
+        formatUserDeniedReason(
+          { kind: "path", toolName: "read", pathValue: "/etc/passwd" },
+          "sensitive",
+        ),
+      ).toBe(
+        "User denied access to path '/etc/passwd'. Reason: sensitive. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: sensitive");
     });
   });
 
   describe("external_directory context", () => {
-    test("includes tool name, path, and extension tag", () => {
-      const result = formatUserDeniedReason(
-        extDirCtx("edit", "/etc/hosts", "/project"),
+    test("without reason", () => {
+      expect(
+        formatUserDeniedReason({
+          kind: "external_directory",
+          toolName: "edit",
+          pathValue: "/etc/hosts",
+          cwd: "/project",
+        }),
+      ).toBe(
+        "User denied external directory access for tool 'edit' path '/etc/hosts'. [pi-permission-system]",
       );
-      expect(result).toContain("edit");
-      expect(result).toContain("/etc/hosts");
-      assertTagged(result);
     });
 
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        extDirCtx("edit", "/etc/hosts", "/project"),
-        "too risky",
+    test("with reason", () => {
+      expect(
+        formatUserDeniedReason(
+          {
+            kind: "external_directory",
+            toolName: "edit",
+            pathValue: "/etc/hosts",
+            cwd: "/project",
+          },
+          "too risky",
+        ),
+      ).toBe(
+        "User denied external directory access for tool 'edit' path '/etc/hosts'. Reason: too risky. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: too risky");
     });
   });
 
   describe("bash_external_directory context", () => {
-    test("includes command and extension tag", () => {
-      const result = formatUserDeniedReason(
-        bashExtDirCtx("rm /etc/hosts", ["/etc/hosts"], "/project"),
+    test("without reason", () => {
+      expect(
+        formatUserDeniedReason({
+          kind: "bash_external_directory",
+          command: "rm /etc/hosts",
+          externalPaths: ["/etc/hosts"],
+          cwd: "/project",
+        }),
+      ).toBe(
+        "User denied external directory access for bash command 'rm /etc/hosts'. [pi-permission-system]",
       );
-      expect(result).toContain("rm /etc/hosts");
-      assertTagged(result);
     });
 
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        bashExtDirCtx("rm /etc/hosts", ["/etc/hosts"], "/project"),
-        "dangerous",
+    test("with reason", () => {
+      expect(
+        formatUserDeniedReason(
+          {
+            kind: "bash_external_directory",
+            command: "rm /etc/hosts",
+            externalPaths: ["/etc/hosts"],
+            cwd: "/project",
+          },
+          "dangerous",
+        ),
+      ).toBe(
+        "User denied external directory access for bash command 'rm /etc/hosts'. Reason: dangerous. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: dangerous");
     });
   });
 
   describe("bash_path context", () => {
-    test("includes command, path, and extension tag", () => {
-      const result = formatUserDeniedReason(
-        bashPathCtx("cat /etc/passwd", "/etc/passwd"),
+    test("without reason", () => {
+      expect(
+        formatUserDeniedReason({
+          kind: "bash_path",
+          command: "cat /etc/passwd",
+          pathValue: "/etc/passwd",
+        }),
+      ).toBe(
+        "User denied path access for bash command 'cat /etc/passwd' (path '/etc/passwd'). [pi-permission-system]",
       );
-      expect(result).toContain("cat /etc/passwd");
-      expect(result).toContain("/etc/passwd");
-      assertTagged(result);
     });
 
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        bashPathCtx("cat /etc/passwd", "/etc/passwd"),
-        "sensitive",
+    test("with reason", () => {
+      expect(
+        formatUserDeniedReason(
+          {
+            kind: "bash_path",
+            command: "cat /etc/passwd",
+            pathValue: "/etc/passwd",
+          },
+          "sensitive",
+        ),
+      ).toBe(
+        "User denied path access for bash command 'cat /etc/passwd' (path '/etc/passwd'). Reason: sensitive. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: sensitive");
     });
   });
 
   describe("skill_read context", () => {
-    test("includes skill name and extension tag", () => {
-      const result = formatUserDeniedReason(
-        skillReadCtx("librarian", "/skills/librarian/SKILL.md"),
-      );
-      expect(result).toContain("librarian");
-      assertTagged(result);
+    test("without reason", () => {
+      expect(
+        formatUserDeniedReason({
+          kind: "skill_read",
+          skillName: "librarian",
+          readPath: "/skills/librarian/SKILL.md",
+        }),
+      ).toBe("User denied access to skill 'librarian'. [pi-permission-system]");
     });
 
-    test("includes denial reason when provided", () => {
-      const result = formatUserDeniedReason(
-        skillReadCtx("librarian", "/skills/librarian/SKILL.md"),
-        "not needed",
+    test("with reason", () => {
+      expect(
+        formatUserDeniedReason(
+          {
+            kind: "skill_read",
+            skillName: "librarian",
+            readPath: "/skills/librarian/SKILL.md",
+          },
+          "not needed",
+        ),
+      ).toBe(
+        "User denied access to skill 'librarian'. Reason: not needed. [pi-permission-system]",
       );
-      expect(result).toContain("Reason: not needed");
     });
   });
 });

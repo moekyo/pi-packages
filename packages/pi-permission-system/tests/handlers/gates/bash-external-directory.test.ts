@@ -142,15 +142,18 @@ describe("describeBashExternalDirectoryGate", () => {
     expect(desc.decision.surface).toBe("external_directory");
   });
 
-  it("messages contain the command", async () => {
+  it("denialContext contains the command and external paths", async () => {
     const result = await describeBashExternalDirectoryGate(
       makeTcc({ input: { command: "cat /outside/file.ts" } }),
       vi.fn().mockReturnValue(makeCheckResult("ask")),
       vi.fn().mockReturnValue([]),
     );
     const desc = result as GateDescriptor;
-    expect(desc.messages!.denyReason).toContain("cat /outside/file.ts");
-    expect(desc.messages!.unavailableReason).toContain("cat /outside/file.ts");
+    expect(desc.denialContext).toMatchObject({
+      kind: "bash_external_directory",
+      command: "cat /outside/file.ts",
+      cwd: "/test/project",
+    });
   });
 
   it("promptDetails includes command and tool_call source", async () => {

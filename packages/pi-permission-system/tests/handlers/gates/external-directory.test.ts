@@ -136,15 +136,17 @@ describe("describeExternalDirectoryGate", () => {
     expect(result.sessionApproval).toHaveProperty("pattern");
   });
 
-  it("messages contain the external path", () => {
+  it("denialContext contains the external path and cwd", () => {
     const result = describeExternalDirectoryGate(
       makeTcc({ input: { path: "/outside/project/file.ts" } }),
       ["/test/agent"],
     ) as GateDescriptor;
-    expect(result.messages!.denyReason).toContain("/outside/project/file.ts");
-    expect(result.messages!.unavailableReason).toContain(
-      "/outside/project/file.ts",
-    );
+    expect(result.denialContext).toMatchObject({
+      kind: "external_directory",
+      toolName: "read",
+      pathValue: "/outside/project/file.ts",
+      cwd: "/test/project",
+    });
   });
 
   it("promptDetails includes path and tool_call source", () => {
