@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { NotificationState } from "../src/notification-state.js";
 import type { SubagentsService } from "../src/service.js";
+import type { AgentManagerLike } from "../src/service-adapter.js";
 import { type AdapterDeps, createSubagentsService, toSubagentRecord } from "../src/service-adapter.js";
 import type { AgentRecord } from "../src/types.js";
 import { WorktreeState } from "../src/worktree-state.js";
@@ -284,27 +285,33 @@ describe("createSubagentsService — spawn", () => {
 });
 
 describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () => {
-  function createDeps(overrides: Partial<AdapterDeps> = {}): AdapterDeps {
-    return {
+  function createDeps(overrides: Partial<AdapterDeps> = {}) {
+    const mockGetRecord = vi.fn<AgentManagerLike["getRecord"]>();
+    const mockAbort = vi.fn<AgentManagerLike["abort"]>(() => true);
+    const mockQueueSteer = vi.fn<AgentManagerLike["queueSteer"]>(() => true);
+
+    const deps: AdapterDeps = {
       manager: {
         spawn: vi.fn(() => "id"),
-        getRecord: vi.fn(),
+        getRecord: mockGetRecord,
         listAgents: vi.fn(() => []),
-        abort: vi.fn(() => true),
+        abort: mockAbort,
         waitForAll: vi.fn(async () => {}),
         hasRunning: vi.fn(() => true),
-        queueSteer: vi.fn(() => true),
+        queueSteer: mockQueueSteer,
       },
       resolveModel: vi.fn(),
       getCtx: () => ({ pi: {}, ctx: {} }),
       getModelRegistry: () => ({ find: () => null, getAll: () => [] }),
       ...overrides,
     };
+
+    return { deps, mockGetRecord, mockAbort, mockQueueSteer };
   }
 
   describe("abort", () => {
     it("delegates to manager.abort and returns its result", () => {
-      const deps = createDeps();
+      const { deps } = createDeps();
       const svc = createSubagentsService(deps);
       const result = svc.abort("agent-1");
       expect(deps.manager.abort).toHaveBeenCalledWith("agent-1");
@@ -312,8 +319,8 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
     });
 
     it("returns false when manager returns false", () => {
-      const deps = createDeps();
-      (deps.manager.abort as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      const { deps, mockAbort } = createDeps();
+      mockAbort.mockReturnValue(false);
       const svc = createSubagentsService(deps);
       expect(svc.abort("unknown")).toBe(false);
     });
@@ -321,7 +328,7 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
 
   describe("waitForAll", () => {
     it("delegates to manager.waitForAll", async () => {
-      const deps = createDeps();
+      const { deps } = createDeps();
       const svc = createSubagentsService(deps);
       await svc.waitForAll();
       expect(deps.manager.waitForAll).toHaveBeenCalled();
@@ -330,7 +337,7 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
 
   describe("hasRunning", () => {
     it("delegates to manager.hasRunning", () => {
-      const deps = createDeps();
+      const { deps } = createDeps();
       const svc = createSubagentsService(deps);
       expect(svc.hasRunning()).toBe(true);
       expect(deps.manager.hasRunning).toHaveBeenCalled();
@@ -339,18 +346,18 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
 
   describe("steer", () => {
     it("returns false for non-running agent", async () => {
-      const deps = createDeps();
-      (deps.manager.getRecord as ReturnType<typeof vi.fn>).mockReturnValue({
+      const { deps, mockGetRecord } = createDeps();
+      mockGetRecord.mockReturnValue({
         id: "a-1",
         status: "completed",
-      });
+      } as AgentRecord);
       const svc = createSubagentsService(deps);
       expect(await svc.steer("a-1", "hurry")).toBe(false);
     });
 
     it("returns false for unknown agent", async () => {
-      const deps = createDeps();
-      (deps.manager.getRecord as ReturnType<typeof vi.fn>).mockReturnValue(undefined);
+      const { deps, mockGetRecord } = createDeps();
+      mockGetRecord.mockReturnValue(undefined);
       const svc = createSubagentsService(deps);
       expect(await svc.steer("unknown", "hurry")).toBe(false);
     });
@@ -358,8 +365,8 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
     it("queues message and returns true when session not ready", async () => {
       const record = createTestRecord({ id: "a-1", status: "running" });
       // No execution state — session not yet created
-      const deps = createDeps();
-      (deps.manager.getRecord as ReturnType<typeof vi.fn>).mockReturnValue(record);
+      const { deps, mockGetRecord } = createDeps();
+      mockGetRecord.mockReturnValue(record);
       const svc = createSubagentsService(deps);
       expect(await svc.steer("a-1", "do this")).toBe(true);
       expect(deps.manager.queueSteer).toHaveBeenCalledWith("a-1", "do this");
@@ -369,8 +376,8 @@ describe("createSubagentsService — steer, abort, waitForAll, hasRunning", () =
       const mockSteer = vi.fn(async () => {});
       const record = createTestRecord({ id: "a-1", status: "running" });
       record.execution = { session: { steer: mockSteer } as any, outputFile: undefined };
-      const deps = createDeps();
-      (deps.manager.getRecord as ReturnType<typeof vi.fn>).mockReturnValue(record);
+      const { deps, mockGetRecord } = createDeps();
+      mockGetRecord.mockReturnValue(record);
       const svc = createSubagentsService(deps);
       expect(await svc.steer("a-1", "focus on tests")).toBe(true);
       expect(mockSteer).toHaveBeenCalledWith("focus on tests");
