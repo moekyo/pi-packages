@@ -12,7 +12,6 @@ import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import {
   type AgentDetails,
   buildInvocationTags,
-  describeActivity,
   formatMs,
   formatTurns,
   getDisplayName,
@@ -20,8 +19,8 @@ import {
   SPINNER,
   type UICtx,
 } from "../ui/agent-widget.js";
-import { subscribeUIObserver } from "../ui/ui-observer.js";
 import { spawnBackground } from "./background-spawner.js";
+import { runForeground } from "./foreground-runner.js";
 import { buildDetails, buildTypeListText, formatLifetimeTokens, getStatusNote, textResult } from "./helpers.js";
 
 // ---- Deps interface ----
@@ -386,101 +385,26 @@ Guidelines:
       }
 
       // Foreground (synchronous) execution — stream progress via onUpdate
-      let spinnerFrame = 0;
-      const startedAt = Date.now();
-      let fgId: string | undefined;
-
-      const fgState = new AgentActivityTracker(effectiveMaxTurns);
-      let unsubUI: (() => void) | undefined;
-
-      const streamUpdate = () => {
-        const details: AgentDetails = {
-          ...detailBase,
-          toolUses: fgState.toolUses,
-          tokens: formatLifetimeTokens(fgState),
-          turnCount: fgState.turnCount,
-          maxTurns: fgState.maxTurns,
-          durationMs: Date.now() - startedAt,
-          status: "running",
-          activity: describeActivity(fgState.activeTools, fgState.responseText),
-          spinnerFrame: spinnerFrame % SPINNER.length,
-        };
-        onUpdate?.({
-          content: [{ type: "text", text: `${fgState.toolUses} tool uses...` }],
-          details: details as any,
-        });
-      };
-
-      // Animate spinner at ~80ms (smooth rotation through 10 braille frames)
-      const spinnerInterval = setInterval(() => {
-        spinnerFrame++;
-        streamUpdate();
-      }, 80);
-
-      streamUpdate();
-
-      let record: AgentRecord;
-      try {
-        record = await deps.manager.spawnAndWait(
+      return runForeground(
+        { manager: deps.manager, widget: deps.widget, agentActivity: deps.agentActivity },
+        {
           ctx,
           subagentType,
-          params.prompt as string,
-          {
-            description: params.description as string,
-            model,
-            maxTurns: effectiveMaxTurns,
-            isolated,
-            inheritContext,
-            thinkingLevel: thinking,
-            isolation,
-            invocation: agentInvocation,
-            signal,
-            parentSessionFile: ctx.sessionManager.getSessionFile(),
-            parentSessionId: ctx.sessionManager.getSessionId(),
-            onSessionCreated: (session: any, record: AgentRecord) => {
-              fgState.setSession(session);
-              unsubUI = subscribeUIObserver(session, fgState, streamUpdate);
-              fgId = record.id;
-              deps.agentActivity.set(record.id, fgState);
-              deps.widget.ensureTimer();
-            },
-          },
-        );
-      } catch (err) {
-        clearInterval(spinnerInterval);
-        unsubUI?.();
-        return textResult(err instanceof Error ? err.message : String(err));
-      }
-
-      clearInterval(spinnerInterval);
-      unsubUI?.();
-
-      // Clean up foreground agent from widget
-      if (fgId) {
-        deps.agentActivity.delete(fgId);
-        deps.widget.markFinished(fgId);
-      }
-
-      // Get final token count
-      const tokenText = formatLifetimeTokens(fgState);
-
-      const details = buildDetails(detailBase, record, fgState, { tokens: tokenText });
-
-      const fallbackNote = fellBack
-        ? `Note: Unknown agent type "${rawType}" — using general-purpose.\n\n`
-        : "";
-
-      if (record.status === "error") {
-        return textResult(`${fallbackNote}Agent failed: ${record.error}`, details);
-      }
-
-      const durationMs = (record.completedAt ?? Date.now()) - record.startedAt;
-      const statsParts = [`${record.toolUses} tool uses`];
-      if (tokenText) statsParts.push(tokenText);
-      return textResult(
-        `${fallbackNote}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${getStatusNote(record.status)}.\n\n` +
-          (record.result?.trim() || "No output."),
-        details,
+          prompt: params.prompt as string,
+          description: params.description as string,
+          detailBase,
+          rawType,
+          fellBack,
+          model,
+          effectiveMaxTurns,
+          isolated,
+          inheritContext,
+          thinking,
+          isolation,
+          agentInvocation,
+        },
+        signal,
+        onUpdate,
       );
     },
   };
