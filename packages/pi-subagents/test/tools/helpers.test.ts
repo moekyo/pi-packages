@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTypeListText, formatLifetimeTokens, getModelLabelFromConfig, textResult } from "../../src/tools/helpers.js";
+import { buildDetails, buildTypeListText, formatLifetimeTokens, getModelLabelFromConfig, getStatusNote, textResult } from "../../src/tools/helpers.js";
 
 describe("textResult", () => {
   it("wraps a message in the tool result shape", () => {
@@ -109,5 +109,81 @@ describe("buildTypeListText", () => {
     };
     const result = buildTypeListText(registry as any, "/home/.pi");
     expect(result).not.toContain("Custom agents:");
+  });
+});
+
+describe("getStatusNote", () => {
+  it("returns aborted note for aborted status", () => {
+    expect(getStatusNote("aborted")).toBe(" (aborted \u2014 max turns exceeded, output may be incomplete)");
+  });
+
+  it("returns steered note for steered status", () => {
+    expect(getStatusNote("steered")).toBe(" (wrapped up \u2014 reached turn limit)");
+  });
+
+  it("returns stopped note for stopped status", () => {
+    expect(getStatusNote("stopped")).toBe(" (stopped by user)");
+  });
+
+  it("returns empty string for completed status", () => {
+    expect(getStatusNote("completed")).toBe("");
+  });
+
+  it("returns empty string for unknown status", () => {
+    expect(getStatusNote("error")).toBe("");
+  });
+});
+
+describe("buildDetails", () => {
+  const base = {
+    displayName: "TestAgent",
+    description: "does stuff",
+    subagentType: "general-purpose",
+    modelName: undefined,
+    tags: undefined,
+  };
+  const record = {
+    toolUses: 3,
+    startedAt: 1000,
+    completedAt: 5000,
+    status: "completed",
+    error: undefined,
+    id: "agent-42",
+    lifetimeUsage: { input: 100, output: 50, cacheWrite: 0 },
+  };
+
+  it("maps record fields to AgentDetails shape", () => {
+    const details = buildDetails(base, record);
+    expect(details.toolUses).toBe(3);
+    expect(details.durationMs).toBe(4000);
+    expect(details.status).toBe("completed");
+    expect(details.agentId).toBe("agent-42");
+  });
+
+  it("includes activity tracker turn counts when provided", () => {
+    const activity = { turnCount: 7, maxTurns: 10 } as any;
+    const details = buildDetails(base, record, activity);
+    expect(details.turnCount).toBe(7);
+    expect(details.maxTurns).toBe(10);
+  });
+
+  it("leaves turnCount/maxTurns undefined when no activity provided", () => {
+    const details = buildDetails(base, record);
+    expect(details.turnCount).toBeUndefined();
+    expect(details.maxTurns).toBeUndefined();
+  });
+
+  it("applies overrides on top of computed fields", () => {
+    const details = buildDetails(base, record, undefined, { tokens: "99.9k token" });
+    expect(details.tokens).toBe("99.9k token");
+  });
+
+  it("uses Date.now() for durationMs when completedAt is absent", () => {
+    const openRecord = { ...record, completedAt: undefined };
+    const before = Date.now();
+    const details = buildDetails(base, openRecord);
+    const after = Date.now();
+    expect(details.durationMs).toBeGreaterThanOrEqual(before - openRecord.startedAt);
+    expect(details.durationMs).toBeLessThanOrEqual(after - openRecord.startedAt);
   });
 });

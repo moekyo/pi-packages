@@ -21,54 +21,7 @@ import {
   type UICtx,
 } from "../ui/agent-widget.js";
 import { subscribeUIObserver } from "../ui/ui-observer.js";
-import type { LifetimeUsage } from "../usage.js";
-import { buildTypeListText, formatLifetimeTokens, textResult } from "./helpers.js";
-
-// ---- Agent-tool-specific helpers ----
-
-/** Parenthetical status note for completed agent result text. */
-export function getStatusNote(status: string): string {
-  switch (status) {
-    case "aborted":
-      return " (aborted — max turns exceeded, output may be incomplete)";
-    case "steered":
-      return " (wrapped up — reached turn limit)";
-    case "stopped":
-      return " (stopped by user)";
-    default:
-      return "";
-  }
-}
-
-/** Build AgentDetails from a base + record-specific fields. */
-export function buildDetails(
-  base: Pick<AgentDetails, "displayName" | "description" | "subagentType" | "modelName" | "tags">,
-  record: {
-    toolUses: number;
-    startedAt: number;
-    completedAt?: number;
-    status: string;
-    error?: string;
-    id?: string;
-    session?: any;
-    lifetimeUsage: LifetimeUsage;
-  },
-  activity?: AgentActivityTracker,
-  overrides?: Partial<AgentDetails>,
-): AgentDetails {
-  return {
-    ...base,
-    toolUses: record.toolUses,
-    tokens: formatLifetimeTokens(record),
-    turnCount: activity?.turnCount,
-    maxTurns: activity?.maxTurns,
-    durationMs: (record.completedAt ?? Date.now()) - record.startedAt,
-    status: record.status as AgentDetails["status"],
-    agentId: record.id,
-    error: record.error,
-    ...overrides,
-  };
-}
+import { buildDetails, buildTypeListText, formatLifetimeTokens, getStatusNote, textResult } from "./helpers.js";
 
 // ---- Deps interface ----
 

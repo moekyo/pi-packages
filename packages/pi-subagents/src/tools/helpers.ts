@@ -1,6 +1,50 @@
 import type { AgentConfigLookup } from "../agent-types.js";
-import { formatTokens } from "../ui/agent-widget.js";
+import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
+import { type AgentDetails, formatTokens } from "../ui/agent-widget.js";
 import { getLifetimeTotal, type LifetimeUsage } from "../usage.js";
+
+/** Parenthetical status note for completed agent result text. */
+export function getStatusNote(status: string): string {
+  switch (status) {
+    case "aborted":
+      return " (aborted \u2014 max turns exceeded, output may be incomplete)";
+    case "steered":
+      return " (wrapped up \u2014 reached turn limit)";
+    case "stopped":
+      return " (stopped by user)";
+    default:
+      return "";
+  }
+}
+
+/** Build AgentDetails from a base + record-specific fields. */
+export function buildDetails(
+  base: Pick<AgentDetails, "displayName" | "description" | "subagentType" | "modelName" | "tags">,
+  record: {
+    toolUses: number;
+    startedAt: number;
+    completedAt?: number;
+    status: string;
+    error?: string;
+    id?: string;
+    lifetimeUsage: LifetimeUsage;
+  },
+  activity?: AgentActivityTracker,
+  overrides?: Partial<AgentDetails>,
+): AgentDetails {
+  return {
+    ...base,
+    toolUses: record.toolUses,
+    tokens: formatLifetimeTokens(record),
+    turnCount: activity?.turnCount,
+    maxTurns: activity?.maxTurns,
+    durationMs: (record.completedAt ?? Date.now()) - record.startedAt,
+    status: record.status as AgentDetails["status"],
+    agentId: record.id,
+    error: record.error,
+    ...overrides,
+  };
+}
 
 /** Tool execute return value for a text response. */
 export function textResult(msg: string, details?: unknown) {
