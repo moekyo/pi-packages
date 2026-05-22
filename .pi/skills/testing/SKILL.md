@@ -25,6 +25,8 @@ Load this skill when writing, debugging, or planning tests.
 - When mocking `node:*` built-in modules with `vi.mock()`, include a `default` key mirroring the named exports — omitting it causes "No default export defined on the mock" errors.
 - When testing code that uses `setInterval`, never use `vi.runAllTimersAsync()` — it loops infinitely.
   Use `vi.advanceTimersByTimeAsync(ms)` with a specific duration instead.
+- When a test factory returns an object satisfying a production interface (e.g., `RunnerIO`, `AssemblerIO`), do not annotate the return type with that interface — the annotation erases `Mock<...>` methods (`mockResolvedValue`, `mock.calls`, etc.) from the inferred type.
+  Leave the return type unannotated so callers retain full mock access.
 - Prefer reading `process.env` inside functions rather than capturing it as a module-level constant — `vi.stubEnv()` alone cannot change a constant already evaluated at import time.
   If a module-level constant is unavoidable, test it with `vi.resetModules()` + `await import(...)` inside the test body, and call `vi.unstubAllEnvs()` + `vi.resetModules()` in `afterEach`.
 
