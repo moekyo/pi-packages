@@ -45,19 +45,6 @@ const mockAgentLookup: AgentConfigLookup = {
   getToolNamesForType: mockGetToolNamesForType,
 };
 
-vi.mock("../src/prompts.js", () => ({
-  buildAgentPrompt: mockBuildAgentPrompt,
-}));
-
-vi.mock("../src/memory.js", () => ({
-  buildMemoryBlock: mockBuildMemoryBlock,
-  buildReadOnlyMemoryBlock: mockBuildReadOnlyMemoryBlock,
-}));
-
-vi.mock("../src/skill-loader.js", () => ({
-  preloadSkills: mockPreloadSkills,
-}));
-
 import { assembleSessionConfig } from "../src/session-config.js";
 
 const mockEnv = { isGitRepo: false, branch: "", platform: "linux" };
