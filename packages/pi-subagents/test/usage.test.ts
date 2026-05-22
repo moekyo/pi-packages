@@ -7,7 +7,7 @@ describe("usage", () => {
     it("uses billed-token semantics (input + output + cacheWrite), not inflated total", () => {
       const session = {
         getSessionStats: () => ({
-          tokens: { input: 100, output: 200, cacheRead: 500_000, cacheWrite: 50, total: 500_350 } as any,
+          tokens: { input: 100, output: 200, cacheRead: 500_000, cacheWrite: 50, total: 500_350 },
           contextUsage: { tokens: 50_300, contextWindow: 200_000, percent: 25 },
         }),
       };
@@ -16,7 +16,7 @@ describe("usage", () => {
 
     it("returns 0 when session is undefined or stats throw", () => {
       expect(getSessionTokens(undefined)).toBe(0);
-      const broken = { getSessionStats: () => { throw new Error("nope"); } } as any;
+      const broken = { getSessionStats: (): never => { throw new Error("nope"); } };
       expect(getSessionTokens(broken)).toBe(0);
     });
   });

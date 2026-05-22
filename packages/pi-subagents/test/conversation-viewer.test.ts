@@ -1,5 +1,9 @@
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import type { TUI } from "@earendil-works/pi-tui";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "../src/agent-types.js";
+import type { AgentActivityTracker } from "../src/ui/agent-activity-tracker.js";
+import type { Theme } from "../src/ui/agent-widget.js";
 import { createTestRecord } from "./helpers/make-record.js";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
@@ -34,23 +38,23 @@ function mockTui(rows = 40, columns = 80) {
   return {
     terminal: { rows, columns },
     requestRender: vi.fn(),
-  } as any;
+  } as unknown as TUI;
 }
 
-function mockSession(messages: any[] = []) {
+function mockSession(messages: unknown[] = []) {
   return {
     messages,
     subscribe: vi.fn(() => vi.fn()),
     dispose: vi.fn(),
     getSessionStats: () => ({ tokens: { input: 0, output: 0, cacheWrite: 0 } }),
-  } as any;
+  } as unknown as AgentSession;
 }
 
 function ansiTheme() {
   return {
     fg: (_color: string, text: string) => `\x1b[38;5;240m${text}\x1b[0m`,
     bold: (text: string) => `\x1b[1m${text}\x1b[22m`,
-  } as any;
+  } as unknown as Theme;
 }
 
 function assertAllLinesFit(lines: string[], width: number) {
@@ -184,7 +188,7 @@ describe("ConversationViewer", () => {
       for (const w of widths) {
         const viewer = new ConversationViewer({
           tui: mockTui(30, w), session: mockSession(messages), record: createTestRecord({ status: "running" }),
-          activity: activity as any, theme: ansiTheme(), done: vi.fn(), registry: testRegistry,
+          activity: activity as unknown as AgentActivityTracker, theme: ansiTheme(), done: vi.fn(), registry: testRegistry,
         });
         assertAllLinesFit(viewer.render(w), w);
       }
