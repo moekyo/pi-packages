@@ -75,6 +75,8 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
 - **Design Overview** — decision model, data shapes, separation of concerns, edge cases.
   Include code-fenced TS types when shape changes.
   When the design introduces a new collaborator that multiple consumers will use, sketch the consumer's call site (3–5 lines of pseudocode) to verify the interaction pattern follows Tell-Don't-Ask and Law of Demeter.
+  When the design extracts code into a new module, sketch the extracted module's interaction with its upstream dependencies (3–5 lines) to verify it doesn't carry Tell-Don't-Ask violations, output-argument mutations, or reverse-search patterns from the original code.
+  Fix upstream API gaps in the plan before planning the extraction.
 - **Module-Level Changes** — file-by-file list of what's added, changed, or removed.
   When a step removes or renames an export, grep all `src/` and `test/` files for every removed symbol before finalizing the file list.
 - **Test Impact Analysis** — for extraction and refactoring issues: (1) what new unit tests does the extraction enable that were previously impossible or impractical?
