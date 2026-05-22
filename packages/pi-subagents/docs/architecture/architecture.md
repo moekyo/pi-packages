@@ -384,7 +384,7 @@ Each step is sequenced so it makes the next step easier.
 | ~~Mutable state bag~~          | ~~`AgentActivity` (7 fields)~~           | **Fixed #110**: `AgentActivityTracker` class; `ui-observer.ts` calls transition methods; widget, notification, agent-tool use read-only accessors                         |
 | ~~Settings relay~~             | ~~`AgentMenuDeps` (13 fields)~~          | **Fixed #109**: `SettingsManager` class; 6 callback fields collapsed to `settings: SettingsManager`; `AgentMenuDeps` now 8 fields                                         |
 | ~~Post-construction mutation~~ | ~~`AgentRecord` non-transition state~~   | **Fixed #111**: `ExecutionState`, `WorktreeState`, `NotificationState` collaborators; `pendingSteers` moved to `AgentManager`; stats encapsulated behind mutation methods |
-| Fire-and-forget callbacks      | `AgentManagerOptions`                    | `onStart`, `onComplete`, `onCompact` wired as closures in `index.ts`                                                                                                      |
+| ~~Fire-and-forget callbacks~~  | ~~`AgentManagerOptions`~~                | **Fixed #112**: `AgentManagerObserver` interface; `observer` replaces 3 callbacks; `index.ts` constructs one observer object instead of 3 closure lambdas                 |
 | Duplicate `SpawnOptions`       | `service.ts` + `agent-manager.ts`        | Two incompatible shapes (JSON-friendly vs runtime types) with the same name                                                                                               |
 | Type dumping ground            | `types.ts`                               | `NotificationDetails` used only by notification/renderer; ~~`DEFAULT_AGENT_NAMES` moved to `AgentTypeRegistry` (#108)~~; `AgentConfig` (21 fields) consumers use 2–4 each |
 | Wide dependency bags           | `AgentToolDeps` (7), `AgentMenuDeps` (8) | Settings narrowed (#109); registry narrowed (#108); more narrowing planned in D steps                                                                                     |
@@ -445,12 +445,12 @@ Split post-construction mutation into phase-specific collaborators, each born co
 Each piece is born complete at the moment its information is available.
 The record doesn't accumulate half-baked state — it receives fully constructed collaborators.
 
-### Step C: Replace `AgentManager` callbacks with observer (#112)
+### Step C: Replace `AgentManager` callbacks with observer (#112) ✅
 
-Replace the `onStart`/`onComplete`/`onCompact` callback parameters with an `AgentManagerObserver` interface (or typed event emitter).
-The observer methods receive the same data the callbacks receive today.
-`index.ts` constructs the observer once instead of building 3 closure callbacks that capture `runtime`, `pi`, `notifications`, etc.
-`AgentManagerOptions` drops from 8 → 5 fields.
+**Done.**
+`AgentManagerObserver` interface replaces `onStart`/`onComplete`/`onCompact`.
+`index.ts` constructs one observer object instead of 3 closure lambdas.
+`AgentManagerOptions` drops from 9 → 7 fields.
 
 ### Step D: Disambiguate `SpawnOptions` and narrow dependency bags
 
