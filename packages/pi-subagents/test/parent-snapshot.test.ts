@@ -8,6 +8,7 @@ vi.mock("../src/context.js", () => ({
   buildParentContext: buildParentContextMock,
 }));
 
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { buildParentSnapshot } from "../src/parent-snapshot.js";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
@@ -18,7 +19,7 @@ function makeCtx(overrides: Record<string, unknown> = {}) {
     modelRegistry: { find: vi.fn(), getAvailable: vi.fn(() => []) },
     sessionManager: { getBranch: vi.fn(() => []) },
     ...overrides,
-  } as any;
+  } as unknown as ExtensionContext;
 }
 
 describe("buildParentSnapshot", () => {

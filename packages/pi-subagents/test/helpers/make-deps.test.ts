@@ -1,19 +1,23 @@
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import type { BackgroundDeps } from "../../src/tools/background-spawner.js";
 import type { ForegroundDeps } from "../../src/tools/foreground-runner.js";
 import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createToolDeps } from "./make-deps.js";
 
+// Stub context — mocked manager functions ignore it; typed to avoid 'as any'.
+const STUB_CTX = {} as unknown as ExtensionContext;
+
 describe("createToolDeps", () => {
 	describe("manager defaults", () => {
 		it("spawn returns 'agent-1'", () => {
 			const { manager } = createToolDeps();
-			expect(manager.spawn({} as any, "general-purpose", "prompt", {} as any)).toBe("agent-1");
+			expect(manager.spawn(STUB_CTX, "general-purpose", "prompt", { description: "test" })).toBe("agent-1");
 		});
 
 		it("spawnAndWait resolves to a completed record", async () => {
 			const { manager } = createToolDeps();
-			const record = await manager.spawnAndWait({} as any, "general-purpose", "prompt", {} as any);
+			const record = await manager.spawnAndWait(STUB_CTX, "general-purpose", "prompt", { description: "test" });
 			expect(record.status).toBe("completed");
 		});
 
@@ -81,7 +85,7 @@ describe("createToolDeps", () => {
 			const deps = createToolDeps({
 				manager: { ...createToolDeps().manager, spawn: customSpawn },
 			});
-			deps.manager.spawn({} as any, "t", "p", {} as any);
+			deps.manager.spawn(STUB_CTX, "t", "p", { description: "test" });
 			expect(customSpawn).toHaveBeenCalledOnce();
 		});
 

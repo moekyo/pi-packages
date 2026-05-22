@@ -21,7 +21,8 @@ import type { WorktreeManager } from "../src/worktree.js";
 /** Minimal registry with no user agents — sufficient since AgentManager only relays it to the runner. */
 const testRegistry = new AgentTypeRegistry(() => new Map());
 
-const mockCtx = { cwd: "/tmp" } as any;
+// ctx is consumed by the mocked buildParentSnapshot — never inspected at runtime.
+const mockCtx = { cwd: "/tmp" } as unknown as import("@earendil-works/pi-coding-agent").ExtensionContext;
 
 
 
