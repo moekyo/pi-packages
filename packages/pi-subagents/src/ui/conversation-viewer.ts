@@ -14,6 +14,37 @@ import { getLifetimeTotal, getSessionContextPercent } from "../usage.js";
 import type { AgentActivityTracker } from "./agent-activity-tracker.js";
 import { buildInvocationTags, describeActivity, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "./agent-widget.js";
 
+// ── Local message-shape types ───────────────────────────────────────────────
+// The Pi SDK does not export narrow types for all message content variants.
+// These file-local types document the runtime shapes this module handles.
+
+/** Tool-call content item — SDK exposes this variant at runtime but doesn't export the narrow type. */
+interface ToolCallContent {
+  type: "toolCall";
+  name?: string;
+  toolName?: string;
+}
+
+/** Extracts the tool name from a content item, falling back to 'unknown'. */
+function getToolCallName(c: { type: string }): string {
+  if (c.type !== "toolCall") return "unknown";
+  const tc = c as ToolCallContent;
+  return tc.name ?? tc.toolName ?? "unknown";
+}
+
+/** Bash execution message — 'bashExecution' role is not in the SDK's AgentSession message role union. */
+interface BashExecutionMessage {
+  role: "bashExecution";
+  command: string;
+  output?: string;
+}
+
+function isBashExecution(msg: { role: string }): msg is BashExecutionMessage {
+  return msg.role === "bashExecution";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Base lines consumed by chrome: top border + header + header sep + footer sep + footer + bottom border. */
 const CHROME_LINES_BASE = 6;
 const MIN_VIEWPORT = 3;
@@ -228,7 +259,7 @@ export class ConversationViewer implements Component {
         for (const c of msg.content) {
           if (c.type === "text" && c.text) textParts.push(c.text);
           else if (c.type === "toolCall") {
-            toolCalls.push((c as any).name ?? (c as any).toolName ?? "unknown");
+            toolCalls.push(getToolCallName(c));
           }
         }
         if (needsSeparator) lines.push(th.fg("dim", "───"));
@@ -250,14 +281,13 @@ export class ConversationViewer implements Component {
         for (const line of wrapTextWithAnsi(truncated.trim(), width)) {
           lines.push(th.fg("dim", line));
         }
-      } else if ((msg as any).role === "bashExecution") {
-        const bash = msg as any;
+      } else if (isBashExecution(msg)) {
         if (needsSeparator) lines.push(th.fg("dim", "───"));
-        lines.push(truncateToWidth(th.fg("muted", `  $ ${bash.command}`), width));
-        if (bash.output?.trim()) {
-          const out = bash.output.length > 500
-            ? bash.output.slice(0, 500) + "... (truncated)"
-            : bash.output;
+        lines.push(truncateToWidth(th.fg("muted", `  $ ${msg.command}`), width));
+        if (msg.output?.trim()) {
+          const out = msg.output.length > 500
+            ? msg.output.slice(0, 500) + "... (truncated)"
+            : msg.output;
           for (const line of wrapTextWithAnsi(out.trim(), width)) {
             lines.push(th.fg("dim", line));
           }

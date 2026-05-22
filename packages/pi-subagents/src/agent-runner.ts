@@ -18,6 +18,23 @@ import type { ShellExec, SubagentType, ThinkingLevel } from "./types.js";
 /** Names of tools registered by this extension that subagents must NOT inherit. */
 const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"];
 
+// ── Local message-shape types ───────────────────────────────────────────────
+// The Pi SDK does not export a narrow type for tool-call content variants.
+
+/** Tool-call content item — SDK exposes this variant at runtime but doesn’t export the narrow type. */
+interface ToolCallContent {
+  type: "toolCall";
+  name?: string;
+  toolName?: string;
+}
+
+/** Extracts the display name from a tool-call content item. */
+function getToolCallName(c: { type: string }): string {
+  if (c.type !== "toolCall") return "unknown";
+  const tc = c as ToolCallContent;
+  return tc.name ?? tc.toolName ?? "unknown";
+}
+
 /**
  * Filter the session's active tool names according to extension/denylist rules.
  *
@@ -448,9 +465,7 @@ export function getAgentConversation(session: AgentSession): string {
       for (const c of msg.content) {
         if (c.type === "text" && c.text) textParts.push(c.text);
         else if (c.type === "toolCall")
-          toolCalls.push(
-            `  Tool: ${(c as any).name ?? (c as any).toolName ?? "unknown"}`,
-          );
+          toolCalls.push(`  Tool: ${getToolCallName(c)}`);
       }
       if (textParts.length > 0)
         parts.push(`[Assistant]: ${textParts.join("\n")}`);
