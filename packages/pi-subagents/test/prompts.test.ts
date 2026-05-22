@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AgentTypeRegistry } from "../src/agent-types.js";
+import type { EnvInfo } from "../src/env.js";
 import { buildAgentPrompt } from "../src/prompts.js";
-import type { AgentConfig, EnvInfo } from "../src/types.js";
+import type { AgentConfig } from "../src/types.js";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 

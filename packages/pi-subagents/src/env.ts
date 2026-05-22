@@ -3,7 +3,13 @@
  */
 
 import { debugLog } from "./debug.js";
-import type { EnvInfo, ShellExec } from "./types.js";
+import type { ShellExec } from "./types.js";
+
+export interface EnvInfo {
+  isGitRepo: boolean;
+  branch: string;
+  platform: string;
+}
 
 export async function detectEnv(exec: ShellExec, cwd: string): Promise<EnvInfo> {
   let isGitRepo = false;

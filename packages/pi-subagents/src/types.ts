@@ -64,12 +64,6 @@ export interface AgentInvocation {
   isolation?: IsolationMode;
 }
 
-export interface EnvInfo {
-  isGitRepo: boolean;
-  branch: string;
-  platform: string;
-}
-
 /**
  * Narrow shell-exec callback replacing `ExtensionAPI` in `detectEnv()`.
  * Matches the shape of `pi.exec()` without carrying an SDK dependency.

@@ -15,10 +15,11 @@ import {
   getMemoryToolNames,
   getReadOnlyMemoryToolNames,
 } from "./agent-types.js";
+import type { EnvInfo } from "./env.js";
 import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "./memory.js";
 import { buildAgentPrompt, type PromptExtras } from "./prompts.js";
 import { preloadSkills } from "./skill-loader.js";
-import type { EnvInfo, SubagentType, ThinkingLevel } from "./types.js";
+import type { SubagentType, ThinkingLevel } from "./types.js";
 
 // ── Public interfaces ────────────────────────────────────────────────────────
 
