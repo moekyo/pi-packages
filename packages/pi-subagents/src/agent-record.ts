@@ -12,6 +12,7 @@
  * after construction as lifecycle information becomes available.
  */
 
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { ExecutionState } from "./execution-state.js";
 import type { NotificationState } from "./notification-state.js";
 import type { AgentInvocation, SubagentType } from "./types.js";
@@ -84,6 +85,16 @@ export class AgentRecord {
 	execution?: ExecutionState;
 	worktreeState?: WorktreeState;
 	notification?: NotificationState;
+
+	/** The active agent session, or undefined before the session is created. */
+	get session(): AgentSession | undefined {
+		return this.execution?.session;
+	}
+
+	/** Path to the agent's session JSONL file, or undefined if not yet available. */
+	get outputFile(): string | undefined {
+		return this.execution?.outputFile;
+	}
 
 	constructor(init: AgentRecordInit) {
 		this.id = init.id;

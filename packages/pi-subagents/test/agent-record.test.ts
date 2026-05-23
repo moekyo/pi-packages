@@ -367,3 +367,38 @@ describe("AgentRecord — resetForResume", () => {
 		expect(record.error).toBeUndefined();
 	});
 });
+
+describe("convenience getters", () => {
+	describe("session", () => {
+		it("returns undefined when execution is not set", () => {
+			const record = new AgentRecord({ id: "1", type: "general-purpose", description: "test" });
+			expect(record.session).toBeUndefined();
+		});
+
+		it("returns session from execution when set", () => {
+			const record = new AgentRecord({ id: "1", type: "general-purpose", description: "test" });
+			const fakeSession = {} as any;
+			record.execution = { session: fakeSession, outputFile: undefined };
+			expect(record.session).toBe(fakeSession);
+		});
+	});
+
+	describe("outputFile", () => {
+		it("returns undefined when execution is not set", () => {
+			const record = new AgentRecord({ id: "1", type: "general-purpose", description: "test" });
+			expect(record.outputFile).toBeUndefined();
+		});
+
+		it("returns outputFile from execution when set", () => {
+			const record = new AgentRecord({ id: "1", type: "general-purpose", description: "test" });
+			record.execution = { session: {} as any, outputFile: "/path/to/session.jsonl" };
+			expect(record.outputFile).toBe("/path/to/session.jsonl");
+		});
+
+		it("returns undefined when execution is set but outputFile is undefined", () => {
+			const record = new AgentRecord({ id: "1", type: "general-purpose", description: "test" });
+			record.execution = { session: {} as any, outputFile: undefined };
+			expect(record.outputFile).toBeUndefined();
+		});
+	});
+});
