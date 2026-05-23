@@ -254,4 +254,60 @@ describe("renderWidgetLines", () => {
 		// Total: 3 lines (heading + header + activity)
 		expect(lines).toHaveLength(3);
 	});
+
+	it("renders mixed running + finished + queued agents", () => {
+		const running = makeAgent({ id: "r1", status: "running", completedAt: undefined });
+		const finished = makeAgent({ id: "f1", status: "completed", completedAt: 6000 });
+		const queued = makeAgent({ id: "q1", status: "queued", completedAt: undefined });
+		const activityMap = new Map<string, WidgetActivity>([
+			["r1", makeActivity()],
+			["f1", makeActivity({ turnCount: 5 })],
+		]);
+
+		const lines = renderWidgetLines({
+			agents: [running, finished, queued],
+			activityMap,
+			registry: testRegistry,
+			spinnerFrame: 0,
+			terminalWidth: 200,
+			theme,
+			shouldShowFinished: () => true,
+		});
+
+		// Heading (active because running+queued exist)
+		expect(lines[0]).toContain("[accent:\u25cf]");
+		// Finished first, then running, then queued
+		// finished line (1 line)
+		expect(lines[1]).toContain("[success:\u2713]");
+		// running header (1 line) + activity (1 line)
+		expect(lines[2]).toContain("**Agent**");
+		expect(lines[3]).toContain("\u23bf");
+		// queued line (last item, uses \u2514\u2500)
+		expect(lines[4]).toContain("\u2514\u2500");
+		expect(lines[4]).toContain("1 queued");
+		// Total: 5 lines
+		expect(lines).toHaveLength(5);
+	});
+
+	it("filters finished agents via shouldShowFinished", () => {
+		const finished1 = makeAgent({ id: "f1", status: "completed", completedAt: 6000 });
+		const finished2 = makeAgent({ id: "f2", status: "error", completedAt: 6000 });
+		const activityMap = new Map<string, WidgetActivity>();
+
+		const lines = renderWidgetLines({
+			agents: [finished1, finished2],
+			activityMap,
+			registry: testRegistry,
+			spinnerFrame: 0,
+			terminalWidth: 200,
+			theme,
+			// Only show f1, filter out f2
+			shouldShowFinished: (id) => id === "f1",
+		});
+
+		// Heading + 1 finished line
+		expect(lines).toHaveLength(2);
+		expect(lines[1]).toContain("[success:\u2713]");
+		expect(lines[1]).not.toContain("error");
+	});
 });
