@@ -227,12 +227,12 @@ export default function (pi: ExtensionAPI) {
 
   // ---- get_subagent_result tool ----
 
-  pi.registerTool(defineTool(createGetResultTool({
-    getRecord: (id) => manager.getRecord(id),
-    cancelNudge: (key) => notifications.cancelNudge(key),
-    getConversation: (session) => getAgentConversation(session),
+  pi.registerTool(defineTool(createGetResultTool(
+    (id) => manager.getRecord(id),
+    (key) => notifications.cancelNudge(key),
+    (session) => getAgentConversation(session),
     registry,
-  })));
+  )));
 
   // ---- steer_subagent tool ----
 

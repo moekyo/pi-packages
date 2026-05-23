@@ -6,16 +6,13 @@ import { formatDuration, getDisplayName } from "../ui/display.js";
 import { getSessionContextPercent } from "../usage.js";
 import { formatLifetimeTokens, textResult } from "./helpers.js";
 
-/** Narrow deps — only the methods this tool's execute callback calls. */
-export interface GetResultDeps {
-  getRecord: (id: string) => AgentRecord | undefined;
-  cancelNudge: (key: string) => void;
-  getConversation: (session: AgentSession) => string | undefined;
-  registry: AgentConfigLookup;
-}
-
 /** Create the get_subagent_result tool definition (without Pi SDK wrapper). */
-export function createGetResultTool(deps: GetResultDeps) {
+export function createGetResultTool(
+  getRecord: (id: string) => AgentRecord | undefined,
+  cancelNudge: (key: string) => void,
+  getConversation: (session: AgentSession) => string | undefined,
+  registry: AgentConfigLookup,
+) {
   return {
     name: "get_subagent_result" as const,
     label: "Get Agent Result",
@@ -45,7 +42,7 @@ export function createGetResultTool(deps: GetResultDeps) {
       _onUpdate: unknown,
       _ctx: unknown,
     ) => {
-      const record = deps.getRecord(params.agent_id);
+      const record = getRecord(params.agent_id);
       if (!record) {
         return textResult(`Agent not found: "${params.agent_id}". It may have been cleaned up.`);
       }
@@ -58,11 +55,11 @@ export function createGetResultTool(deps: GetResultDeps) {
         // Pre-mark consumed BEFORE awaiting — onComplete fires inside .then() and
         // always runs before this await resumes. Prevents a redundant notification.
         record.notification?.markConsumed();
-        deps.cancelNudge(params.agent_id);
+        cancelNudge(params.agent_id);
         await record.promise;
       }
 
-      const displayName = getDisplayName(record.type, deps.registry);
+      const displayName = getDisplayName(record.type, registry);
       const duration = formatDuration(record.startedAt, record.completedAt);
       const tokens = formatLifetimeTokens(record);
       const contextPercent = getSessionContextPercent(record.session);
@@ -88,12 +85,12 @@ export function createGetResultTool(deps: GetResultDeps) {
       // Mark result as consumed — suppresses the completion notification
       if (record.status !== "running" && record.status !== "queued") {
         record.notification?.markConsumed();
-        deps.cancelNudge(params.agent_id);
+        cancelNudge(params.agent_id);
       }
 
       // Verbose: include full conversation
       if (params.verbose && record.session) {
-        const conversation = deps.getConversation(record.session);
+        const conversation = getConversation(record.session);
         if (conversation) {
           output += `\n\n--- Agent Conversation ---\n${conversation}`;
         }

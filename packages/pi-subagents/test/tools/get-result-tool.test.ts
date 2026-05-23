@@ -19,18 +19,25 @@ function makeDeps(records: Map<string, AgentRecord> = new Map()) {
 }
 
 async function execute(deps: ReturnType<typeof makeDeps>, params: { agent_id: string; wait?: boolean; verbose?: boolean }) {
-  const tool = createGetResultTool(deps);
+  const tool = createGetResultTool(
+    deps.getRecord,
+    deps.cancelNudge,
+    deps.getConversation,
+    deps.registry,
+  );
   return tool.execute("tc-1", params, new AbortController().signal, undefined, STUB_CTX);
 }
 
 describe("createGetResultTool", () => {
   it("returns tool definition with correct name", () => {
-    const tool = createGetResultTool(makeDeps());
+    const deps = makeDeps();
+    const tool = createGetResultTool(deps.getRecord, deps.cancelNudge, deps.getConversation, deps.registry);
     expect(tool.name).toBe("get_subagent_result");
   });
 
   it("includes promptSnippet", () => {
-    const tool = createGetResultTool(makeDeps());
+    const deps = makeDeps();
+    const tool = createGetResultTool(deps.getRecord, deps.cancelNudge, deps.getConversation, deps.registry);
     expect(tool.promptSnippet).toBe(
       "get_subagent_result: Check status and retrieve results from a background agent.",
     );
