@@ -54,4 +54,36 @@ export default function piColGrepExtension(pi: ExtensionAPI): void {
     if (event.toolName !== "write" && event.toolName !== "edit") return;
     reindexer?.schedule();
   });
+
+  pi.registerCommand("colgrep-reindex", {
+    description: "Manually refresh the ColGrep semantic search index",
+    handler: async (_args, ctx) => {
+      if (!availability.available) {
+        ctx.ui.notify(
+          "colgrep is not installed. Install from: https://github.com/lightonai/next-plaid#installation",
+          "warning",
+        );
+        return;
+      }
+
+      const exec = (
+        cmd: string,
+        args: string[],
+        opts?: { cwd?: string; timeout?: number; signal?: AbortSignal },
+      ) => pi.exec(cmd, args, opts);
+
+      // Use the session reindexer if available; otherwise create a one-shot
+      // one (e.g., if the command is invoked before session_start has run).
+      const indexer =
+        reindexer ??
+        createReindexer({
+          exec,
+          cwd: ctx.cwd,
+          onStatus: (text) => setColGrepStatus(ctx, text),
+        });
+
+      await indexer.runNow();
+      ctx.ui.notify("ColGrep index updated.", "info");
+    },
+  });
 }

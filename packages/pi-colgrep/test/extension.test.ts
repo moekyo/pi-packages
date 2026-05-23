@@ -235,3 +235,69 @@ describe("extension — tool_result scheduling", () => {
     expect(pi.exec).not.toHaveBeenCalled();
   });
 });
+
+// ---- Cycle 8: manual /colgrep-reindex command ----
+
+describe("extension — /colgrep-reindex command", () => {
+  let pi: TestPi;
+  let ctx: TestCtx;
+
+  async function warmSession(): Promise<void> {
+    await pi.trigger("session_start", makeSessionStartEvent(), ctx);
+    pi.exec.mockClear();
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+  }
+
+  beforeEach(() => {
+    pi = new TestPi();
+    ctx = makeCtx();
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+    piColGrepExtension(pi.asExtensionAPI());
+  });
+
+  it("registers a colgrep-reindex command", async () => {
+    await warmSession();
+    await expect(
+      pi.invokeCommand("colgrep-reindex", "", ctx),
+    ).resolves.toBeUndefined();
+  });
+
+  it("runs colgrep init immediately when invoked", async () => {
+    await warmSession();
+    await pi.invokeCommand("colgrep-reindex", "", ctx);
+    expect(pi.exec).toHaveBeenCalledWith(
+      "colgrep",
+      ["init", "-y", "."],
+      expect.anything(),
+    );
+  });
+
+  it("shows a success notification after reindex completes", async () => {
+    await warmSession();
+    await pi.invokeCommand("colgrep-reindex", "", ctx);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      expect.stringContaining("ColGrep"),
+      "info",
+    );
+  });
+
+  it("shows a warning notification when colgrep is unavailable", async () => {
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 127 });
+    await pi.trigger("session_start", makeSessionStartEvent(), ctx);
+    ctx.ui.notify.mockClear();
+    await pi.invokeCommand("colgrep-reindex", "", ctx);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      expect.stringContaining("colgrep"),
+      "warning",
+    );
+    expect(pi.exec).toHaveBeenCalledTimes(1); // only --version
+  });
+
+  it("resolves without throwing even when reindex exec fails", async () => {
+    await warmSession();
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "disk error", code: 1 });
+    await expect(
+      pi.invokeCommand("colgrep-reindex", "", ctx),
+    ).resolves.toBeUndefined();
+  });
+});
