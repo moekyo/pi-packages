@@ -647,38 +647,24 @@ Apply the dependency bag convention to touched modules: `NotificationDeps` (4 fi
 
 Impact: eliminates dual counting; removes `??` fallback pattern from widget and conversation viewer; hides `ExecutionState` structure from consumers.
 
-### Step M: Decompose execute and push ExtensionContext to the boundary (#145)
+### Step M: Decompose execute and push ExtensionContext to the boundary (#145) ✓
 
-`execute` is 145 lines with three responsibilities mixed together:
+Extracted config resolution into `resolveSpawnConfig` (pure function in `spawn-config.ts`).
+Injected three collaborators (`buildSnapshot`, `getModelInfo`, `getSessionInfo`) into `createAgentTool` so `execute` no longer reads `ctx` beyond `ctx.ui` (already delegated to `widget.setUICtx`).
+`AgentManager.spawn()` and `spawnAndWait()` accept `ParentSnapshot` instead of `ExtensionContext`.
+`service-adapter.ts` calls `buildParentSnapshot(session.ctx)` at its boundary.
+`foreground-runner` and `background-spawner` receive `ResolvedSpawnConfig` + domain values (`snapshot`, `parentSessionFile`, `parentSessionId`) instead of `ctx`.
 
-1. **Boundary extraction** (~5 lines) - read `ctx.model`, `ctx.modelRegistry`, `ctx.ui`, `ctx.sessionManager`, call `buildParentSnapshot(ctx)`.
-2. **Config resolution** (~60 lines) - resolve agent type, merge invocation config, resolve model, compute max turns, build tags and display metadata.
-3. **Dispatch** (~80 lines) - resume / background / foreground, each passing 14-16 field parameter bags.
-
-The config resolution section is working for the dependencies: manually unpacking `resolvedConfig` field by field, computing derived values, then repacking everything into massive objects for `spawnBackground` and `runForeground`.
-The 16-field bags are the symptom - they exist because the resolution happened in the wrong place.
-
-The fix has two parts:
-
-1. **Extract config resolution** into a pure function (e.g. `resolveSpawnConfig`) that accepts the raw tool params, registry, model info, and settings, and returns a single `ResolvedSpawnConfig` object.
-   `execute` becomes: extract ctx → resolve config → dispatch.
-   `spawnBackground` and `runForeground` receive `ResolvedSpawnConfig` instead of 16 individual fields.
-2. **Push `ctx` to the boundary.**
-   `execute` extracts everything from `ctx` in its first few lines.
-   `foreground-runner.ts` and `background-spawner.ts` receive domain values (`snapshot`, `parentSessionFile`, `parentSessionId`) instead of `ctx`.
-   `AgentManager.spawn()` and `spawnAndWait()` accept `ParentSnapshot` instead of `ExtensionContext`.
-   `service-adapter.ts` calls `buildParentSnapshot(session.ctx)` at its boundary.
+Dissolved `ForegroundDeps`, `BackgroundDeps`, and `AdapterDeps` into plain parameters.
+`AgentToolDeps` is destructured in the `createAgentTool` signature.
 
 After this step, `ExtensionContext` appears only in:
 
-- `agent-tool.ts execute` (SDK callback - unavoidable)
+- `index.ts` closures (wired at extension startup)
 - `service-adapter.ts` (cross-extension boundary)
-- `index.ts` (extension entry point)
 - Menu handlers (addressed by Step N)
 
-Apply the dependency bag convention to touched modules: `ForegroundDeps` (3 fields) and `BackgroundDeps` (3 fields) become plain parameters; `AdapterDeps` (3 fields) becomes plain parameters; `AgentToolDeps` (6 fields) is destructured in the signature.
-
-Impact: `execute` drops from ~145 to ~30 lines; eliminates 16-field parameter bags; eliminates 1 `vi.mock()` call in `agent-manager.test.ts`; `foreground-runner` and `background-spawner` tests no longer need `ctx` mocks; `AgentManager` operates entirely on domain types.
+Impact: `execute` dropped from ~145 to ~25 lines; eliminated 16-field parameter bags; eliminated `vi.mock("../src/parent-snapshot.js")` in `agent-manager.test.ts`; foreground/background runner tests no longer need `ctx` mocks; `AgentManager` operates entirely on domain types.
 
 ### Step N: Narrow UI context for menu handlers (#146)
 
@@ -690,7 +676,7 @@ Creation wizard’s `spawnAndWait` call changes: the narrow `AgentMenuManager.sp
 
 Apply the dependency bag convention to touched modules: `AgentConfigEditorDeps` (4 fields), `SteerToolDeps` (4 fields), and `GetResultDeps` (4 fields) become plain parameters; `AgentMenuDeps` (8 fields) and `AgentCreationWizardDeps` (5 fields) are destructured in the signature.
 
-After Steps M and N, `ExtensionContext` appears only at true boundaries: `agent-tool.ts execute` (SDK callback), `service-adapter.ts` (cross-extension bridge), and `index.ts` (extension entry point).
+After Steps M and N, `ExtensionContext` appears only at true boundaries: `index.ts` closures, `service-adapter.ts` (cross-extension bridge), and `index.ts` (extension entry point).
 
 Impact: eliminates ~43 `ctx as any` casts across menu, editor, and wizard test files; tests construct a plain object satisfying `MenuUI` with no cast.
 
