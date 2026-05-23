@@ -5,7 +5,7 @@ import {
   SUBAGENT_EVENTS,
   type SubagentsService,
   unpublishSubagentsService,
-} from "#src/service";
+} from "#src/service/service";
 
 const SERVICE_KEY = Symbol.for("@gotgenes/pi-subagents:service");
 
