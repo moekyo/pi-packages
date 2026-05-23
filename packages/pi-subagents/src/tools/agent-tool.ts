@@ -18,7 +18,7 @@ import {
 import { spawnBackground } from "./background-spawner.js";
 import { runForeground } from "./foreground-runner.js";
 import { buildDetails, buildTypeListText, textResult } from "./helpers.js";
-import { resolveSpawnConfig } from "./spawn-config.js";
+import { type ModelInfo, resolveSpawnConfig } from "./spawn-config.js";
 
 // ---- Deps interface ----
 
@@ -57,6 +57,12 @@ export interface AgentToolDeps {
   agentDir: string;
   /** Narrow settings accessor — only the default max turns is needed here. */
   settings: { readonly defaultMaxTurns: number | undefined };
+  /** Build a ParentSnapshot from the current session context. */
+  buildSnapshot: (inheritContext: boolean) => ParentSnapshot;
+  /** Model info from the current session context. */
+  getModelInfo: () => ModelInfo;
+  /** Parent session identity from the current session context. */
+  getSessionInfo: () => { parentSessionFile: string; parentSessionId: string };
 }
 
 // ---- Factory ----
@@ -279,10 +285,14 @@ Guidelines:
       const config = resolveSpawnConfig(
         params,
         deps.registry,
-        { parentModel: ctx.model, modelRegistry: ctx.modelRegistry },
+        deps.getModelInfo(),
         deps.settings,
       );
       if ("error" in config) return textResult(config.error);
+
+      // ---- Boundary extraction (after config so inheritContext is resolved) ----
+      const snapshot = deps.buildSnapshot(config.inheritContext);
+      const { parentSessionFile, parentSessionId } = deps.getSessionInfo();
 
       // ---- Resume existing agent ----
       if (params.resume) {
@@ -316,7 +326,9 @@ Guidelines:
         return spawnBackground(
           { manager: deps.manager, widget: deps.widget, agentActivity: deps.agentActivity },
           {
-            ctx,
+            snapshot,
+            parentSessionFile,
+            parentSessionId,
             subagentType: config.subagentType,
             prompt: config.prompt,
             description: config.description,
@@ -338,7 +350,9 @@ Guidelines:
       return runForeground(
         { manager: deps.manager, widget: deps.widget, agentActivity: deps.agentActivity },
         {
-          ctx,
+          snapshot,
+          parentSessionFile,
+          parentSessionId,
           subagentType: config.subagentType,
           prompt: config.prompt,
           description: config.description,

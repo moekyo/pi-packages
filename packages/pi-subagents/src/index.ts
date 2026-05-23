@@ -210,6 +210,19 @@ export default function (pi: ExtensionAPI) {
     registry,
     agentDir: getAgentDir(),
     settings,
+    buildSnapshot: (inheritContext) =>
+      buildParentSnapshot(
+        runtime.currentCtx?.ctx as import("@earendil-works/pi-coding-agent").ExtensionContext,
+        inheritContext,
+      ),
+    getModelInfo: () => ({
+      parentModel: (runtime.currentCtx?.ctx as any)?.model,
+      modelRegistry: (runtime.currentCtx?.ctx as any)?.modelRegistry,
+    }),
+    getSessionInfo: () => ({
+      parentSessionFile: (runtime.currentCtx?.ctx as any)?.sessionManager?.getSessionFile() ?? "",
+      parentSessionId: (runtime.currentCtx?.ctx as any)?.sessionManager?.getSessionId() ?? "",
+    }),
   })));
 
   // ---- get_subagent_result tool ----

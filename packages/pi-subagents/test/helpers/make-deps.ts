@@ -1,8 +1,10 @@
 import { vi } from "vitest";
 import { AgentTypeRegistry } from "../../src/agent-types.js";
+import type { ParentSnapshot } from "../../src/parent-snapshot.js";
 import { type AgentToolDeps } from "../../src/tools/agent-tool.js";
 import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createTestRecord } from "./make-record.js";
+import { STUB_SNAPSHOT } from "./stub-ctx.js";
 
 /** Minimal registry with no user agents — sufficient for tool tests that don't exercise agent-type lookup. */
 const defaultRegistry = new AgentTypeRegistry(() => new Map());
@@ -38,6 +40,9 @@ export function createToolDeps(overrides: Partial<AgentToolDeps> = {}): AgentToo
 		registry: defaultRegistry,
 		agentDir: "/home/user/.pi",
 		settings: { defaultMaxTurns: undefined as number | undefined },
+		buildSnapshot: vi.fn((_inheritContext: boolean): ParentSnapshot => STUB_SNAPSHOT),
+		getModelInfo: vi.fn(() => ({ parentModel: { id: "claude-sonnet", name: "Claude Sonnet" }, modelRegistry: { getAll: () => [], getAvailable: () => [] } })),
+		getSessionInfo: vi.fn(() => ({ parentSessionFile: "/sessions/parent.jsonl", parentSessionId: "session-1" })),
 		...overrides,
 	};
 }

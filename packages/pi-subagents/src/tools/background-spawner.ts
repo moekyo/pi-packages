@@ -1,5 +1,6 @@
 import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSpawnConfig } from "../agent-manager.js";
+import type { ParentSnapshot } from "../parent-snapshot.js";
 import type { AgentInvocation, AgentRecord, IsolationMode, ThinkingLevel } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import type { AgentDetails } from "../ui/display.js";
@@ -9,7 +10,7 @@ import { textResult } from "./helpers.js";
 
 /** Narrow manager interface for the background spawner. */
 export interface BackgroundManagerDeps {
-  spawn(ctx: any, type: string, prompt: string, opts: AgentSpawnConfig): string;
+  spawn(snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig): string;
   getRecord(id: string): AgentRecord | undefined;
   getMaxConcurrent(): number;
 }
@@ -29,12 +30,9 @@ export interface BackgroundDeps {
 
 /** All values the background spawner needs, bundled from shared execute setup. */
 export interface BackgroundParams {
-  ctx: {
-    sessionManager: {
-      getSessionFile(): string;
-      getSessionId(): string;
-    };
-  };
+  snapshot: ParentSnapshot;
+  parentSessionFile: string;
+  parentSessionId: string;
   subagentType: string;
   prompt: string;
   description: string;
@@ -63,9 +61,9 @@ export function spawnBackground(
 
   let id: string;
   try {
-    id = deps.manager.spawn(params.ctx, params.subagentType, params.prompt, {
-      parentSessionFile: params.ctx.sessionManager.getSessionFile(),
-      parentSessionId: params.ctx.sessionManager.getSessionId(),
+    id = deps.manager.spawn(params.snapshot, params.subagentType, params.prompt, {
+      parentSessionFile: params.parentSessionFile,
+      parentSessionId: params.parentSessionId,
       description: params.description,
       model: params.model,
       maxTurns: params.effectiveMaxTurns,

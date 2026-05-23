@@ -1,6 +1,7 @@
 import type { Model } from "@earendil-works/pi-ai";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { AgentSpawnConfig } from "../agent-manager.js";
+import type { ParentSnapshot } from "../parent-snapshot.js";
 import type { AgentInvocation, AgentRecord, IsolationMode, ThinkingLevel } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import {
@@ -21,7 +22,7 @@ import {
 /** Narrow manager interface for the foreground runner. */
 export interface ForegroundManagerDeps {
   spawnAndWait(
-    ctx: any,
+    snapshot: ParentSnapshot,
     type: string,
     prompt: string,
     opts: Omit<AgentSpawnConfig, "isBackground">,
@@ -43,12 +44,9 @@ export interface ForegroundDeps {
 
 /** All values the foreground runner needs, bundled from shared execute setup. */
 export interface ForegroundParams {
-  ctx: {
-    sessionManager: {
-      getSessionFile(): string;
-      getSessionId(): string;
-    };
-  };
+  snapshot: ParentSnapshot;
+  parentSessionFile: string;
+  parentSessionId: string;
   subagentType: string;
   prompt: string;
   description: string;
@@ -114,7 +112,7 @@ export async function runForeground(
   let record: AgentRecord;
   try {
     record = await deps.manager.spawnAndWait(
-      params.ctx,
+      params.snapshot,
       params.subagentType,
       params.prompt,
       {
@@ -127,8 +125,8 @@ export async function runForeground(
         isolation: params.isolation,
         invocation: params.agentInvocation,
         signal,
-        parentSessionFile: params.ctx.sessionManager.getSessionFile(),
-        parentSessionId: params.ctx.sessionManager.getSessionId(),
+        parentSessionFile: params.parentSessionFile,
+        parentSessionId: params.parentSessionId,
         onSessionCreated: (session, record) => {
           fgState.setSession(session);
           unsubUI = subscribeUIObserver(session, fgState, streamUpdate);

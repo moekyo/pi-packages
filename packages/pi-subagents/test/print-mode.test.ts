@@ -85,6 +85,10 @@ describe("print mode background notifications", () => {
     subagentsExtension(pi);
     vi.useFakeTimers();
 
+    // Fire session_start so runtime.currentCtx is populated for buildSnapshot
+    const ctx = makeHeadlessCtx();
+    await handlers.get("session_start")?.({}, ctx);
+
     const agentTool = tools.get("Agent");
     await agentTool.execute(
       "tool-call-1",

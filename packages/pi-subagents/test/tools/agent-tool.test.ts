@@ -6,11 +6,7 @@ import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
   return {
-    model: { id: "claude-sonnet", name: "Claude Sonnet" },
-    modelRegistry: {},
-    cwd: "/test",
     ui: { fake: true },
-    sessionManager: { getSessionId: () => "session-1", getSessionFile: () => "/sessions/parent.jsonl" },
     ...overrides,
   };
 }
@@ -120,10 +116,6 @@ describe("Agent tool — resume path", () => {
 describe("Agent tool — model resolution error", () => {
   it("returns error when model resolution fails", async () => {
     const deps = createToolDeps();
-    // Provide a real-enough modelRegistry so resolveInvocationModel can iterate it
-    const ctx = makeCtx({
-      modelRegistry: { getAll: () => [], getAvailable: () => [] },
-    });
     const result = await execute(
       deps,
       {
@@ -132,7 +124,6 @@ describe("Agent tool — model resolution error", () => {
         subagent_type: "general-purpose",
         model: "nonexistent-model-xyz",
       },
-      ctx,
     );
     // User-specified model that doesn't resolve → error message
     expect(result.content[0].text).toContain("nonexistent-model-xyz");

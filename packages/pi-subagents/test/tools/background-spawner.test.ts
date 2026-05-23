@@ -4,19 +4,13 @@ import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createToolDeps } from "../helpers/make-deps.js";
 import { createTestRecord } from "../helpers/make-record.js";
 import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
-
-function makeCtx() {
-  return {
-    sessionManager: {
-      getSessionFile: vi.fn().mockReturnValue("/sessions/parent.jsonl"),
-      getSessionId: vi.fn().mockReturnValue("session-1"),
-    },
-  };
-}
+import { STUB_SNAPSHOT } from "../helpers/stub-ctx.js";
 
 function makeParams(overrides: Partial<BackgroundParams> = {}): BackgroundParams {
   return {
-    ctx: makeCtx(),
+    snapshot: STUB_SNAPSHOT,
+    parentSessionFile: "/sessions/parent.jsonl",
+    parentSessionId: "session-1",
     subagentType: "general-purpose",
     prompt: "do something",
     description: "bg task",
