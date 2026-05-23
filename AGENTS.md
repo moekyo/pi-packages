@@ -26,6 +26,8 @@ Before working on a specific package, load its `package-<name>` skill for archit
   ES2023 APIs (`findLast`, `findLastIndex`, `toReversed`, `toSorted`, `toSpliced`, `with`) and ES2024 APIs (`Promise.withResolvers`, `Object.groupBy`, `Map.groupBy`, `Array.fromAsync`) are available and preferred.
   Do not use APIs introduced after ES2024.
 
+Use `colgrep` for intent-based codebase exploration and convention discovery; use `grep` for exact symbol matching.
+
 Before implementing, refactoring, or reviewing code, load the `code-design` skill for design principles and structural heuristics.
 
 ## Markdown
