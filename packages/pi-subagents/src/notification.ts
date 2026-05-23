@@ -124,17 +124,6 @@ export function buildEventData(record: AgentRecord) {
 
 // ---- Notification system factory ----
 
-/** Narrow deps for the notification system — only the methods it actually calls. */
-export interface NotificationDeps {
-  sendMessage: (
-    msg: { customType: string; content: string; display: boolean; details?: unknown },
-    opts?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
-  ) => void;
-  agentActivity: Map<string, AgentActivityTracker>;
-  markFinished: (id: string) => void;
-  updateWidget: () => void;
-}
-
 export interface NotificationSystem {
   cancelNudge: (key: string) => void;
   sendCompletion: (record: AgentRecord) => void;
@@ -147,7 +136,15 @@ const NUDGE_HOLD_MS = 200;
 export class NotificationManager implements NotificationSystem {
   private pendingNudges = new Map<string, ReturnType<typeof setTimeout>>();
 
-  constructor(private deps: NotificationDeps) {}
+  constructor(
+    private sendMessage: (
+      msg: { customType: string; content: string; display: boolean; details?: unknown },
+      opts?: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
+    ) => void,
+    private agentActivity: Map<string, AgentActivityTracker>,
+    private markFinished: (id: string) => void,
+    private updateWidget: () => void,
+  ) {}
 
   cancelNudge(key: string): void {
     const timer = this.pendingNudges.get(key);
@@ -158,16 +155,16 @@ export class NotificationManager implements NotificationSystem {
   }
 
   sendCompletion(record: AgentRecord): void {
-    this.deps.agentActivity.delete(record.id);
-    this.deps.markFinished(record.id);
+    this.agentActivity.delete(record.id);
+    this.markFinished(record.id);
     this.scheduleNudge(record.id, () => this.emitIndividualNudge(record));
-    this.deps.updateWidget();
+    this.updateWidget();
   }
 
   cleanupCompleted(id: string): void {
-    this.deps.agentActivity.delete(id);
-    this.deps.markFinished(id);
-    this.deps.updateWidget();
+    this.agentActivity.delete(id);
+    this.markFinished(id);
+    this.updateWidget();
   }
 
   dispose(): void {
@@ -197,12 +194,12 @@ export class NotificationManager implements NotificationSystem {
     const outputFile = record.outputFile;
     const footer = outputFile ? `\nFull transcript available at: ${outputFile}` : "";
 
-    this.deps.sendMessage(
+    this.sendMessage(
       {
         customType: "subagent-notification",
         content: notification + footer,
         display: true,
-        details: buildNotificationDetails(record, 500, this.deps.agentActivity.get(record.id)),
+        details: buildNotificationDetails(record, 500, this.agentActivity.get(record.id)),
       },
       { deliverAs: "followUp", triggerTurn: true },
     );

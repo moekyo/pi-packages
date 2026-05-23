@@ -62,12 +62,12 @@ export default function (pi: ExtensionAPI) {
   // ---- Notification system ----
   // runtime.widget is assigned after AgentManager construction; arrow closures
   // capture `runtime` by reference so they always read the current value.
-  const notifications = new NotificationManager({
-    sendMessage: (msg, opts) => pi.sendMessage(msg, opts),
-    agentActivity: runtime.agentActivity,
-    markFinished: (id) => runtime.markFinished(id),
-    updateWidget: () => runtime.updateWidget(),
-  });
+  const notifications = new NotificationManager(
+    (msg, opts) => pi.sendMessage(msg, opts),
+    runtime.agentActivity,
+    (id) => runtime.markFinished(id),
+    () => runtime.updateWidget(),
+  );
 
   // Settings: owns all three in-memory values and handles load/save/emit.
   // onMaxConcurrentChanged is wired after manager is constructed (closure captures by reference).

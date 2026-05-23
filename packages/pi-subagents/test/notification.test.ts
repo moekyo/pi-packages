@@ -172,13 +172,17 @@ describe("NotificationManager", () => {
     vi.useRealTimers();
   });
 
-  function makeDeps() {
+  function makeArgs() {
     return {
       sendMessage: vi.fn(),
       agentActivity: new Map<string, AgentActivityTracker>(),
       markFinished: vi.fn(),
       updateWidget: vi.fn(),
     };
+  }
+
+  function makeManager(args: ReturnType<typeof makeArgs>) {
+    return new NotificationManager(args.sendMessage, args.agentActivity, args.markFinished, args.updateWidget);
   }
 
   const baseRecord = createTestRecord({
@@ -189,56 +193,56 @@ describe("NotificationManager", () => {
   });
 
   it("cancelNudge prevents a scheduled nudge from firing", () => {
-    const deps = makeDeps();
-    const system = new NotificationManager(deps);
+    const args = makeArgs();
+    const system = makeManager(args);
     system.sendCompletion(baseRecord);
     system.cancelNudge("agent-1");
     vi.advanceTimersByTime(300);
-    expect(deps.sendMessage).not.toHaveBeenCalled();
+    expect(args.sendMessage).not.toHaveBeenCalled();
   });
 
   it("sendCompletion cleans up activity and widget, then schedules nudge", () => {
-    const deps = makeDeps();
-    deps.agentActivity.set("agent-1", new AgentActivityTracker());
-    const system = new NotificationManager(deps);
+    const args = makeArgs();
+    args.agentActivity.set("agent-1", new AgentActivityTracker());
+    const system = makeManager(args);
     system.sendCompletion(baseRecord);
-    expect(deps.agentActivity.has("agent-1")).toBe(false);
-    expect(deps.markFinished).toHaveBeenCalledWith("agent-1");
-    expect(deps.updateWidget).toHaveBeenCalled();
+    expect(args.agentActivity.has("agent-1")).toBe(false);
+    expect(args.markFinished).toHaveBeenCalledWith("agent-1");
+    expect(args.updateWidget).toHaveBeenCalled();
     // Nudge fires after hold delay
     vi.advanceTimersByTime(300);
-    expect(deps.sendMessage).toHaveBeenCalledOnce();
+    expect(args.sendMessage).toHaveBeenCalledOnce();
   });
 
   it("sendCompletion skips nudge when notification.resultConsumed is true", () => {
-    const deps = makeDeps();
-    const system = new NotificationManager(deps);
+    const args = makeArgs();
+    const system = makeManager(args);
     const record = createTestRecord();
     record.notification = new NotificationState("tc-1");
     record.notification.markConsumed();
     system.sendCompletion(record);
     vi.advanceTimersByTime(300);
-    expect(deps.sendMessage).not.toHaveBeenCalled();
+    expect(args.sendMessage).not.toHaveBeenCalled();
   });
 
   it("cleanupCompleted removes activity and marks finished without nudge", () => {
-    const deps = makeDeps();
-    deps.agentActivity.set("agent-1", new AgentActivityTracker());
-    const system = new NotificationManager(deps);
+    const args = makeArgs();
+    args.agentActivity.set("agent-1", new AgentActivityTracker());
+    const system = makeManager(args);
     system.cleanupCompleted("agent-1");
-    expect(deps.agentActivity.has("agent-1")).toBe(false);
-    expect(deps.markFinished).toHaveBeenCalledWith("agent-1");
-    expect(deps.updateWidget).toHaveBeenCalled();
+    expect(args.agentActivity.has("agent-1")).toBe(false);
+    expect(args.markFinished).toHaveBeenCalledWith("agent-1");
+    expect(args.updateWidget).toHaveBeenCalled();
     vi.advanceTimersByTime(300);
-    expect(deps.sendMessage).not.toHaveBeenCalled();
+    expect(args.sendMessage).not.toHaveBeenCalled();
   });
 
   it("dispose clears all pending timers", () => {
-    const deps = makeDeps();
-    const system = new NotificationManager(deps);
+    const args = makeArgs();
+    const system = makeManager(args);
     system.sendCompletion(baseRecord);
     system.dispose();
     vi.advanceTimersByTime(300);
-    expect(deps.sendMessage).not.toHaveBeenCalled();
+    expect(args.sendMessage).not.toHaveBeenCalled();
   });
 });
