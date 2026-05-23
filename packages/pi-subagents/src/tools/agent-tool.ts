@@ -5,7 +5,7 @@ import type { AgentSpawnConfig } from "../agent-manager.js";
 import { AgentTypeRegistry } from "../agent-types.js";
 import type { ParentSnapshot } from "../parent-snapshot.js";
 
-import type { AgentRecord, SubagentType } from "../types.js";
+import type { AgentRecord } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import { type UICtx } from "../ui/agent-widget.js";
 import {
@@ -68,9 +68,19 @@ export interface AgentToolDeps {
 // ---- Factory ----
 
 /** Create the Agent tool definition (without Pi SDK wrapper). */
-export function createAgentTool(deps: AgentToolDeps) {
-  const typeListText = buildTypeListText(deps.registry, deps.agentDir);
-  const availableTypesText = deps.registry.getAvailableTypes().join(", ");
+export function createAgentTool({
+  manager,
+  widget,
+  agentActivity,
+  registry,
+  agentDir,
+  settings,
+  buildSnapshot,
+  getModelInfo,
+  getSessionInfo,
+}: AgentToolDeps) {
+  const typeListText = buildTypeListText(registry, agentDir);
+  const availableTypesText = registry.getAvailableTypes().join(", ");
   return {
     name: "Agent" as const,
     label: "Agent",
@@ -104,7 +114,7 @@ Guidelines:
         description: "A short (3-5 word) description of the task (shown in UI).",
       }),
       subagent_type: Type.String({
-        description: `The type of specialized agent to use. Available types: ${availableTypesText}. Custom agents from .pi/agents/<name>.md (project) or ${deps.agentDir}/agents/<name>.md (global) are also available.`,
+        description: `The type of specialized agent to use. Available types: ${availableTypesText}. Custom agents from .pi/agents/<name>.md (project) or ${agentDir}/agents/<name>.md (global) are also available.`,
       }),
       model: Type.Optional(
         Type.String({
@@ -159,7 +169,7 @@ Guidelines:
 
     renderCall(args: Record<string, unknown>, theme: any) {
       const displayName = args.subagent_type
-        ? getDisplayName(args.subagent_type as string, deps.registry)
+        ? getDisplayName(args.subagent_type as string, registry)
         : "Agent";
       const desc = (args.description as string) ?? "";
       return new Text(
@@ -276,27 +286,27 @@ Guidelines:
       ctx: any,
     ) => {
       // Ensure we have UI context for widget rendering
-      deps.widget.setUICtx(ctx.ui as UICtx);
+      widget.setUICtx(ctx.ui as UICtx);
 
       // Reload custom agents so new .pi/agents/*.md files are picked up without restart
-      deps.registry.reload();
+      registry.reload();
 
       // ---- Config resolution (pure) ----
       const config = resolveSpawnConfig(
         params,
-        deps.registry,
-        deps.getModelInfo(),
-        deps.settings,
+        registry,
+        getModelInfo(),
+        settings,
       );
       if ("error" in config) return textResult(config.error);
 
       // ---- Boundary extraction (after config so inheritContext is resolved) ----
-      const snapshot = deps.buildSnapshot(config.inheritContext);
-      const { parentSessionFile, parentSessionId } = deps.getSessionInfo();
+      const snapshot = buildSnapshot(config.inheritContext);
+      const { parentSessionFile, parentSessionId } = getSessionInfo();
 
       // ---- Resume existing agent ----
       if (params.resume) {
-        const existing = deps.manager.getRecord(params.resume as string);
+        const existing = manager.getRecord(params.resume as string);
         if (!existing) {
           return textResult(
             `Agent not found: "${params.resume}". It may have been cleaned up.`,
@@ -307,7 +317,7 @@ Guidelines:
             `Agent "${params.resume}" has no active session to resume.`,
           );
         }
-        const record = await deps.manager.resume(
+        const record = await manager.resume(
           params.resume as string,
           params.prompt as string,
           signal ?? new AbortController().signal,
@@ -324,18 +334,18 @@ Guidelines:
       // ---- Background execution ----
       if (config.runInBackground) {
         return spawnBackground(
-          deps.manager,
-          deps.widget,
-          deps.agentActivity,
+          manager,
+          widget,
+          agentActivity,
           { config, snapshot, parentSessionFile, parentSessionId, toolCallId },
         );
       }
 
       // ---- Foreground execution — stream progress via onUpdate ----
       return runForeground(
-        deps.manager,
-        deps.widget,
-        deps.agentActivity,
+        manager,
+        widget,
+        agentActivity,
         { config, snapshot, parentSessionFile, parentSessionId },
         signal,
         onUpdate,

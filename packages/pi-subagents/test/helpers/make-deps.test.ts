@@ -3,7 +3,7 @@ import type { BackgroundManagerDeps, BackgroundWidgetDeps } from "../../src/tool
 import type { ForegroundManagerDeps, ForegroundWidgetDeps } from "../../src/tools/foreground-runner.js";
 import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createToolDeps } from "./make-deps.js";
-import { STUB_CTX, STUB_SNAPSHOT } from "./stub-ctx.js";
+import { STUB_SNAPSHOT } from "./stub-ctx.js";
 
 describe("createToolDeps", () => {
 	describe("manager defaults", () => {
