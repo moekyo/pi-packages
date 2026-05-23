@@ -1,42 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ForegroundParams, runForeground } from "../../src/tools/foreground-runner.js";
+import type { ResolvedSpawnConfig } from "../../src/tools/spawn-config.js";
 import { createToolDeps } from "../helpers/make-deps.js";
 import { createTestRecord } from "../helpers/make-record.js";
 import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
 import { STUB_SNAPSHOT } from "../helpers/stub-ctx.js";
 
-function makeParams(overrides: Partial<ForegroundParams> = {}): ForegroundParams {
+function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawnConfig {
   return {
-    snapshot: STUB_SNAPSHOT,
-    parentSessionFile: "/sessions/parent.jsonl",
-    parentSessionId: "session-1",
     subagentType: "general-purpose",
+    rawType: "general-purpose",
+    fellBack: false,
+    displayName: "Agent",
     prompt: "do the task",
     description: "fg task",
+    model: undefined,
+    effectiveMaxTurns: undefined,
+    thinking: undefined,
+    inheritContext: false,
+    runInBackground: false,
+    isolated: false,
+    isolation: undefined,
+    modelName: undefined,
+    agentInvocation: {
+      modelName: undefined,
+      thinking: undefined,
+      maxTurns: undefined,
+      isolated: false,
+      inheritContext: false,
+      runInBackground: false,
+      isolation: undefined,
+    },
+    agentTags: [],
     detailBase: {
-      displayName: "General-purpose",
+      displayName: "Agent",
       description: "fg task",
       subagentType: "general-purpose",
       modelName: undefined,
       tags: undefined,
     },
-    rawType: "general-purpose",
-    fellBack: false,
-    model: undefined,
-    effectiveMaxTurns: undefined,
-    isolated: undefined,
-    inheritContext: undefined,
-    thinking: undefined,
-    isolation: undefined,
-    agentInvocation: {
-      modelName: undefined,
-      thinking: undefined,
-      maxTurns: undefined,
-      isolated: undefined,
-      inheritContext: undefined,
-      runInBackground: false,
-      isolation: undefined,
-    },
+    ...overrides,
+  };
+}
+
+function makeParams(overrides: Partial<ForegroundParams> = {}): ForegroundParams {
+  return {
+    config: makeConfig(),
+    snapshot: STUB_SNAPSHOT,
+    parentSessionFile: "/sessions/parent.jsonl",
+    parentSessionId: "session-1",
     ...overrides,
   };
 }
@@ -51,8 +63,8 @@ describe("runForeground", () => {
   });
 
   it("returns completion message with tool use count on success", async () => {
-    const deps = createToolDeps();
-    const result = await runForeground(deps, makeParams(), undefined, undefined);
+    const { manager, widget, agentActivity } = createToolDeps();
+    const result = await runForeground(manager, widget, agentActivity, makeParams(), undefined, undefined);
     expect(result.content[0].text).toContain("Agent completed");
     expect(result.content[0].text).toContain("3 tool uses");
     expect(result.content[0].text).toContain("All done.");
@@ -67,7 +79,7 @@ describe("runForeground", () => {
         ),
       },
     });
-    const result = await runForeground(deps, makeParams(), undefined, undefined);
+    const result = await runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), undefined, undefined);
     expect(result.content[0].text).toContain("Agent failed");
     expect(result.content[0].text).toContain("Context window exceeded");
   });
@@ -79,15 +91,17 @@ describe("runForeground", () => {
         spawnAndWait: vi.fn().mockRejectedValue(new Error("runner crashed")),
       },
     });
-    const result = await runForeground(deps, makeParams(), undefined, undefined);
+    const result = await runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), undefined, undefined);
     expect(result.content[0].text).toContain("runner crashed");
   });
 
   it("includes fallback note when fellBack is true", async () => {
-    const deps = createToolDeps();
+    const { manager, widget, agentActivity } = createToolDeps();
     const result = await runForeground(
-      deps,
-      makeParams({ fellBack: true, rawType: "unknown-type" }),
+      manager,
+      widget,
+      agentActivity,
+      makeParams({ config: makeConfig({ fellBack: true, rawType: "unknown-type" }) }),
       undefined,
       undefined,
     );
@@ -101,7 +115,7 @@ describe("runForeground", () => {
       manager: {
         ...createToolDeps().manager,
         spawnAndWait: vi.fn().mockImplementation(
-          async (_ctx: any, _type: any, _prompt: any, opts: any) => {
+          async (_snapshot: any, _type: any, _prompt: any, opts: any) => {
             const record = createTestRecord({ result: "done" });
             opts.onSessionCreated?.(mockSess, record);
             return record;
@@ -110,7 +124,7 @@ describe("runForeground", () => {
       },
     });
     const signal = new AbortController().signal;
-    await runForeground(deps, makeParams(), signal, undefined);
+    await runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), signal, undefined);
     expect(deps.widget.ensureTimer).toHaveBeenCalled();
     expect(deps.widget.markFinished).toHaveBeenCalled();
   });
@@ -121,7 +135,7 @@ describe("runForeground", () => {
       manager: {
         ...createToolDeps().manager,
         spawnAndWait: vi.fn().mockImplementation(
-          async (_ctx: any, _type: any, _prompt: any, opts: any) => {
+          async (_snapshot: any, _type: any, _prompt: any, opts: any) => {
             const record = createTestRecord({ result: "done" });
             record.execution = { session: toAgentSession(createMockSession()), outputFile: undefined };
             opts.onSessionCreated?.(mockSess, record);
@@ -130,7 +144,7 @@ describe("runForeground", () => {
         ),
       },
     });
-    await runForeground(deps, makeParams(), undefined, undefined);
+    await runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), undefined, undefined);
     // Activity is registered during onSessionCreated and removed on cleanup —
     // markFinished is the evidence that the id was tracked and cleaned up.
     expect(deps.widget.markFinished).toHaveBeenCalledOnce();
@@ -146,7 +160,7 @@ describe("runForeground", () => {
       },
     });
     const onUpdate = vi.fn();
-    const runPromise = runForeground(deps, makeParams(), undefined, onUpdate);
+    const runPromise = runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), undefined, onUpdate);
 
     // Advance timer to trigger a spinner tick
     await vi.advanceTimersByTimeAsync(100);
@@ -164,7 +178,7 @@ describe("runForeground", () => {
       },
     });
     const onUpdate = vi.fn();
-    await runForeground(deps, makeParams(), undefined, onUpdate);
+    await runForeground(deps.manager, deps.widget, deps.agentActivity, makeParams(), undefined, onUpdate);
 
     onUpdate.mockClear();
     await vi.advanceTimersByTimeAsync(200);

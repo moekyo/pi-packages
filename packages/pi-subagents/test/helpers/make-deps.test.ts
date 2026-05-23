@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BackgroundDeps } from "../../src/tools/background-spawner.js";
-import type { ForegroundDeps } from "../../src/tools/foreground-runner.js";
+import type { BackgroundManagerDeps, BackgroundWidgetDeps } from "../../src/tools/background-spawner.js";
+import type { ForegroundManagerDeps, ForegroundWidgetDeps } from "../../src/tools/foreground-runner.js";
 import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
 import { createToolDeps } from "./make-deps.js";
 import { STUB_CTX, STUB_SNAPSHOT } from "./stub-ctx.js";
@@ -93,23 +93,32 @@ describe("createToolDeps", () => {
 	});
 
 	describe("structural compatibility", () => {
-		it("satisfies BackgroundDeps structurally", () => {
-			// TypeScript compile-time check — runtime just verifies required methods exist.
-			const deps = createToolDeps();
-			const bgDeps: BackgroundDeps = deps;
-			expect(bgDeps.manager.spawn).toBeTypeOf("function");
-			expect(bgDeps.manager.getRecord).toBeTypeOf("function");
-			expect(bgDeps.manager.getMaxConcurrent).toBeTypeOf("function");
-			expect(bgDeps.widget.ensureTimer).toBeTypeOf("function");
-			expect(bgDeps.widget.update).toBeTypeOf("function");
+		it("manager satisfies BackgroundManagerDeps structurally", () => {
+			const { manager } = createToolDeps();
+			const bgManager: BackgroundManagerDeps = manager;
+			expect(bgManager.spawn).toBeTypeOf("function");
+			expect(bgManager.getRecord).toBeTypeOf("function");
+			expect(bgManager.getMaxConcurrent).toBeTypeOf("function");
 		});
 
-		it("satisfies ForegroundDeps structurally", () => {
-			const deps = createToolDeps();
-			const fgDeps: ForegroundDeps = deps;
-			expect(fgDeps.manager.spawnAndWait).toBeTypeOf("function");
-			expect(fgDeps.widget.ensureTimer).toBeTypeOf("function");
-			expect(fgDeps.widget.markFinished).toBeTypeOf("function");
+		it("widget satisfies BackgroundWidgetDeps structurally", () => {
+			const { widget } = createToolDeps();
+			const bgWidget: BackgroundWidgetDeps = widget;
+			expect(bgWidget.ensureTimer).toBeTypeOf("function");
+			expect(bgWidget.update).toBeTypeOf("function");
+		});
+
+		it("manager satisfies ForegroundManagerDeps structurally", () => {
+			const { manager } = createToolDeps();
+			const fgManager: ForegroundManagerDeps = manager;
+			expect(fgManager.spawnAndWait).toBeTypeOf("function");
+		});
+
+		it("widget satisfies ForegroundWidgetDeps structurally", () => {
+			const { widget } = createToolDeps();
+			const fgWidget: ForegroundWidgetDeps = widget;
+			expect(fgWidget.ensureTimer).toBeTypeOf("function");
+			expect(fgWidget.markFinished).toBeTypeOf("function");
 		});
 
 		it("agentActivity satisfies AgentActivityAccess", () => {

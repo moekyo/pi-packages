@@ -324,49 +324,19 @@ Guidelines:
       // ---- Background execution ----
       if (config.runInBackground) {
         return spawnBackground(
-          { manager: deps.manager, widget: deps.widget, agentActivity: deps.agentActivity },
-          {
-            snapshot,
-            parentSessionFile,
-            parentSessionId,
-            subagentType: config.subagentType,
-            prompt: config.prompt,
-            description: config.description,
-            displayName: config.displayName,
-            toolCallId,
-            detailBase: config.detailBase,
-            model: config.model,
-            effectiveMaxTurns: config.effectiveMaxTurns,
-            isolated: config.isolated,
-            inheritContext: config.inheritContext,
-            thinking: config.thinking,
-            isolation: config.isolation,
-            agentInvocation: config.agentInvocation,
-          },
+          deps.manager,
+          deps.widget,
+          deps.agentActivity,
+          { config, snapshot, parentSessionFile, parentSessionId, toolCallId },
         );
       }
 
       // ---- Foreground execution — stream progress via onUpdate ----
       return runForeground(
-        { manager: deps.manager, widget: deps.widget, agentActivity: deps.agentActivity },
-        {
-          snapshot,
-          parentSessionFile,
-          parentSessionId,
-          subagentType: config.subagentType,
-          prompt: config.prompt,
-          description: config.description,
-          detailBase: config.detailBase,
-          rawType: config.rawType,
-          fellBack: config.fellBack,
-          model: config.model,
-          effectiveMaxTurns: config.effectiveMaxTurns,
-          isolated: config.isolated,
-          inheritContext: config.inheritContext,
-          thinking: config.thinking,
-          isolation: config.isolation,
-          agentInvocation: config.agentInvocation,
-        },
+        deps.manager,
+        deps.widget,
+        deps.agentActivity,
+        { config, snapshot, parentSessionFile, parentSessionId },
         signal,
         onUpdate,
       );

@@ -1,8 +1,7 @@
-import type { Model } from "@earendil-works/pi-ai";
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import type { AgentSpawnConfig } from "../agent-manager.js";
 import type { ParentSnapshot } from "../parent-snapshot.js";
-import type { AgentInvocation, AgentRecord, IsolationMode, ThinkingLevel } from "../types.js";
+import type { AgentRecord } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
 import {
   type AgentDetails,
@@ -18,6 +17,7 @@ import {
   getStatusNote,
   textResult,
 } from "./helpers.js";
+import type { ResolvedSpawnConfig } from "./spawn-config.js";
 
 /** Narrow manager interface for the foreground runner. */
 export interface ForegroundManagerDeps {
@@ -35,34 +35,12 @@ export interface ForegroundWidgetDeps {
   markFinished(id: string): void;
 }
 
-/** Injected collaborators for runForeground. */
-export interface ForegroundDeps {
-  manager: ForegroundManagerDeps;
-  widget: ForegroundWidgetDeps;
-  agentActivity: AgentActivityAccess;
-}
-
-/** All values the foreground runner needs, bundled from shared execute setup. */
+/** All values the foreground runner needs beyond the resolved config. */
 export interface ForegroundParams {
+  config: ResolvedSpawnConfig;
   snapshot: ParentSnapshot;
   parentSessionFile: string;
   parentSessionId: string;
-  subagentType: string;
-  prompt: string;
-  description: string;
-  detailBase: Pick<
-    AgentDetails,
-    "displayName" | "description" | "subagentType" | "modelName" | "tags"
-  >;
-  rawType: string;
-  fellBack: boolean;
-  model: Model<any> | undefined;
-  effectiveMaxTurns: number | undefined;
-  isolated: boolean | undefined;
-  inheritContext: boolean | undefined;
-  thinking: ThinkingLevel | undefined;
-  isolation: IsolationMode | undefined;
-  agentInvocation: AgentInvocation;
 }
 
 /**
@@ -71,21 +49,24 @@ export interface ForegroundParams {
  * streaming onUpdate callbacks, cleanup, and result formatting.
  */
 export async function runForeground(
-  deps: ForegroundDeps,
+  manager: ForegroundManagerDeps,
+  widget: ForegroundWidgetDeps,
+  agentActivity: AgentActivityAccess,
   params: ForegroundParams,
   signal: AbortSignal | undefined,
   onUpdate: ((update: AgentToolResult<any>) => void) | undefined,
 ) {
+  const { config } = params;
   let spinnerFrame = 0;
   const startedAt = Date.now();
   let fgId: string | undefined;
 
-  const fgState = new AgentActivityTracker(params.effectiveMaxTurns);
+  const fgState = new AgentActivityTracker(config.effectiveMaxTurns);
   let unsubUI: (() => void) | undefined;
 
   const streamUpdate = () => {
     const details: AgentDetails = {
-      ...params.detailBase,
+      ...config.detailBase,
       toolUses: fgState.toolUses,
       tokens: formatLifetimeTokens(fgState),
       turnCount: fgState.turnCount,
@@ -111,19 +92,19 @@ export async function runForeground(
 
   let record: AgentRecord;
   try {
-    record = await deps.manager.spawnAndWait(
+    record = await manager.spawnAndWait(
       params.snapshot,
-      params.subagentType,
-      params.prompt,
+      config.subagentType,
+      config.prompt,
       {
-        description: params.description,
-        model: params.model,
-        maxTurns: params.effectiveMaxTurns,
-        isolated: params.isolated,
-        inheritContext: params.inheritContext,
-        thinkingLevel: params.thinking,
-        isolation: params.isolation,
-        invocation: params.agentInvocation,
+        description: config.description,
+        model: config.model,
+        maxTurns: config.effectiveMaxTurns,
+        isolated: config.isolated,
+        inheritContext: config.inheritContext,
+        thinkingLevel: config.thinking,
+        isolation: config.isolation,
+        invocation: config.agentInvocation,
         signal,
         parentSessionFile: params.parentSessionFile,
         parentSessionId: params.parentSessionId,
@@ -131,8 +112,8 @@ export async function runForeground(
           fgState.setSession(session);
           unsubUI = subscribeUIObserver(session, fgState, streamUpdate);
           fgId = record.id;
-          deps.agentActivity.set(record.id, fgState);
-          deps.widget.ensureTimer();
+          agentActivity.set(record.id, fgState);
+          widget.ensureTimer();
         },
       },
     );
@@ -147,15 +128,15 @@ export async function runForeground(
 
   // Clean up foreground agent from widget
   if (fgId) {
-    deps.agentActivity.delete(fgId);
-    deps.widget.markFinished(fgId);
+    agentActivity.delete(fgId);
+    widget.markFinished(fgId);
   }
 
   const tokenText = formatLifetimeTokens(fgState);
-  const details = buildDetails(params.detailBase, record, fgState, { tokens: tokenText });
+  const details = buildDetails(config.detailBase, record, fgState, { tokens: tokenText });
 
-  const fallbackNote = params.fellBack
-    ? `Note: Unknown agent type "${params.rawType}" \u2014 using general-purpose.\n\n`
+  const fallbackNote = config.fellBack
+    ? `Note: Unknown agent type "${config.rawType}" — using general-purpose.\n\n`
     : "";
 
   if (record.status === "error") {

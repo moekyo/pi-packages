@@ -1,12 +1,11 @@
-import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSpawnConfig } from "../agent-manager.js";
 import type { ParentSnapshot } from "../parent-snapshot.js";
-import type { AgentInvocation, AgentRecord, IsolationMode, ThinkingLevel } from "../types.js";
+import type { AgentRecord } from "../types.js";
 import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
-import type { AgentDetails } from "../ui/display.js";
 import { subscribeUIObserver } from "../ui/ui-observer.js";
 import type { AgentActivityAccess } from "./agent-tool.js";
 import { textResult } from "./helpers.js";
+import type { ResolvedSpawnConfig } from "./spawn-config.js";
 
 /** Narrow manager interface for the background spawner. */
 export interface BackgroundManagerDeps {
@@ -21,31 +20,13 @@ export interface BackgroundWidgetDeps {
   update(): void;
 }
 
-/** Injected collaborators for spawnBackground. */
-export interface BackgroundDeps {
-  manager: BackgroundManagerDeps;
-  widget: BackgroundWidgetDeps;
-  agentActivity: AgentActivityAccess;
-}
-
-/** All values the background spawner needs, bundled from shared execute setup. */
+/** All values the background spawner needs beyond the resolved config. */
 export interface BackgroundParams {
+  config: ResolvedSpawnConfig;
   snapshot: ParentSnapshot;
   parentSessionFile: string;
   parentSessionId: string;
-  subagentType: string;
-  prompt: string;
-  description: string;
-  displayName: string;
   toolCallId: string;
-  detailBase: Pick<AgentDetails, "displayName" | "description" | "subagentType" | "modelName" | "tags">;
-  model: Model<any> | undefined;
-  effectiveMaxTurns: number | undefined;
-  isolated: boolean | undefined;
-  inheritContext: boolean | undefined;
-  thinking: ThinkingLevel | undefined;
-  isolation: IsolationMode | undefined;
-  agentInvocation: AgentInvocation;
 }
 
 /**
@@ -54,25 +35,28 @@ export interface BackgroundParams {
  * registration, widget update, and launch message formatting.
  */
 export function spawnBackground(
-  deps: BackgroundDeps,
+  manager: BackgroundManagerDeps,
+  widget: BackgroundWidgetDeps,
+  agentActivity: AgentActivityAccess,
   params: BackgroundParams,
 ) {
-  const bgState = new AgentActivityTracker(params.effectiveMaxTurns);
+  const { config } = params;
+  const bgState = new AgentActivityTracker(config.effectiveMaxTurns);
 
   let id: string;
   try {
-    id = deps.manager.spawn(params.snapshot, params.subagentType, params.prompt, {
+    id = manager.spawn(params.snapshot, config.subagentType, config.prompt, {
       parentSessionFile: params.parentSessionFile,
       parentSessionId: params.parentSessionId,
-      description: params.description,
-      model: params.model,
-      maxTurns: params.effectiveMaxTurns,
-      isolated: params.isolated,
-      inheritContext: params.inheritContext,
-      thinkingLevel: params.thinking,
+      description: config.description,
+      model: config.model,
+      maxTurns: config.effectiveMaxTurns,
+      isolated: config.isolated,
+      inheritContext: config.inheritContext,
+      thinkingLevel: config.thinking,
       isBackground: true,
-      isolation: params.isolation,
-      invocation: params.agentInvocation,
+      isolation: config.isolation,
+      invocation: config.agentInvocation,
       toolCallId: params.toolCallId,
       onSessionCreated: (session) => {
         bgState.setSession(session);
@@ -83,27 +67,27 @@ export function spawnBackground(
     return textResult(err instanceof Error ? err.message : String(err));
   }
 
-  const record = deps.manager.getRecord(id);
+  const record = manager.getRecord(id);
 
-  deps.agentActivity.set(id, bgState);
-  deps.widget.ensureTimer();
-  deps.widget.update();
+  agentActivity.set(id, bgState);
+  widget.ensureTimer();
+  widget.update();
 
   const isQueued = record?.status === "queued";
   return textResult(
     `Agent ${isQueued ? "queued" : "started"} in background.\n` +
       `Agent ID: ${id}\n` +
-      `Type: ${params.displayName}\n` +
-      `Description: ${params.description}\n` +
+      `Type: ${config.displayName}\n` +
+      `Description: ${config.description}\n` +
       (record?.execution?.outputFile ? `Output file: ${record.execution.outputFile}\n` : "") +
       (isQueued
-        ? `Position: queued (max ${deps.manager.getMaxConcurrent()} concurrent)\n`
+        ? `Position: queued (max ${manager.getMaxConcurrent()} concurrent)\n`
         : "") +
       `\nYou will be notified when this agent completes.\n` +
       `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +
       `Do not duplicate this agent's work.`,
     {
-      ...params.detailBase,
+      ...config.detailBase,
       toolUses: 0,
       tokens: "",
       durationMs: 0,
