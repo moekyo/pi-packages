@@ -7,7 +7,7 @@
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { Mock } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import piColGrepExtension from "../src/extension.js";
 
 // ---- TestPi stub ----
@@ -151,5 +151,87 @@ describe("extension — session_start reindex", () => {
       ["init", "-y", "."],
       expect.objectContaining({ cwd: "/workspace/myproject" }),
     );
+  });
+});
+
+// ---- Cycle 7: tool_result trigger ----
+
+describe("extension — tool_result scheduling", () => {
+  let pi: TestPi;
+  let ctx: TestCtx;
+
+  // Helper: warm up a session (availability check + initial reindex) so the
+  // reindexer exists before tool_result events fire.
+  async function warmSession(): Promise<void> {
+    await pi.trigger("session_start", makeSessionStartEvent(), ctx);
+    // After session_start, exec has been called for --version and init.
+    // Reset the mock so subsequent assertions are clean.
+    pi.exec.mockClear();
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+  }
+
+  beforeEach(() => {
+    pi = new TestPi();
+    ctx = makeCtx();
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+    piColGrepExtension(pi.asExtensionAPI());
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("schedules a reindex after a successful write tool_result", async () => {
+    await warmSession();
+    await pi.trigger("tool_result", { toolName: "write", isError: false }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).toHaveBeenCalledWith(
+      "colgrep",
+      ["init", "-y", "."],
+      expect.anything(),
+    );
+  });
+
+  it("schedules a reindex after a successful edit tool_result", async () => {
+    await warmSession();
+    await pi.trigger("tool_result", { toolName: "edit", isError: false }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).toHaveBeenCalledWith(
+      "colgrep",
+      ["init", "-y", "."],
+      expect.anything(),
+    );
+  });
+
+  it("does not schedule a reindex for an error tool_result", async () => {
+    await warmSession();
+    await pi.trigger("tool_result", { toolName: "write", isError: true }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).not.toHaveBeenCalled();
+  });
+
+  it("does not schedule a reindex for other tool names", async () => {
+    await warmSession();
+    await pi.trigger("tool_result", { toolName: "grep", isError: false }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).not.toHaveBeenCalled();
+  });
+
+  it("does not schedule a reindex when colgrep is unavailable", async () => {
+    // Make colgrep unavailable so session_start skips reindexer creation
+    pi.exec.mockResolvedValue({ stdout: "", stderr: "", code: 127 });
+    await pi.trigger("session_start", makeSessionStartEvent(), ctx);
+    pi.exec.mockClear();
+    await pi.trigger("tool_result", { toolName: "write", isError: false }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).not.toHaveBeenCalled();
+  });
+
+  it("does not schedule a reindex before session_start fires", async () => {
+    // No session_start — reindexer is undefined
+    await pi.trigger("tool_result", { toolName: "write", isError: false }, ctx);
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(pi.exec).not.toHaveBeenCalled();
   });
 });
