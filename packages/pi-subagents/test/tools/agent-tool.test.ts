@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { type AgentToolDeps, createAgentTool } from "../../src/tools/agent-tool.js";
-import { createToolDeps } from "../helpers/make-deps.js";
-import { createTestRecord } from "../helpers/make-record.js";
-import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
+import { type AgentToolDeps, createAgentTool } from "#src/tools/agent-tool";
+import { createToolDeps } from "#test/helpers/make-deps";
+import { createTestRecord } from "#test/helpers/make-record";
+import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
   return {

@@ -7,12 +7,12 @@
 
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { type Component, matchesKey, type TUI, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { AgentConfigLookup } from "../agent-types.js";
-import { extractText } from "../context.js";
-import type { AgentRecord } from "../types.js";
-import { getLifetimeTotal, getSessionContextPercent } from "../usage.js";
-import type { AgentActivityTracker } from "./agent-activity-tracker.js";
-import { buildInvocationTags, describeActivity, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "./display.js";
+import type { AgentConfigLookup } from "../agent-types";
+import { extractText } from "../context";
+import type { AgentRecord } from "../types";
+import { getLifetimeTotal, getSessionContextPercent } from "../usage";
+import type { AgentActivityTracker } from "./agent-activity-tracker";
+import { buildInvocationTags, describeActivity, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "./display";
 
 // ── Local message-shape types ───────────────────────────────────────────────
 // The Pi SDK does not export narrow types for all message content variants.

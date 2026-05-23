@@ -5,11 +5,11 @@
  * Uses the callback form of setWidget for themed rendering.
  */
 
-import type { AgentManager } from "../agent-manager.js";
-import { AgentTypeRegistry } from "../agent-types.js";
-import type { AgentActivityTracker } from "./agent-activity-tracker.js";
-import { ERROR_STATUSES, type Theme } from "./display.js";
-import { renderWidgetLines } from "./widget-renderer.js";
+import type { AgentManager } from "../agent-manager";
+import { AgentTypeRegistry } from "../agent-types";
+import type { AgentActivityTracker } from "./agent-activity-tracker";
+import { ERROR_STATUSES, type Theme } from "./display";
+import { renderWidgetLines } from "./widget-renderer";
 
 // ---- Types ----
 

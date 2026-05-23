@@ -34,14 +34,14 @@ const agentConfigMock = {
 
 /** Mock AgentConfigLookup injected via RunOptions.registry. */
 const mockAgentLookup = {
-  resolveAgentConfig: vi.fn((): import("../src/types.js").AgentConfig => ({
+  resolveAgentConfig: vi.fn((): import("#src/types").AgentConfig => ({
     ...agentConfigMock.current,
     promptMode: agentConfigMock.current.promptMode as "replace" | "append",
   })),
   getToolNamesForType: vi.fn((): string[] => agentConfigMock.current.builtinToolNames ?? ["read"]),
 };
 
-import { runAgent } from "../src/agent-runner.js";
+import { runAgent } from "#src/agent-runner";
 
 // ── RunnerIO stub factory ──────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ function createSessionWithExtensionToolRegistration(
   return session;
 }
 
-import type { ParentSnapshot } from "../src/parent-snapshot.js";
+import type { ParentSnapshot } from "#src/parent-snapshot";
 
 const snapshot: ParentSnapshot = {
   cwd: "/tmp",

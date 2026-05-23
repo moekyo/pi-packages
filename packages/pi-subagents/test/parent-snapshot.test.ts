@@ -4,12 +4,12 @@ const { buildParentContextMock } = vi.hoisted(() => ({
   buildParentContextMock: vi.fn((): string => ""),
 }));
 
-vi.mock("../src/context.js", () => ({
+vi.mock("#src/context", () => ({
   buildParentContext: buildParentContextMock,
 }));
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { buildParentSnapshot } from "../src/parent-snapshot.js";
+import { buildParentSnapshot } from "#src/parent-snapshot";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
   return {

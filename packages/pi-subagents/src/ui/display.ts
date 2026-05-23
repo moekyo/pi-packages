@@ -5,8 +5,8 @@
  * Consumed by the widget, the menu, tool modules, and the notification renderer.
  */
 
-import type { AgentConfigLookup } from "../agent-types.js";
-import type { AgentInvocation, SubagentType } from "../types.js";
+import type { AgentConfigLookup } from "../agent-types";
+import type { AgentInvocation, SubagentType } from "../types";
 
 // ---- Types ----
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
-import { subscribeUIObserver } from "../../src/ui/ui-observer.js";
-import { createMockSession } from "../helpers/mock-session.js";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { subscribeUIObserver } from "#src/ui/ui-observer";
+import { createMockSession } from "#test/helpers/mock-session";
 
 describe("subscribeUIObserver", () => {
 	it("adds to activeTools on tool_execution_start and calls onUpdate", () => {

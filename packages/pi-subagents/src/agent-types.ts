@@ -5,8 +5,8 @@
  * User agents override defaults with the same name. Disabled agents are kept but excluded from spawning.
  */
 
-import { DEFAULT_AGENTS } from "./default-agents.js";
-import type { AgentConfig } from "./types.js";
+import { DEFAULT_AGENTS } from "./default-agents";
+import type { AgentConfig } from "./types";
 
 // ── AgentConfigLookup interface ──────────────────────────────────────────────
 

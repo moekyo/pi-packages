@@ -5,7 +5,7 @@
  * in `ui-observer.ts`. Callers use named transition methods; readers use read-only accessors.
  */
 
-import type { SessionLike } from "../usage.js";
+import type { SessionLike } from "../usage";
 
 /** Per-agent live activity state with explicit transition methods and read-only accessors. */
 export class AgentActivityTracker {

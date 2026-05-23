@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import type { ParentSnapshot } from "../../src/parent-snapshot.js";
-import type { AgentConfig } from "../../src/types.js";
-import { type AgentMenuDeps, createAgentsMenuHandler } from "../../src/ui/agent-menu.js";
-import { createTestRecord } from "../helpers/make-record.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { ParentSnapshot } from "#src/parent-snapshot";
+import type { AgentConfig } from "#src/types";
+import { type AgentMenuDeps, createAgentsMenuHandler } from "#src/ui/agent-menu";
+import { createTestRecord } from "#test/helpers/make-record";
 
 const testDefaultAgentConfig: AgentConfig = {
   name: "test-agent",

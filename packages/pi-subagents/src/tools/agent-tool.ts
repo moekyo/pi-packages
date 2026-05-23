@@ -1,24 +1,24 @@
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
-import type { AgentSpawnConfig } from "../agent-manager.js";
-import { AgentTypeRegistry } from "../agent-types.js";
-import type { ParentSnapshot } from "../parent-snapshot.js";
+import type { AgentSpawnConfig } from "../agent-manager";
+import { AgentTypeRegistry } from "../agent-types";
+import type { ParentSnapshot } from "../parent-snapshot";
 
-import type { AgentRecord } from "../types.js";
-import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
-import { type UICtx } from "../ui/agent-widget.js";
+import type { AgentRecord } from "../types";
+import { AgentActivityTracker } from "../ui/agent-activity-tracker";
+import { type UICtx } from "../ui/agent-widget";
 import {
   type AgentDetails,
   formatMs,
   formatTurns,
   getDisplayName,
   SPINNER,
-} from "../ui/display.js";
-import { spawnBackground } from "./background-spawner.js";
-import { runForeground } from "./foreground-runner.js";
-import { buildDetails, buildTypeListText, textResult } from "./helpers.js";
-import { type ModelInfo, resolveSpawnConfig } from "./spawn-config.js";
+} from "../ui/display";
+import { spawnBackground } from "./background-spawner";
+import { runForeground } from "./foreground-runner";
+import { buildDetails, buildTypeListText, textResult } from "./helpers";
+import { type ModelInfo, resolveSpawnConfig } from "./spawn-config";
 
 // ---- Deps interface ----
 

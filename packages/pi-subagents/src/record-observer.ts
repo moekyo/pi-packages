@@ -5,8 +5,8 @@
  * and resume() with a single direct subscription.
  */
 
-import type { CompactionInfo } from "./agent-manager.js";
-import type { AgentRecord } from "./agent-record.js";
+import type { CompactionInfo } from "./agent-manager";
+import type { AgentRecord } from "./agent-record";
 
 /** Narrow session interface — only the subscribe method needed by the observer. */
 interface SubscribableSession {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSubagentRuntime, SubagentRuntime, type WidgetLike } from "../src/runtime.js";
-import { AgentActivityTracker } from "../src/ui/agent-activity-tracker.js";
+import { createSubagentRuntime, SubagentRuntime, type WidgetLike } from "#src/runtime";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 
 function createWidgetStub(): WidgetLike {
   return {

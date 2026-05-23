@@ -20,35 +20,35 @@ import {
   SettingsManager as SdkSettingsManager,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { AgentManager, type AgentManagerObserver } from "./agent-manager.js";
-import { createAgentRunner, getAgentConversation, type RunnerIO, steerAgent } from "./agent-runner.js";
-import { AgentTypeRegistry } from "./agent-types.js";
-import { loadCustomAgents } from "./custom-agents.js";
-import { detectEnv } from "./env.js";
-import { SessionLifecycleHandler, ToolStartHandler } from "./handlers/index.js";
-import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "./memory.js";
-import { type ModelRegistry, resolveModel } from "./model-resolver.js";
-import { buildEventData, type NotificationDetails, NotificationManager } from "./notification.js";
-import { buildParentSnapshot } from "./parent-snapshot.js";
-import { buildAgentPrompt } from "./prompts.js";
-import { createNotificationRenderer } from "./renderer.js";
-import { createSubagentRuntime } from "./runtime.js";
-import { publishSubagentsService, unpublishSubagentsService } from "./service.js";
-import { createSubagentsService } from "./service-adapter.js";
-import { deriveSubagentSessionDir } from "./session-dir.js";
-import { SettingsManager } from "./settings.js";
-import { preloadSkills } from "./skill-loader.js";
-import { createAgentTool } from "./tools/agent-tool.js";
-import { createGetResultTool } from "./tools/get-result-tool.js";
-import { getModelLabelFromConfig } from "./tools/helpers.js";
-import { createSteerTool } from "./tools/steer-tool.js";
-import { FsAgentFileOps } from "./ui/agent-file-ops.js";
-import { createAgentsMenuHandler } from "./ui/agent-menu.js";
+import { AgentManager, type AgentManagerObserver } from "./agent-manager";
+import { createAgentRunner, getAgentConversation, type RunnerIO, steerAgent } from "./agent-runner";
+import { AgentTypeRegistry } from "./agent-types";
+import { loadCustomAgents } from "./custom-agents";
+import { detectEnv } from "./env";
+import { SessionLifecycleHandler, ToolStartHandler } from "./handlers/index";
+import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "./memory";
+import { type ModelRegistry, resolveModel } from "./model-resolver";
+import { buildEventData, type NotificationDetails, NotificationManager } from "./notification";
+import { buildParentSnapshot } from "./parent-snapshot";
+import { buildAgentPrompt } from "./prompts";
+import { createNotificationRenderer } from "./renderer";
+import { createSubagentRuntime } from "./runtime";
+import { publishSubagentsService, unpublishSubagentsService } from "./service";
+import { createSubagentsService } from "./service-adapter";
+import { deriveSubagentSessionDir } from "./session-dir";
+import { SettingsManager } from "./settings";
+import { preloadSkills } from "./skill-loader";
+import { createAgentTool } from "./tools/agent-tool";
+import { createGetResultTool } from "./tools/get-result-tool";
+import { getModelLabelFromConfig } from "./tools/helpers";
+import { createSteerTool } from "./tools/steer-tool";
+import { FsAgentFileOps } from "./ui/agent-file-ops";
+import { createAgentsMenuHandler } from "./ui/agent-menu";
 import {
   AgentWidget,
   type UICtx,
-} from "./ui/agent-widget.js";
-import { GitWorktreeManager } from "./worktree.js";
+} from "./ui/agent-widget";
+import { GitWorktreeManager } from "./worktree";
 
 export default function (pi: ExtensionAPI) {
   // ---- Register custom notification renderer ----

@@ -7,17 +7,17 @@
  */
 
 import type { Model } from "@earendil-works/pi-ai";
-import { normalizeMaxTurns } from "../agent-runner.js";
-import type { AgentTypeRegistry } from "../agent-types.js";
-import { resolveAgentInvocationConfig } from "../invocation-config.js";
-import { resolveInvocationModel } from "../model-resolver.js";
-import type { AgentInvocation, IsolationMode, SubagentType, ThinkingLevel } from "../types.js";
+import { normalizeMaxTurns } from "../agent-runner";
+import type { AgentTypeRegistry } from "../agent-types";
+import { resolveAgentInvocationConfig } from "../invocation-config";
+import { resolveInvocationModel } from "../model-resolver";
+import type { AgentInvocation, IsolationMode, SubagentType, ThinkingLevel } from "../types";
 import {
   type AgentDetails,
   buildInvocationTags,
   getDisplayName,
   getPromptModeLabel,
-} from "../ui/display.js";
+} from "../ui/display";
 
 /** Model info extracted from the parent session context. */
 export interface ModelInfo {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { TypeListRegistry } from "../../src/tools/helpers.js";
-import { buildDetails, buildTypeListText, formatLifetimeTokens, getModelLabelFromConfig, getStatusNote, textResult } from "../../src/tools/helpers.js";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
+import type { TypeListRegistry } from "#src/tools/helpers";
+import { buildDetails, buildTypeListText, formatLifetimeTokens, getModelLabelFromConfig, getStatusNote, textResult } from "#src/tools/helpers";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 
 /** Build a minimal TypeListRegistry stub for tests. */
 function makeRegistry(opts: {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMockSession } from "./mock-session.js";
+import { createMockSession } from "./mock-session";
 
 describe("createMockSession", () => {
 	it("broadcasts emit to all active subscribers", () => {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import type { AgentConfig } from "../../src/types.js";
-import { createAgentConfigEditor } from "../../src/ui/agent-config-editor.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { AgentConfig } from "#src/types";
+import { createAgentConfigEditor } from "#src/ui/agent-config-editor";
 
 const testDefaultConfig: AgentConfig = {
   name: "test-agent",

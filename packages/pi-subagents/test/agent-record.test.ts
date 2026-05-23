@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AgentRecord } from "../src/agent-record.js";
+import { AgentRecord } from "#src/agent-record";
 
 describe("AgentRecord — constructor", () => {
 	it("sets required fields from init", () => {

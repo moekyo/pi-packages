@@ -1,11 +1,11 @@
-import type { AgentSpawnConfig } from "../agent-manager.js";
-import type { ParentSnapshot } from "../parent-snapshot.js";
-import type { AgentRecord } from "../types.js";
-import { AgentActivityTracker } from "../ui/agent-activity-tracker.js";
-import { subscribeUIObserver } from "../ui/ui-observer.js";
-import type { AgentActivityAccess } from "./agent-tool.js";
-import { textResult } from "./helpers.js";
-import type { ResolvedSpawnConfig } from "./spawn-config.js";
+import type { AgentSpawnConfig } from "../agent-manager";
+import type { ParentSnapshot } from "../parent-snapshot";
+import type { AgentRecord } from "../types";
+import { AgentActivityTracker } from "../ui/agent-activity-tracker";
+import { subscribeUIObserver } from "../ui/ui-observer";
+import type { AgentActivityAccess } from "./agent-tool";
+import { textResult } from "./helpers";
+import type { ResolvedSpawnConfig } from "./spawn-config";
 
 /** Narrow manager interface for the background spawner. */
 export interface BackgroundManagerDeps {

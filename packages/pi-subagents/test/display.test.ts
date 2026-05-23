@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { AgentTypeRegistry } from "../src/agent-types.js";
-import type { AgentConfig } from "../src/types.js";
-import { formatSessionTokens, getDisplayName, getPromptModeLabel } from "../src/ui/display.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { AgentConfig } from "#src/types";
+import { formatSessionTokens, getDisplayName, getPromptModeLabel } from "#src/ui/display";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 

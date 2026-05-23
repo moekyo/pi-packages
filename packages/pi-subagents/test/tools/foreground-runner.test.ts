@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ForegroundParams, runForeground } from "../../src/tools/foreground-runner.js";
-import type { ResolvedSpawnConfig } from "../../src/tools/spawn-config.js";
-import { createToolDeps } from "../helpers/make-deps.js";
-import { createTestRecord } from "../helpers/make-record.js";
-import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
-import { STUB_SNAPSHOT } from "../helpers/stub-ctx.js";
+import { type ForegroundParams, runForeground } from "#src/tools/foreground-runner";
+import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
+import { createToolDeps } from "#test/helpers/make-deps";
+import { createTestRecord } from "#test/helpers/make-record";
+import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
+import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
 function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawnConfig {
   return {

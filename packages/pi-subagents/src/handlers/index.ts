@@ -1,2 +1,2 @@
-export { SessionLifecycleHandler } from "./lifecycle.js";
-export { ToolStartHandler } from "./tool-start.js";
+export { SessionLifecycleHandler } from "./lifecycle";
+export { ToolStartHandler } from "./tool-start";

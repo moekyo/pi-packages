@@ -4,8 +4,8 @@ import {
   BUILTIN_TOOL_NAMES,
   getMemoryToolNames,
   getReadOnlyMemoryToolNames,
-} from "../src/agent-types.js";
-import type { AgentConfig } from "../src/types.js";
+} from "#src/agent-types";
+import type { AgentConfig } from "#src/types";
 
 function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
   return {
@@ -287,7 +287,7 @@ describe("AgentTypeRegistry", () => {
     it("is no longer exported from types.ts", async () => {
       // DEFAULT_AGENT_NAMES was moved to AgentTypeRegistry; it must NOT appear
       // as a named export from types.ts anymore.
-      const typesModule = await import("../src/types.js");
+      const typesModule = await import("#src/types");
       expect((typesModule as Record<string, unknown>).DEFAULT_AGENT_NAMES).toBeUndefined();
     });
   });

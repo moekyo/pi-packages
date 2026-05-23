@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FsAgentFileOps } from "../../src/ui/agent-file-ops.js";
+import { FsAgentFileOps } from "#src/ui/agent-file-ops";
 
 describe("FsAgentFileOps", () => {
   let ops: FsAgentFileOps;

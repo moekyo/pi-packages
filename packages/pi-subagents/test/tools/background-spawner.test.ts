@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { type BackgroundParams, spawnBackground } from "../../src/tools/background-spawner.js";
-import type { ResolvedSpawnConfig } from "../../src/tools/spawn-config.js";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
-import { createToolDeps } from "../helpers/make-deps.js";
-import { createTestRecord } from "../helpers/make-record.js";
-import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
-import { STUB_SNAPSHOT } from "../helpers/stub-ctx.js";
+import { type BackgroundParams, spawnBackground } from "#src/tools/background-spawner";
+import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { createToolDeps } from "#test/helpers/make-deps";
+import { createTestRecord } from "#test/helpers/make-record";
+import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
+import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
 function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawnConfig {
   return {

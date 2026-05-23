@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { debugLog, isDebug } from "../src/debug.js";
+import { debugLog, isDebug } from "#src/debug";
 
 describe("debugLog", () => {
   beforeEach(() => {

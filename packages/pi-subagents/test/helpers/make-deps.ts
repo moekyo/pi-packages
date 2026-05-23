@@ -1,10 +1,10 @@
 import { vi } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import type { ParentSnapshot } from "../../src/parent-snapshot.js";
-import { type AgentToolDeps } from "../../src/tools/agent-tool.js";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
-import { createTestRecord } from "./make-record.js";
-import { STUB_SNAPSHOT } from "./stub-ctx.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { ParentSnapshot } from "#src/parent-snapshot";
+import { type AgentToolDeps } from "#src/tools/agent-tool";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { createTestRecord } from "./make-record";
+import { STUB_SNAPSHOT } from "./stub-ctx";
 
 /** Minimal registry with no user agents — sufficient for tool tests that don't exercise agent-type lookup. */
 const defaultRegistry = new AgentTypeRegistry(() => new Map());

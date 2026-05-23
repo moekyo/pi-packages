@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTestRecord } from "./make-record.js";
+import { createTestRecord } from "./make-record";
 
 describe("createTestRecord", () => {
 	it("returns a completed record with expected defaults", () => {

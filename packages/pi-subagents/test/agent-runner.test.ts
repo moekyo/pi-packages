@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** Mock AgentConfigLookup injected via RunOptions.registry. */
 const mockAgentLookup = {
-  resolveAgentConfig: vi.fn((): import("../src/types.js").AgentConfig => ({
+  resolveAgentConfig: vi.fn((): import("#src/types").AgentConfig => ({
     name: "Explore",
     description: "Explore",
     builtinToolNames: ["read"],
@@ -18,7 +18,7 @@ const mockAgentLookup = {
 };
 
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { resumeAgent, runAgent } from "../src/agent-runner.js";
+import { resumeAgent, runAgent } from "#src/agent-runner";
 
 // ── RunnerIO stub factory ──────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ function createSession(finalText: string) {
   return { session, listeners };
 }
 
-import type { ParentSnapshot } from "../src/parent-snapshot.js";
+import type { ParentSnapshot } from "#src/parent-snapshot";
 
 const snapshot: ParentSnapshot = {
   cwd: "/tmp",

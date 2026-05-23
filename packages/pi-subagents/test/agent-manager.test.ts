@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AgentManager, type AgentManagerObserver } from "../src/agent-manager.js";
-import type { AgentRunner } from "../src/agent-runner.js";
-import { AgentTypeRegistry } from "../src/agent-types.js";
-import { NotificationState } from "../src/notification-state.js";
-import type { ParentSnapshot } from "../src/parent-snapshot.js";
-import type { RunConfig } from "../src/runtime.js";
-import type { AgentRecord } from "../src/types.js";
-import type { WorktreeManager } from "../src/worktree.js";
-import { createMockSession, toAgentSession } from "./helpers/mock-session.js";
+import { AgentManager, type AgentManagerObserver } from "#src/agent-manager";
+import type { AgentRunner } from "#src/agent-runner";
+import { AgentTypeRegistry } from "#src/agent-types";
+import { NotificationState } from "#src/notification-state";
+import type { ParentSnapshot } from "#src/parent-snapshot";
+import type { RunConfig } from "#src/runtime";
+import type { AgentRecord } from "#src/types";
+import type { WorktreeManager } from "#src/worktree";
+import { createMockSession, toAgentSession } from "./helpers/mock-session";
 
 /** Minimal registry with no user agents — sufficient since AgentManager only relays it to the runner. */
 const testRegistry = new AgentTypeRegistry(() => new Map());

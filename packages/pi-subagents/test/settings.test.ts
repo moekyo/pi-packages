@@ -7,7 +7,7 @@ import {
   persistToastFor,
   SettingsManager,
   saveSettings,
-} from "../src/settings.js";
+} from "#src/settings";
 
 /**
  * Tests for persistent settings. Uses two tmp directories:

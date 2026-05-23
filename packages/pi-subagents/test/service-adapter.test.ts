@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { NotificationState } from "../src/notification-state.js";
-import type { SubagentsService } from "../src/service.js";
-import type { AgentManagerLike } from "../src/service-adapter.js";
-import { createSubagentsService, toSubagentRecord } from "../src/service-adapter.js";
-import type { AgentRecord } from "../src/types.js";
-import { WorktreeState } from "../src/worktree-state.js";
-import { createTestRecord } from "./helpers/make-record.js";
-import { createMockSession, toAgentSession } from "./helpers/mock-session.js";
+import { NotificationState } from "#src/notification-state";
+import type { SubagentsService } from "#src/service";
+import type { AgentManagerLike } from "#src/service-adapter";
+import { createSubagentsService, toSubagentRecord } from "#src/service-adapter";
+import type { AgentRecord } from "#src/types";
+import { WorktreeState } from "#src/worktree-state";
+import { createTestRecord } from "./helpers/make-record";
+import { createMockSession, toAgentSession } from "./helpers/mock-session";
 
 describe("toSubagentRecord", () => {
   const baseRecord = (() => {

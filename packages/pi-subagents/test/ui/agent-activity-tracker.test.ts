@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 
 describe("AgentActivityTracker", () => {
 	describe("constructor", () => {

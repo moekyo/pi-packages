@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import { resolveSpawnConfig } from "../../src/tools/spawn-config.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import { resolveSpawnConfig } from "#src/tools/spawn-config";
 
 /** Minimal registry with default agents only. */
 const testRegistry = new AgentTypeRegistry(() => new Map());

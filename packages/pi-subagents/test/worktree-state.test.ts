@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorktreeState } from "../src/worktree-state.js";
+import { WorktreeState } from "#src/worktree-state";
 
 describe("WorktreeState — constructor", () => {
 	it("stores path and branch from WorktreeInfo", () => {

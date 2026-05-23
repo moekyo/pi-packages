@@ -13,12 +13,12 @@
  */
 
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import type { ExecutionState } from "./execution-state.js";
-import type { NotificationState } from "./notification-state.js";
-import type { AgentInvocation, SubagentType } from "./types.js";
-import type { LifetimeUsage } from "./usage.js";
-import { addUsage } from "./usage.js";
-import type { WorktreeState } from "./worktree-state.js";
+import type { ExecutionState } from "./execution-state";
+import type { NotificationState } from "./notification-state";
+import type { AgentInvocation, SubagentType } from "./types";
+import type { LifetimeUsage } from "./usage";
+import { addUsage } from "./usage";
+import type { WorktreeState } from "./worktree-state";
 
 export type AgentRecordStatus =
 	| "queued"

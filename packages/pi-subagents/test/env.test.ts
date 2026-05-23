@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { detectEnv } from "../src/env.js";
-import type { ShellExec } from "../src/types.js";
+import { detectEnv } from "#src/env";
+import type { ShellExec } from "#src/types";
 
 /** ShellExec stub that shells out via child_process. */
 function mockExec(): ShellExec {

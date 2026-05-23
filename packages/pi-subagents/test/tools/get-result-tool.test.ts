@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import { NotificationState } from "../../src/notification-state.js";
-import { createGetResultTool } from "../../src/tools/get-result-tool.js";
-import type { AgentRecord } from "../../src/types.js";
-import { createTestRecord } from "../helpers/make-record.js";
-import { createMockSession, toAgentSession } from "../helpers/mock-session.js";
-import { STUB_CTX } from "../helpers/stub-ctx.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import { NotificationState } from "#src/notification-state";
+import { createGetResultTool } from "#src/tools/get-result-tool";
+import type { AgentRecord } from "#src/types";
+import { createTestRecord } from "#test/helpers/make-record";
+import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
+import { STUB_CTX } from "#test/helpers/stub-ctx";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 

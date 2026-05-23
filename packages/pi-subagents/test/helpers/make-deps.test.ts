@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { BackgroundManagerDeps, BackgroundWidgetDeps } from "../../src/tools/background-spawner.js";
-import type { ForegroundManagerDeps, ForegroundWidgetDeps } from "../../src/tools/foreground-runner.js";
-import { AgentActivityTracker } from "../../src/ui/agent-activity-tracker.js";
-import { createToolDeps } from "./make-deps.js";
-import { STUB_SNAPSHOT } from "./stub-ctx.js";
+import type { BackgroundManagerDeps, BackgroundWidgetDeps } from "#src/tools/background-spawner";
+import type { ForegroundManagerDeps, ForegroundWidgetDeps } from "#src/tools/foreground-runner";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { createToolDeps } from "./make-deps";
+import { STUB_SNAPSHOT } from "./stub-ctx";
 
 describe("createToolDeps", () => {
 	describe("manager defaults", () => {

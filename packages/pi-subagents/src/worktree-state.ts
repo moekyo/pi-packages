@@ -6,7 +6,7 @@
  * cleanupResult is recorded once at completion or error — it is not set at construction.
  */
 
-import type { WorktreeCleanupResult, WorktreeInfo } from "./worktree.js";
+import type { WorktreeCleanupResult, WorktreeInfo } from "./worktree";
 
 export type { WorktreeCleanupResult, WorktreeInfo };
 

@@ -1,13 +1,13 @@
 import { wrapTextWithAnsi } from "@earendil-works/pi-tui";
-import { AgentTypeRegistry } from "../agent-types.js";
-import type { ModelRegistry } from "../model-resolver.js";
-import type { ParentSnapshot } from "../parent-snapshot.js";
-import type { AgentConfig, AgentRecord } from "../types.js";
-import type { AgentActivityTracker } from "./agent-activity-tracker.js";
-import { createAgentConfigEditor } from "./agent-config-editor.js";
-import { createAgentCreationWizard } from "./agent-creation-wizard.js";
-import type { AgentFileOps } from "./agent-file-ops.js";
-import { formatDuration, getDisplayName } from "./display.js";
+import { AgentTypeRegistry } from "../agent-types";
+import type { ModelRegistry } from "../model-resolver";
+import type { ParentSnapshot } from "../parent-snapshot";
+import type { AgentConfig, AgentRecord } from "../types";
+import type { AgentActivityTracker } from "./agent-activity-tracker";
+import { createAgentConfigEditor } from "./agent-config-editor";
+import { createAgentCreationWizard } from "./agent-creation-wizard";
+import type { AgentFileOps } from "./agent-file-ops";
+import { formatDuration, getDisplayName } from "./display";
 
 // ---- Deps interface ----
 
@@ -247,7 +247,7 @@ export function createAgentsMenuHandler({
     }
 
     const { ConversationViewer, VIEWPORT_HEIGHT_PCT } = await import(
-      "./conversation-viewer.js"
+      "./conversation-viewer"
     );
     const activity = agentActivity.get(record.id);
 

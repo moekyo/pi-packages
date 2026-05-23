@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveSubagentSessionDir } from "../src/session-dir.js";
+import { deriveSubagentSessionDir } from "#src/session-dir";
 
 describe("deriveSubagentSessionDir", () => {
   it("returns a tasks/ subdirectory nested under the parent session basename", () => {

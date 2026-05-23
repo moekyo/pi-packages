@@ -6,11 +6,11 @@
  */
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ModelRegistry } from "./model-resolver.js";
-import type { ParentSnapshot } from "./parent-snapshot.js";
-import { buildParentSnapshot } from "./parent-snapshot.js";
-import type { SubagentRecord, SubagentsService } from "./service.js";
-import type { AgentRecord } from "./types.js";
+import type { ModelRegistry } from "./model-resolver";
+import type { ParentSnapshot } from "./parent-snapshot";
+import { buildParentSnapshot } from "./parent-snapshot";
+import type { SubagentRecord, SubagentsService } from "./service";
+import type { AgentRecord } from "./types";
 
 /** Narrow interface for the AgentManager — avoids coupling to the concrete class. */
 export interface AgentManagerLike {

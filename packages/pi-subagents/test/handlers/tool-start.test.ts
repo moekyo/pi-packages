@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ToolStartRuntime } from "../../src/handlers/tool-start.js";
-import { ToolStartHandler } from "../../src/handlers/tool-start.js";
+import type { ToolStartRuntime } from "#src/handlers/tool-start";
+import { ToolStartHandler } from "#src/handlers/tool-start";
 
 describe("ToolStartHandler", () => {
   let runtime: ToolStartRuntime;

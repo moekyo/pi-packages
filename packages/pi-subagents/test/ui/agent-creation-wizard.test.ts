@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentTypeRegistry } from "../../src/agent-types.js";
-import type { ParentSnapshot } from "../../src/parent-snapshot.js";
-import { createAgentCreationWizard } from "../../src/ui/agent-creation-wizard.js";
-import { createTestRecord } from "../helpers/make-record.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { ParentSnapshot } from "#src/parent-snapshot";
+import { createAgentCreationWizard } from "#src/ui/agent-creation-wizard";
+import { createTestRecord } from "#test/helpers/make-record";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 

@@ -2,11 +2,11 @@ import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
 import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
-import { AgentTypeRegistry } from "../src/agent-types.js";
-import type { AgentActivityTracker } from "../src/ui/agent-activity-tracker.js";
-import { ConversationViewer } from "../src/ui/conversation-viewer.js";
-import type { Theme } from "../src/ui/display.js";
-import { createTestRecord } from "./helpers/make-record.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { ConversationViewer } from "#src/ui/conversation-viewer";
+import type { Theme } from "#src/ui/display";
+import { createTestRecord } from "./helpers/make-record";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 

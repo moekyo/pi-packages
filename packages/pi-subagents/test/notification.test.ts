@@ -6,10 +6,10 @@ import {
   formatTaskNotification,
   getStatusLabel,
   NotificationManager,
-} from "../src/notification.js";
-import { NotificationState } from "../src/notification-state.js";
-import { AgentActivityTracker } from "../src/ui/agent-activity-tracker.js";
-import { createTestRecord } from "./helpers/make-record.js";
+} from "#src/notification";
+import { NotificationState } from "#src/notification-state";
+import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
+import { createTestRecord } from "./helpers/make-record";
 
 // ---- Pure helper tests ----
 

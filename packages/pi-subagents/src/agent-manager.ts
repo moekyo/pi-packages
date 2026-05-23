@@ -9,17 +9,17 @@
 import { randomUUID } from "node:crypto";
 import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { AgentRecord } from "./agent-record.js";
-import type { AgentRunner } from "./agent-runner.js";
-import { AgentTypeRegistry } from "./agent-types.js";
-import { debugLog } from "./debug.js";
-import { NotificationState } from "./notification-state.js";
-import type { ParentSnapshot } from "./parent-snapshot.js";
-import { subscribeRecordObserver } from "./record-observer.js";
-import type { RunConfig } from "./runtime.js";
-import type { AgentInvocation, IsolationMode, ShellExec, SubagentType, ThinkingLevel } from "./types.js";
-import type { WorktreeManager } from "./worktree.js";
-import { WorktreeState } from "./worktree-state.js";
+import { AgentRecord } from "./agent-record";
+import type { AgentRunner } from "./agent-runner";
+import { AgentTypeRegistry } from "./agent-types";
+import { debugLog } from "./debug";
+import { NotificationState } from "./notification-state";
+import type { ParentSnapshot } from "./parent-snapshot";
+import { subscribeRecordObserver } from "./record-observer";
+import type { RunConfig } from "./runtime";
+import type { AgentInvocation, IsolationMode, ShellExec, SubagentType, ThinkingLevel } from "./types";
+import type { WorktreeManager } from "./worktree";
+import { WorktreeState } from "./worktree-state";
 
 export type CompactionInfo = { reason: "manual" | "threshold" | "overflow"; tokensBefore: number };
 

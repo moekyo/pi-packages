@@ -14,16 +14,16 @@ import {
   type AgentConfigLookup,
   getMemoryToolNames,
   getReadOnlyMemoryToolNames,
-} from "./agent-types.js";
-import type { EnvInfo } from "./env.js";
-import type { PromptExtras } from "./prompts.js";
-import type { PreloadedSkill } from "./skill-loader.js";
+} from "./agent-types";
+import type { EnvInfo } from "./env";
+import type { PromptExtras } from "./prompts";
+import type { PreloadedSkill } from "./skill-loader";
 import type {
   AgentPromptConfig,
   MemoryScope,
   SubagentType,
   ThinkingLevel,
-} from "./types.js";
+} from "./types";
 
 // ── Public interfaces ────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LifecycleManager, LifecycleRuntime } from "../../src/handlers/lifecycle.js";
-import { SessionLifecycleHandler } from "../../src/handlers/lifecycle.js";
+import type { LifecycleManager, LifecycleRuntime } from "#src/handlers/lifecycle";
+import { SessionLifecycleHandler } from "#src/handlers/lifecycle";
 
 describe("SessionLifecycleHandler", () => {
   let runtime: LifecycleRuntime;

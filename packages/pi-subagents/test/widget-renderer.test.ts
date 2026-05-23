@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { AgentTypeRegistry } from "../src/agent-types.js";
-import type { Theme } from "../src/ui/display.js";
-import type { WidgetActivity, WidgetAgent } from "../src/ui/widget-renderer.js";
-import { renderFinishedLine, renderRunningLines, renderWidgetLines } from "../src/ui/widget-renderer.js";
+import { AgentTypeRegistry } from "#src/agent-types";
+import type { Theme } from "#src/ui/display";
+import type { WidgetActivity, WidgetAgent } from "#src/ui/widget-renderer";
+import { renderFinishedLine, renderRunningLines, renderWidgetLines } from "#src/ui/widget-renderer";
 
 /** Minimal theme stub — wraps text with markup tags for assertion. */
 function stubTheme(): Theme {
