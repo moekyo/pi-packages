@@ -12,7 +12,9 @@
   "scripts": {
     "check": "tsc --noEmit",
     "lint:md": "rumdl check *.md docs/**/*.md",
-    "lint": "biome check . && pnpm run lint:md"
+    "lint": "biome check . && pnpm run lint:md",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "pi-package",
@@ -55,6 +57,7 @@
     "@earendil-works/pi-coding-agent": "0.75.4",
     "@types/node": "catalog:",
     "rumdl": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
