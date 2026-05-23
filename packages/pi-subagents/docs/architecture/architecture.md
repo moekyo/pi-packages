@@ -616,20 +616,20 @@ Phase 9 targets the next layer: observation model consolidation, `ExtensionConte
 
 ### Current smells
 
-| Smell                                            | Location                                                              | Evidence                                                                                                                                       | Severity |
-| ------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `execute` does config resolution for its callees | `agent-tool.ts` (145-line `execute`)                                  | ~60 lines unpack config, resolve model, compute metadata, repack into 16-field bags for spawners; `ctx` threaded 4 layers deep                 | Medium   |
-| Wide `ctx` in menu handlers                      | `agent-menu.ts`, `agent-config-editor.ts`, `agent-creation-wizard.ts` | Functions declare `ctx: ExtensionContext` but only call `ctx.ui.select/confirm/input/notify/editor`; 43 `ctx as any` casts across 3 test files | Medium   |
-| Direct SDK import in `conversation-viewer.ts`    | `conversation-viewer.test.ts`                                         | Hoisted `vi.mock("@earendil-works/pi-tui")` to intercept `wrapTextWithAnsi`                                                                    | Low      |
-| ~~Widget mixes rendering, lifecycle, and state~~ | ~~`agent-widget.ts` (370 lines)~~                                     | Resolved by #148: rendering extracted to `widget-renderer.ts`; widget is now 198 lines                                                         | Done     |
-| `deps.` prefix noise in function bodies          | remaining modules across tools, UI, service-adapter                   | Functions accept a `deps` bag and access every field as `deps.foo`; hides real dependencies and lengthens every call line                      | Low      |
+| Smell                                            | Location                                                                  | Evidence                                                                                                                       | Severity |
+| ------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `execute` does config resolution for its callees | `agent-tool.ts` (145-line `execute`)                                      | ~60 lines unpack config, resolve model, compute metadata, repack into 16-field bags for spawners; `ctx` threaded 4 layers deep | Medium   |
+| ~~Wide `ctx` in menu handlers~~                  | ~~`agent-menu.ts`, `agent-config-editor.ts`, `agent-creation-wizard.ts`~~ | Resolved by #146: `MenuUI` interface introduced; 42 `ctx as any` casts eliminated across 5 test files                          | Done     |
+| Direct SDK import in `conversation-viewer.ts`    | `conversation-viewer.test.ts`                                             | Hoisted `vi.mock("@earendil-works/pi-tui")` to intercept `wrapTextWithAnsi`                                                    | Low      |
+| ~~Widget mixes rendering, lifecycle, and state~~ | ~~`agent-widget.ts` (370 lines)~~                                         | Resolved by #148: rendering extracted to `widget-renderer.ts`; widget is now 198 lines                                         | Done     |
+| `deps.` prefix noise in function bodies          | remaining modules across tools, UI, service-adapter                       | Functions accept a `deps` bag and access every field as `deps.foo`; hides real dependencies and lengthens every call line      | Low      |
 
 ### Dependency bag convention
 
 Applied incrementally as each step touches a module:
 
-- **≤4 fields** — accept as plain parameters; drop the interface.
-- **≥5 fields** — keep a named interface but destructure in the function signature (`{ manager, widget }: ForegroundDeps`) so the function body uses bare names, not `deps.foo`.
+- **≤4 fields** - accept as plain parameters; drop the interface.
+- **≥5 fields** - keep a named interface but destructure in the function signature (`{ manager, widget }: ForegroundDeps`) so the function body uses bare names, not `deps.foo`.
 
 This eliminates the `deps.` prefix noise across ~124 callsites in 12 modules.
 
@@ -665,19 +665,23 @@ After this step, `ExtensionContext` appears only in:
 
 Impact: `execute` dropped from ~145 to ~25 lines; eliminated 16-field parameter bags; eliminated `vi.mock("../src/parent-snapshot.js")` in `agent-manager.test.ts`; foreground/background runner tests no longer need `ctx` mocks; `AgentManager` operates entirely on domain types.
 
-### Step N: Narrow UI context for menu handlers (#146)
+### Step N: Narrow UI context for menu handlers (#146) ✓
 
-Define a `MenuUI` interface with `select`, `confirm`, `input`, `notify`, and `editor` methods.
-Menu handler functions (`showAgentsMenu`, `showAgentDetail`, `showCreateWizard`, etc.) accept `MenuUI` instead of `ExtensionContext`.
-`index.ts` passes `ctx.ui` at the call site.
+Defined `MenuUI` interface (exported from `agent-menu.ts`) with `select`, `confirm`, `input`, `notify`, `editor`, and `custom` methods — the exact subset `ctx.ui` methods used by menu handlers.
+All inner functions in `agent-menu.ts`, `agent-config-editor.ts`, and `agent-creation-wizard.ts` now accept `(ui: MenuUI)` instead of `(ctx: ExtensionContext)`.
+`index.ts` passes `ctx.ui`, `ctx.modelRegistry`, and `buildParentSnapshot(ctx)` to the handler.
 
-Creation wizard’s `spawnAndWait` call changes: the narrow `AgentMenuManager.spawnAndWait` accepts `ParentSnapshot` (enabled by Step M) instead of `ExtensionContext`.
+`AgentMenuManager.spawnAndWait` and `WizardManager.spawnAndWait` both accept `ParentSnapshot` (enabled by Step M).
+Creation wizard threads `parentSnapshot` from `showCreateWizard(ui, parentSnapshot)` → `showGenerateWizard(ui, parentSnapshot, targetDir)` → `manager.spawnAndWait(parentSnapshot, ...)`.
 
-Apply the dependency bag convention to touched modules: `AgentConfigEditorDeps` (4 fields), `SteerToolDeps` (4 fields), and `GetResultDeps` (4 fields) become plain parameters; `AgentMenuDeps` (8 fields) and `AgentCreationWizardDeps` (5 fields) are destructured in the signature.
+Applied the dependency bag convention:
 
-After Steps M and N, `ExtensionContext` appears only at true boundaries: `index.ts` closures, `service-adapter.ts` (cross-extension bridge), and `index.ts` (extension entry point).
+- `AgentConfigEditorDeps` (4 fields), `GetResultDeps` (4 fields), `SteerToolDeps` (4 fields) dissolved into plain parameters.
+- `AgentMenuDeps` (8 fields) and `AgentCreationWizardDeps` (5 fields) kept as interfaces, destructured in the function signature.
 
-Impact: eliminates ~43 `ctx as any` casts across menu, editor, and wizard test files; tests construct a plain object satisfying `MenuUI` with no cast.
+After Steps M and N, `ExtensionContext` appears only at true boundaries: `index.ts` closures and `service-adapter.ts` (cross-extension bridge).
+
+Impact: eliminated 42 `ctx as any` casts across 5 test files (`agent-menu.test.ts`: 8, `agent-config-editor.test.ts`: 20, `agent-creation-wizard.test.ts`: 14); tests construct plain `MenuUI`-shaped objects with no cast.
 
 ### Step O: Inject text wrapping into ConversationViewer (#147)
 
@@ -693,7 +697,7 @@ Impact: eliminates the hoisted `vi.mock("@earendil-works/pi-tui")` in `conversat
 
 Extracted pure rendering functions (`renderWidgetLines`, `renderFinishedLine`, `renderRunningLines`) from `AgentWidget` into `ui/widget-renderer.ts`.
 The widget is now a thin lifecycle/polling wrapper (198 lines, down from 374) that delegates to pure render functions.
-Rendering functions receive data (agent list, activity map, registry) and return formatted strings — testable without widget lifecycle. 23 new unit tests cover all status variants, overflow, tree connectors, and empty states.
+Rendering functions receive data (agent list, activity map, registry) and return formatted strings - testable without widget lifecycle. 23 new unit tests cover all status variants, overflow, tree connectors, and empty states.
 
 ### Step dependencies
 
