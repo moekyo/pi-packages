@@ -333,9 +333,10 @@ See the [Phase 8 roadmap](#phase-8-roadmap) section for the full breakdown.
 
 ### Phase 9: Observation consolidation, ctx elimination, and remaining mocks
 
-Target: consolidate the dual observation model so stats live in one place; remove `ExtensionContext` from all internal APIs; eliminate remaining `vi.mock()` calls and `as any` casts; split widget rendering from lifecycle.
+Target: consolidate the dual observation model so stats live in one place; remove `ExtensionContext` from all internal APIs; eliminate remaining `vi.mock()` calls and `as any` casts; split widget rendering from lifecycle; apply dependency bag convention.
 
 See the [Phase 9 roadmap](#phase-9-roadmap) section for the full breakdown.
+Issues: #144, #145, #146, #147, #148.
 
 ## Structural refactoring roadmap
 
@@ -633,7 +634,7 @@ Applied incrementally as each step touches a module:
 
 This eliminates the `deps.` prefix noise across ~124 callsites in 12 modules.
 
-### Step L: Consolidate observation model
+### Step L: Consolidate observation model (#144)
 
 Remove `_toolUses` and `_lifetimeUsage` from `AgentActivityTracker`.
 UI consumers read stats from `AgentRecord` instead of the tracker.
@@ -646,7 +647,7 @@ Apply the dependency bag convention to touched modules: `NotificationDeps` (4 fi
 
 Impact: eliminates dual counting; removes `??` fallback pattern from widget and conversation viewer; hides `ExecutionState` structure from consumers.
 
-### Step M: Decompose execute and push ExtensionContext to the boundary
+### Step M: Decompose execute and push ExtensionContext to the boundary (#145)
 
 `execute` is 145 lines with three responsibilities mixed together:
 
@@ -679,7 +680,7 @@ Apply the dependency bag convention to touched modules: `ForegroundDeps` (3 fiel
 
 Impact: `execute` drops from ~145 to ~30 lines; eliminates 16-field parameter bags; eliminates 1 `vi.mock()` call in `agent-manager.test.ts`; `foreground-runner` and `background-spawner` tests no longer need `ctx` mocks; `AgentManager` operates entirely on domain types.
 
-### Step N: Narrow UI context for menu handlers
+### Step N: Narrow UI context for menu handlers (#146)
 
 Define a `MenuUI` interface with `select`, `confirm`, `input`, `notify`, and `editor` methods.
 Menu handler functions (`showAgentsMenu`, `showAgentDetail`, `showCreateWizard`, etc.) accept `MenuUI` instead of `ExtensionContext`.
@@ -693,7 +694,7 @@ After Steps M and N, `ExtensionContext` appears only at true boundaries: `agent-
 
 Impact: eliminates ~43 `ctx as any` casts across menu, editor, and wizard test files; tests construct a plain object satisfying `MenuUI` with no cast.
 
-### Step O: Inject text wrapping into ConversationViewer
+### Step O: Inject text wrapping into ConversationViewer (#147)
 
 Accept a `wrapText` function via `ConversationViewerOptions`.
 `index.ts` passes the real `wrapTextWithAnsi` import.
@@ -703,7 +704,7 @@ Apply the dependency bag convention: `ConversationViewerOptions` is destructured
 
 Impact: eliminates the hoisted `vi.mock("@earendil-works/pi-tui")` in `conversation-viewer.test.ts`.
 
-### Step P: Split AgentWidget rendering
+### Step P: Split AgentWidget rendering (#148)
 
 Extract pure rendering functions from `AgentWidget` into `ui/widget-renderer.ts`.
 The widget becomes a thin lifecycle/polling wrapper that calls pure render functions.
@@ -716,12 +717,12 @@ Depends on Step L: once the tracker drops stats fields, the renderer reads from 
 ```mermaid
 flowchart LR
     subgraph observation["Observation track"]
-        L["L: Consolidate observation"] --> P["P: Split widget rendering"]
+        L["L: Consolidate observation #144"] --> P["P: Split widget rendering #148"]
     end
     subgraph ctx["ctx elimination track"]
-        M["M: Decompose execute / push ctx"] --> N["N: Narrow UI context"]
+        M["M: Decompose execute / push ctx #145"] --> N["N: Narrow UI context #146"]
     end
-    O["O: Inject text wrapping"]
+    O["O: Inject text wrapping #147"]
 ```
 
 The three tracks are independent of each other.
