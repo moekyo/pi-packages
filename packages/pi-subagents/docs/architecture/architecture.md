@@ -500,20 +500,20 @@ These are fire-and-forget broadcast events — no request IDs, no reply channels
 These interfaces carry hidden dependencies that obscure true coupling.
 Bags with 10+ fields are the highest priority for decomposition.
 
-| Interface                   | Fields    | Consumers                                         | Severity |
-| --------------------------- | --------- | ------------------------------------------------- | -------- |
-| `ResolvedSpawnConfig`       | 15        | foreground-runner, background-spawner, agent-tool | Critical |
-| `AgentSpawnConfig`          | 13        | agent-manager (internal)                          | Critical |
-| `RunOptions`                | 12        | agent-runner                                      | High     |
-| `SessionConfig`             | 11        | agent-runner (output of assembler)                | High     |
-| `NotificationDetails`       | 10        | notification                                      | Medium   |
-| `ResourceLoaderOptions`     | 10        | agent-runner (SDK bridge)                         | Medium   |
-| `RunnerIO`                  | 9 methods | agent-runner                                      | Medium   |
-| `CreateSessionOptions`      | 9         | agent-runner (SDK bridge)                         | Medium   |
-| `AgentToolDeps`             | 8         | agent-tool                                        | Low      |
-| `AgentMenuDeps`             | 8         | agent-menu                                        | Low      |
-| `ConversationViewerOptions` | 8         | conversation-viewer                               | Low      |
-| `AgentRecordInit`           | 8         | agent-record                                      | Low      |
+| Interface                   | Fields                             | Consumers                                         | Severity |
+| --------------------------- | ---------------------------------- | ------------------------------------------------- | -------- |
+| `ResolvedSpawnConfig`       | 3 nested                           | foreground-runner, background-spawner, agent-tool | ✓ done   |
+| `AgentSpawnConfig`          | 13 → 13 (ParentSessionInfo nested) | agent-manager (internal)                          | ✓ done   |
+| `RunOptions`                | 12                                 | agent-runner                                      | High     |
+| `SessionConfig`             | 11                                 | agent-runner (output of assembler)                | High     |
+| `NotificationDetails`       | 10                                 | notification                                      | Medium   |
+| `ResourceLoaderOptions`     | 10                                 | agent-runner (SDK bridge)                         | Medium   |
+| `RunnerIO`                  | 9 methods                          | agent-runner                                      | Medium   |
+| `CreateSessionOptions`      | 9                                  | agent-runner (SDK bridge)                         | Medium   |
+| `AgentToolDeps`             | 8                                  | agent-tool                                        | Low      |
+| `AgentMenuDeps`             | 8                                  | agent-menu                                        | Low      |
+| `ConversationViewerOptions` | 8                                  | conversation-viewer                               | Low      |
+| `AgentRecordInit`           | 8                                  | agent-record                                      | Low      |
 
 ### Complexity hotspots
 
@@ -586,20 +586,20 @@ interface SpawnPresentation {
 `agent-tool` uses all three to build the `AgentSpawnConfig` and the result text.
 After decomposition, each consumer declares its real dependencies explicitly.
 
-#### AgentSpawnConfig (13 fields → extract ParentSessionInfo)
+#### AgentSpawnConfig — ParentSessionInfo extracted (done, [#166][166])
 
-Several fields form a natural cluster around parent session identity:
+The `parentSessionFile`, `parentSessionId`, and `toolCallId` fields were grouped into `ParentSessionInfo`:
 
 ```typescript
-/** Parent session identity — always travel together. */
-interface ParentSessionInfo {
+/** Parent session identity — always travel together from the tool boundary. */
+export interface ParentSessionInfo {
   parentSessionFile?: string;
   parentSessionId?: string;
   toolCallId?: string;
 }
 ```
 
-Extracting this from `AgentSpawnConfig` reduces it from 13 to 10 fields and introduces a named concept that currently exists only as scattered optional fields.
+`AgentSpawnConfig` now carries `parentSession?: ParentSessionInfo` instead of three flat optional fields.
 
 #### RunOptions (12 fields → extract RunContext)
 
@@ -676,10 +676,10 @@ Split the 15-field bag into `SpawnIdentity`, `SpawnExecution`, and `SpawnPresent
 Each consumer declares its real dependencies.
 Enables Step 3 (narrowing AgentSpawnConfig, [#166][166]).
 
-### Step 3: Extract ParentSessionInfo from AgentSpawnConfig ([#166][166])
+### Step 3: Extract ParentSessionInfo from AgentSpawnConfig ([#166][166]) — Complete
 
-Extract `parentSessionFile`, `parentSessionId`, `toolCallId` into a `ParentSessionInfo` value object.
-Reduces AgentSpawnConfig from 13 to 10 fields.
+Extracted `parentSessionFile`, `parentSessionId`, `toolCallId` into `ParentSessionInfo`.
+`AgentSpawnConfig`, `BackgroundParams`, `ForegroundParams`, and `RunOptions` all carry the nested group.
 
 ### Step 4: Narrow RunnerIO ([#167][167])
 
