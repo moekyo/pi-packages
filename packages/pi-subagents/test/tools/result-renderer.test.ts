@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	renderAgentResult,
 	renderBackground,
 	renderCompleted,
 	renderFailed,
@@ -241,6 +242,54 @@ describe("renderFailed", () => {
 	it("shows aborted message with warning color for aborted status", () => {
 		const details = makeDetails({ status: "aborted" });
 		expect(renderFailed(details, theme)).toContain(
+			"[warning:  \u23BF  Aborted (max turns exceeded)]",
+		);
+	});
+});
+
+describe("renderAgentResult", () => {
+	const theme = makeTheme();
+
+	it("dispatches to renderRunning when status is 'running'", () => {
+		const details = makeDetails({ status: "running", spinnerFrame: 0 });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain("[accent:\u280B]");
+	});
+
+	it("dispatches to renderRunning when isPartial is true regardless of status", () => {
+		const details = makeDetails({ status: "completed", spinnerFrame: 0 });
+		expect(renderAgentResult(details, "", false, true, theme)).toContain("[accent:\u280B]");
+	});
+
+	it("dispatches to renderBackground for background status", () => {
+		const details = makeDetails({ status: "background", agentId: "agent-99" });
+		const result = renderAgentResult(details, "", false, false, theme);
+		expect(result).toContain("Running in background");
+		expect(result).toContain("agent-99");
+	});
+
+	it("dispatches to renderCompleted for completed status", () => {
+		const details = makeDetails({ status: "completed", durationMs: 1000 });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain("[success:\u2713]");
+	});
+
+	it("dispatches to renderCompleted for steered status", () => {
+		const details = makeDetails({ status: "steered", durationMs: 1000 });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain("[warning:\u2713]");
+	});
+
+	it("dispatches to renderStopped for stopped status", () => {
+		const details = makeDetails({ status: "stopped" });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain("[dim:\u25A0]");
+	});
+
+	it("dispatches to renderFailed for error status", () => {
+		const details = makeDetails({ status: "error", error: "boom" });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain("[error:\u2717]");
+	});
+
+	it("dispatches to renderFailed for aborted status", () => {
+		const details = makeDetails({ status: "aborted" });
+		expect(renderAgentResult(details, "", false, false, theme)).toContain(
 			"[warning:  \u23BF  Aborted (max turns exceeded)]",
 		);
 	});
