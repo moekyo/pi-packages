@@ -20,9 +20,6 @@ export interface SubscribableSession {
 /** Agent type: any string name (built-in defaults or user-defined). */
 export type SubagentType = string;
 
-/** Memory scope for persistent agent memory. */
-export type MemoryScope = "user" | "project" | "local";
-
 /** Isolation mode for agent execution. */
 export type IsolationMode = "worktree";
 
@@ -59,8 +56,6 @@ export interface AgentConfig extends AgentIdentity, AgentPromptConfig {
   runInBackground?: boolean;
   /** Default for spawn: no extension tools. undefined = caller decides. */
   isolated?: boolean;
-  /** Persistent memory scope — agents with memory get a persistent directory and MEMORY.md */
-  memory?: MemoryScope;
   /** Isolation mode — "worktree" runs the agent in a temporary git worktree */
   isolation?: IsolationMode;
   /** true = this is an embedded default agent (informational) */

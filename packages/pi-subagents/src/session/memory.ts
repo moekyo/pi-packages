@@ -11,7 +11,8 @@ import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isSymlink, isUnsafeName, safeReadFile } from "#src/session/safe-fs";
-import type { MemoryScope } from "#src/types";
+
+type MemoryScope = "user" | "project" | "local";
 
 /** Maximum lines to read from MEMORY.md */
 const MAX_MEMORY_LINES = 200;

@@ -7,7 +7,7 @@ import { basename, join } from "node:path";
 import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { BUILTIN_TOOL_NAMES } from "#src/config/agent-types";
 import { debugLog } from "#src/debug";
-import type { AgentConfig, MemoryScope, ThinkingLevel } from "#src/types";
+import type { AgentConfig, ThinkingLevel } from "#src/types";
 
 /**
  * Scan for custom agent .md files from multiple locations.
@@ -69,7 +69,6 @@ function loadFromDir(dir: string, agents: Map<string, AgentConfig>, source: "pro
       inheritContext: fm.inherit_context != null ? fm.inherit_context === true : undefined,
       runInBackground: fm.run_in_background != null ? fm.run_in_background === true : undefined,
       isolated: fm.isolated != null ? fm.isolated === true : undefined,
-      memory: parseMemory(fm.memory),
       isolation: fm.isolation === "worktree" ? "worktree" : undefined,
       enabled: fm.enabled !== false,  // default true; explicitly false disables
       source,
@@ -117,15 +116,6 @@ function csvList(val: unknown, defaults: string[]): string[] {
  */
 function csvListOptional(val: unknown): string[] | undefined {
   return parseCsvField(val);
-}
-
-/**
- * Parse a memory scope field.
- * omitted → undefined; "user"/"project"/"local" → MemoryScope.
- */
-function parseMemory(val: unknown): MemoryScope | undefined {
-  if (val === "user" || val === "project" || val === "local") return val;
-  return undefined;
 }
 
 /**
