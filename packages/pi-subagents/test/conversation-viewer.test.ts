@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { ConversationViewer } from "#src/ui/conversation-viewer";
-import type { Theme } from "#src/ui/display";
 import { createTestRecord } from "./helpers/make-record";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
