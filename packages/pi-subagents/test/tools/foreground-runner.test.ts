@@ -8,36 +8,42 @@ import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
 function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawnConfig {
   return {
-    subagentType: "general-purpose",
-    rawType: "general-purpose",
-    fellBack: false,
-    displayName: "Agent",
-    prompt: "do the task",
-    description: "fg task",
-    model: undefined,
-    effectiveMaxTurns: undefined,
-    thinking: undefined,
-    inheritContext: false,
-    runInBackground: false,
-    isolated: false,
-    isolation: undefined,
-    modelName: undefined,
-    agentInvocation: {
-      modelName: undefined,
+    identity: {
+      subagentType: "general-purpose",
+      rawType: "general-purpose",
+      fellBack: false,
+      displayName: "Agent",
+    },
+    execution: {
+      prompt: "do the task",
+      description: "fg task",
+      model: undefined,
+      effectiveMaxTurns: undefined,
       thinking: undefined,
-      maxTurns: undefined,
-      isolated: false,
       inheritContext: false,
       runInBackground: false,
+      isolated: false,
       isolation: undefined,
+      agentInvocation: {
+        modelName: undefined,
+        thinking: undefined,
+        maxTurns: undefined,
+        isolated: false,
+        inheritContext: false,
+        runInBackground: false,
+        isolation: undefined,
+      },
     },
-    agentTags: [],
-    detailBase: {
-      displayName: "Agent",
-      description: "fg task",
-      subagentType: "general-purpose",
+    presentation: {
       modelName: undefined,
-      tags: undefined,
+      agentTags: [],
+      detailBase: {
+        displayName: "Agent",
+        description: "fg task",
+        subagentType: "general-purpose",
+        modelName: undefined,
+        tags: undefined,
+      },
     },
     ...overrides,
   };
@@ -101,7 +107,11 @@ describe("runForeground", () => {
       manager,
       widget,
       agentActivity,
-      makeParams({ config: makeConfig({ fellBack: true, rawType: "unknown-type" }) }),
+      makeParams({
+        config: makeConfig({
+          identity: { subagentType: "general-purpose", rawType: "unknown-type", fellBack: true, displayName: "Agent" },
+        }),
+      }),
       undefined,
       undefined,
     );

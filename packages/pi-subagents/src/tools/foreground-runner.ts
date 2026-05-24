@@ -56,19 +56,19 @@ export async function runForeground(
   signal: AbortSignal | undefined,
   onUpdate: ((update: AgentToolResult<any>) => void) | undefined,
 ) {
-  const { config } = params;
+  const { identity, execution, presentation } = params.config;
   let spinnerFrame = 0;
   const startedAt = Date.now();
   let fgId: string | undefined;
 
-  const fgState = new AgentActivityTracker(config.effectiveMaxTurns);
+  const fgState = new AgentActivityTracker(execution.effectiveMaxTurns);
   let unsubUI: (() => void) | undefined;
   let recordRef: AgentRecord | undefined;
 
   const streamUpdate = () => {
     const toolUses = recordRef?.toolUses ?? 0;
     const details: AgentDetails = {
-      ...config.detailBase,
+      ...presentation.detailBase,
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
       turnCount: fgState.turnCount,
@@ -97,17 +97,17 @@ export async function runForeground(
   try {
     record = await manager.spawnAndWait(
       params.snapshot,
-      config.subagentType,
-      config.prompt,
+      identity.subagentType,
+      execution.prompt,
       {
-        description: config.description,
-        model: config.model,
-        maxTurns: config.effectiveMaxTurns,
-        isolated: config.isolated,
-        inheritContext: config.inheritContext,
-        thinkingLevel: config.thinking,
-        isolation: config.isolation,
-        invocation: config.agentInvocation,
+        description: execution.description,
+        model: execution.model,
+        maxTurns: execution.effectiveMaxTurns,
+        isolated: execution.isolated,
+        inheritContext: execution.inheritContext,
+        thinkingLevel: execution.thinking,
+        isolation: execution.isolation,
+        invocation: execution.agentInvocation,
         signal,
         parentSessionFile: params.parentSessionFile,
         parentSessionId: params.parentSessionId,
@@ -137,10 +137,10 @@ export async function runForeground(
   }
 
   const tokenText = formatLifetimeTokens(record);
-  const details = buildDetails(config.detailBase, record, fgState, { tokens: tokenText });
+  const details = buildDetails(presentation.detailBase, record, fgState, { tokens: tokenText });
 
-  const fallbackNote = config.fellBack
-    ? `Note: Unknown agent type "${config.rawType}" — using general-purpose.\n\n`
+  const fallbackNote = identity.fellBack
+    ? `Note: Unknown agent type "${identity.rawType}" — using general-purpose.\n\n`
     : "";
 
   if (record.status === "error") {
