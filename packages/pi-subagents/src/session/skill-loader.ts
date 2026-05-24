@@ -24,7 +24,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { debugLog } from "#src/debug";
-import { isSymlink, isUnsafeName, safeReadFile } from "#src/session/memory";
+import { isSymlink, isUnsafeName, safeReadFile } from "#src/session/safe-fs";
 
 export interface PreloadedSkill {
   name: string;
