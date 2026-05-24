@@ -91,7 +91,7 @@ export interface AssemblerContext {
 }
 
 /**
- * Narrow slice of RunOptions consumed by the assembler.
+ * Narrow slice of RunOptions execution fields consumed by the assembler.
  * All fields are optional — callers pass only what they have.
  */
 export interface AssemblerOptions {

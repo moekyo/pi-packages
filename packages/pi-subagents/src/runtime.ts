@@ -22,7 +22,7 @@ export interface WidgetLike {
 }
 
 /**
- * Narrow config subset read by AgentManager when constructing RunOptions.
+ * Narrow config subset read by AgentManager when constructing RunOptions execution fields.
  * Kept separate so callers can satisfy it without depending on the full runtime.
  */
 export interface RunConfig {
