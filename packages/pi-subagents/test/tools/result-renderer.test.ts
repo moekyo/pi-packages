@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	renderBackground,
 	renderCompleted,
+	renderFailed,
 	renderRunning,
 	renderStats,
 	renderStopped,
@@ -216,5 +217,31 @@ describe("renderStopped", () => {
 	it("shows Stopped message on second line", () => {
 		const details = makeDetails({ status: "stopped" });
 		expect(renderStopped(details, theme)).toContain("\n[dim:  \u23BF  Stopped]");
+	});
+});
+
+describe("renderFailed", () => {
+	const theme = makeTheme();
+
+	it("uses error icon", () => {
+		const details = makeDetails({ status: "error", error: "boom" });
+		expect(renderFailed(details, theme)).toContain("[error:\u2717]");
+	});
+
+	it("shows error message for error status", () => {
+		const details = makeDetails({ status: "error", error: "Out of context" });
+		expect(renderFailed(details, theme)).toContain("[error:  \u23BF  Error: Out of context]");
+	});
+
+	it("defaults error message to 'unknown' when error is absent", () => {
+		const details = makeDetails({ status: "error", error: undefined });
+		expect(renderFailed(details, theme)).toContain("[error:  \u23BF  Error: unknown]");
+	});
+
+	it("shows aborted message with warning color for aborted status", () => {
+		const details = makeDetails({ status: "aborted" });
+		expect(renderFailed(details, theme)).toContain(
+			"[warning:  \u23BF  Aborted (max turns exceeded)]",
+		);
 	});
 });
