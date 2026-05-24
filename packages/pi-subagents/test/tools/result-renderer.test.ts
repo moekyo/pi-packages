@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { renderBackground, renderCompleted, renderRunning, renderStats } from "#src/tools/result-renderer";
+import {
+	renderBackground,
+	renderCompleted,
+	renderRunning,
+	renderStats,
+	renderStopped,
+} from "#src/tools/result-renderer";
 import type { AgentDetails, Theme } from "#src/ui/display";
 
 function makeTheme(): Theme {
@@ -191,5 +197,24 @@ describe("renderCompleted", () => {
 		const details = makeDetails({ status: "completed", durationMs: 2000 });
 		const result = renderCompleted(details, "", true, theme);
 		expect(result).not.toContain("\u23BF");
+	});
+});
+
+describe("renderStopped", () => {
+	const theme = makeTheme();
+
+	it("uses dim stop icon", () => {
+		const details = makeDetails({ status: "stopped" });
+		expect(renderStopped(details, theme)).toContain("[dim:\u25A0]");
+	});
+
+	it("includes stats in output", () => {
+		const details = makeDetails({ status: "stopped", modelName: "haiku" });
+		expect(renderStopped(details, theme)).toContain("[dim:haiku]");
+	});
+
+	it("shows Stopped message on second line", () => {
+		const details = makeDetails({ status: "stopped" });
+		expect(renderStopped(details, theme)).toContain("\n[dim:  \u23BF  Stopped]");
 	});
 });
