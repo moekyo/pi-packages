@@ -34,7 +34,7 @@ import { createSubagentRuntime } from "#src/runtime";
 import { publishSubagentsService, unpublishSubagentsService } from "#src/service/service";
 import { createSubagentsService } from "#src/service/service-adapter";
 import { detectEnv } from "#src/session/env";
-import { buildMemoryBlock, buildReadOnlyMemoryBlock } from "#src/session/memory";
+
 import { type ModelRegistry, resolveModel } from "#src/session/model-resolver";
 import { buildAgentPrompt } from "#src/session/prompts";
 import { deriveSubagentSessionDir } from "#src/session/session-dir";
@@ -146,8 +146,6 @@ export default function (pi: ExtensionAPI) {
     createSession: (opts) => createAgentSession(opts as any),
     assemblerIO: {
       preloadSkills,
-      buildMemoryBlock,
-      buildReadOnlyMemoryBlock,
       buildAgentPrompt,
     },
   };

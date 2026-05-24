@@ -133,23 +133,3 @@ export class AgentTypeRegistry implements AgentConfigLookup {
 
 /** All known built-in tool names. */
 export const BUILTIN_TOOL_NAMES: string[] = ["read", "bash", "edit", "write", "grep", "find", "ls"];
-
-/** Tool names required for memory management. */
-const MEMORY_TOOL_NAMES = ["read", "write", "edit"];
-
-/**
- * Get memory tool names (read/write/edit) not already in the provided set.
- */
-export function getMemoryToolNames(existingToolNames: Set<string>): string[] {
-  return MEMORY_TOOL_NAMES.filter(n => !existingToolNames.has(n));
-}
-
-/** Tool names needed for read-only memory access. */
-const READONLY_MEMORY_TOOL_NAMES = ["read"];
-
-/**
- * Get read-only memory tool names not already in the provided set.
- */
-export function getReadOnlyMemoryToolNames(existingToolNames: Set<string>): string[] {
-  return READONLY_MEMORY_TOOL_NAMES.filter(n => !existingToolNames.has(n));
-}

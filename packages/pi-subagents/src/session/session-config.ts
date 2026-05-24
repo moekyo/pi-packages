@@ -10,20 +10,11 @@
  * before invoking this function, keeping the assembler synchronous.
  */
 
-import {
-  type AgentConfigLookup,
-  getMemoryToolNames,
-  getReadOnlyMemoryToolNames,
-} from "#src/config/agent-types";
+import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { EnvInfo } from "#src/session/env";
 import type { PromptExtras } from "#src/session/prompts";
 import type { PreloadedSkill } from "#src/session/skill-loader";
-import type {
-  AgentPromptConfig,
-  MemoryScope,
-  SubagentType,
-  ThinkingLevel,
-} from "#src/types";
+import type { AgentPromptConfig, SubagentType, ThinkingLevel } from "#src/types";
 
 // ── Public interfaces ────────────────────────────────────────────────────────
 
@@ -52,12 +43,6 @@ export interface ToolFilterConfig {
  */
 export interface AssemblerIO {
   preloadSkills: (skills: string[], cwd: string) => PreloadedSkill[];
-  buildMemoryBlock: (name: string, scope: MemoryScope, cwd: string) => string;
-  buildReadOnlyMemoryBlock: (
-    name: string,
-    scope: MemoryScope,
-    cwd: string,
-  ) => string;
   buildAgentPrompt: (
     config: AgentPromptConfig,
     cwd: string,
@@ -210,38 +195,7 @@ export function assembleSessionConfig(
     }
   }
 
-  let toolNames = registry.getToolNamesForType(type);
-
-  // Persistent memory: detect write capability and branch accordingly.
-  // Account for disallowedTools — a tool in the base set but on the denylist
-  // is not truly available.
-  if (agentConfig.memory) {
-    const existingNames = new Set(toolNames);
-    const denied = agentConfig.disallowedTools
-      ? new Set(agentConfig.disallowedTools)
-      : undefined;
-    const effectivelyHas = (name: string) =>
-      existingNames.has(name) && !denied?.has(name);
-    const hasWriteTools = effectivelyHas("write") || effectivelyHas("edit");
-
-    if (hasWriteTools) {
-      const extraNames = getMemoryToolNames(existingNames);
-      if (extraNames.length > 0) toolNames = [...toolNames, ...extraNames];
-      extras.memoryBlock = io.buildMemoryBlock(
-        agentConfig.name,
-        agentConfig.memory,
-        effectiveCwd,
-      );
-    } else {
-      const extraNames = getReadOnlyMemoryToolNames(existingNames);
-      if (extraNames.length > 0) toolNames = [...toolNames, ...extraNames];
-      extras.memoryBlock = io.buildReadOnlyMemoryBlock(
-        agentConfig.name,
-        agentConfig.memory,
-        effectiveCwd,
-      );
-    }
-  }
+  const toolNames = registry.getToolNamesForType(type);
 
   // Build system prompt from the resolved agent config
   const systemPrompt = io.buildAgentPrompt(

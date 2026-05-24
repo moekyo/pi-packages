@@ -5,10 +5,8 @@
 import type { EnvInfo } from "#src/session/env";
 import type { AgentPromptConfig } from "#src/types";
 
-/** Extra sections to inject into the system prompt (memory, skills, etc.). */
+/** Extra sections to inject into the system prompt (skills, etc.). */
 export interface PromptExtras {
-  /** Persistent memory content to inject (first 200 lines of MEMORY.md + instructions). */
-  memoryBlock?: string;
   /** Preloaded skill contents to inject. */
   skillBlocks?: { name: string; content: string }[];
 }
@@ -45,9 +43,6 @@ Platform: ${env.platform}`;
 
   // Build optional extras suffix
   const extraSections: string[] = [];
-  if (extras?.memoryBlock) {
-    extraSections.push(extras.memoryBlock);
-  }
   if (extras?.skillBlocks?.length) {
     for (const skill of extras.skillBlocks) {
       extraSections.push(

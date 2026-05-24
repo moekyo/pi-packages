@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  AgentTypeRegistry,
-  BUILTIN_TOOL_NAMES,
-  getMemoryToolNames,
-  getReadOnlyMemoryToolNames,
-} from "#src/config/agent-types";
+import { AgentTypeRegistry, BUILTIN_TOOL_NAMES } from "#src/config/agent-types";
 import type { AgentConfig } from "#src/types";
 
 function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
@@ -22,36 +17,6 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     ...overrides,
   };
 }
-
-describe("memory tool name helpers", () => {
-  describe("getMemoryToolNames", () => {
-    it("returns read, write, edit when none exist", () => {
-      const names = getMemoryToolNames(new Set());
-      expect(names).toContain("read");
-      expect(names).toContain("write");
-      expect(names).toContain("edit");
-      expect(names).toHaveLength(3);
-    });
-
-    it("skips tools that already exist", () => {
-      expect(getMemoryToolNames(new Set(["read", "edit"]))).toEqual(["write"]);
-    });
-
-    it("returns empty when all memory tools already exist", () => {
-      expect(getMemoryToolNames(new Set(["read", "write", "edit"]))).toHaveLength(0);
-    });
-  });
-
-  describe("getReadOnlyMemoryToolNames", () => {
-    it("returns only read when missing", () => {
-      expect(getReadOnlyMemoryToolNames(new Set())).toEqual(["read"]);
-    });
-
-    it("returns empty when read already exists", () => {
-      expect(getReadOnlyMemoryToolNames(new Set(["read"]))).toHaveLength(0);
-    });
-  });
-});
 
 describe("AgentTypeRegistry", () => {
   function makeRegistry(userAgents: Map<string, AgentConfig> = new Map()): AgentTypeRegistry {
