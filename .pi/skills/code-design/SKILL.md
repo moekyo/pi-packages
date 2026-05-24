@@ -119,9 +119,15 @@ Tool definitions, event handlers, and command handlers are SDK consumers — the
 The restriction targets pure helpers, utilities, and domain modules that should remain SDK-independent.
 When a new capability is needed in a library module, accept it as a parameter or callback — do not reach for the Pi SDK directly.
 
+Before redeclaring a Pi SDK type locally, check whether it's already exported from `@earendil-works/pi-ai` or `@earendil-works/pi-coding-agent`.
+Import directly when the exported type matches; redeclare only when narrowing is intentional (ISP).
+
 When writing event handlers that consume Pi SDK types, prefer lean local payload interfaces over full SDK event types.
 The SDK may not export all event interfaces, and exported types often require fields the handler does not read.
 Define a minimal interface with only the fields the handler uses.
+
+When a shared function parameter must accept SDK content types (e.g., `TextContent | ThinkingContent | ToolCall`), prefer a minimal structural supertype like `{ type: string }` over an index-signature type like `{ type: string; [key: string]: unknown }`.
+SDK interfaces lack index signatures; index-signature parameters force `as unknown as` double-casts at call sites.
 
 When writing `promptGuidelines` for a tool registration, name the tool in every bullet — Pi flattens all tools' guidelines into one `Guidelines:` block without per-tool attribution ([earendil-works/pi#4879](https://github.com/earendil-works/pi/issues/4879)).
 

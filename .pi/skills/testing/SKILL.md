@@ -78,3 +78,5 @@ Run `pnpm run check` (`tsc --noEmit`) for type-only changes.
 - When integrating an unfamiliar library or data structure, write a disposable exploratory script first to inspect the actual runtime shape.
 - When consolidating duplicate test factories into a shared helper, diff the default values across all copies before writing the shared factory.
   Different defaults cause cascading assertion failures during migration steps.
+- When a TDD plan extracts a locally-declared type that shadows an SDK type, verify whether the SDK exports the type before planning around the local copy.
+  Dead fallback branches in the local type produce dead test cases and unnecessary complexity.
