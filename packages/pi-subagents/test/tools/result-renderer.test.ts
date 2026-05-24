@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderStats } from "#src/tools/result-renderer";
+import { renderRunning, renderStats } from "#src/tools/result-renderer";
 import type { AgentDetails, Theme } from "#src/ui/display";
 
 function makeTheme(): Theme {
@@ -85,5 +85,40 @@ describe("renderStats", () => {
 	it("joins multiple parts with dim separator", () => {
 		const details = makeDetails({ modelName: "haiku", toolUses: 2 });
 		expect(renderStats(details, theme)).toBe("[dim:haiku] [dim:·] [dim:2 tool uses]");
+	});
+});
+
+describe("renderRunning", () => {
+	const theme = makeTheme();
+
+	it("uses spinner frame from details.spinnerFrame", () => {
+		const details = makeDetails({ status: "running", spinnerFrame: 1 });
+		expect(renderRunning(details, theme)).toContain("[accent:\u2819]");
+	});
+
+	it("defaults spinner frame to index 0 when undefined", () => {
+		const details = makeDetails({ status: "running", spinnerFrame: undefined });
+		expect(renderRunning(details, theme)).toContain("[accent:\u280B]");
+	});
+
+	it("includes stats in output", () => {
+		const details = makeDetails({ status: "running", modelName: "haiku" });
+		expect(renderRunning(details, theme)).toContain("[dim:haiku]");
+	});
+
+	it("uses activity text when provided", () => {
+		const details = makeDetails({ status: "running", activity: "reading files" });
+		expect(renderRunning(details, theme)).toContain("reading files");
+	});
+
+	it("falls back to 'thinking\u2026' when activity is absent", () => {
+		const details = makeDetails({ status: "running", activity: undefined });
+		expect(renderRunning(details, theme)).toContain("thinking\u2026");
+	});
+
+	it("renders activity on second line with dim styling", () => {
+		const details = makeDetails({ status: "running", activity: "searching" });
+		const result = renderRunning(details, theme);
+		expect(result).toContain("\n[dim:  \u23BF  searching]");
 	});
 });
