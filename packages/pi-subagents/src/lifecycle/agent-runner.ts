@@ -459,9 +459,7 @@ export function getAgentConversation(session: AgentSession): string {
           : extractText(msg.content);
       if (text.trim()) parts.push(`[User]: ${text.trim()}`);
     } else if (msg.role === "assistant") {
-      const { textParts, toolNames } = extractAssistantContent(
-        msg.content as unknown as { type: string; [key: string]: unknown }[],
-      );
+      const { textParts, toolNames } = extractAssistantContent(msg.content);
       if (textParts.length > 0)
         parts.push(`[Assistant]: ${textParts.join("\n")}`);
       if (toolNames.length > 0)

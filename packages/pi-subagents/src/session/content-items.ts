@@ -2,17 +2,12 @@
  * content-items.ts — Shared parsing utilities for Pi SDK message content items.
  *
  * Provides type-safe extraction of text parts and tool-call names from
- * assistant message content arrays. Pure functions — no SDK imports, no IO.
+ * assistant message content arrays. Pure functions — no IO.
  */
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+import type { TextContent, ToolCall } from "@earendil-works/pi-ai";
 
-/** Tool-call content item — SDK exposes this at runtime but doesn't export the narrow type. */
-export interface ToolCallContent {
-  type: "toolCall";
-  name?: string;
-  toolName?: string;
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 /** Extracted text parts and tool names from assistant message content. */
 export interface AssistantContentParts {
@@ -22,27 +17,37 @@ export interface AssistantContentParts {
 
 // ── Functions ─────────────────────────────────────────────────────────────────
 
-/** Extracts the display name from a tool-call content item, falling back to 'unknown'. */
+/**
+ * Extracts the display name from a tool-call content item.
+ *
+ * Returns 'unknown' for non-toolCall items.
+ * The Pi SDK's ToolCall.name is always present — no fallback chain needed.
+ */
 export function getToolCallName(c: { type: string }): string {
   if (c.type !== "toolCall") return "unknown";
-  const tc = c as ToolCallContent;
-  return tc.name ?? tc.toolName ?? "unknown";
+  return (c as ToolCall).name;
 }
 
 /**
  * Extract text parts and tool-call names from assistant message content items.
  *
+ * Accepts any array whose elements carry a `type` discriminant — all Pi SDK
+ * content types (TextContent, ThinkingContent, ToolCall) satisfy this constraint.
  * Pure data extraction — consumers apply their own presentation formatting.
- * Skips items of unknown types (e.g. images) and text items with falsy text.
+ * Skips items of unknown types (e.g. thinking blocks, images) and empty text.
  */
 export function extractAssistantContent(
-  content: { type: string; [key: string]: unknown }[],
+  content: ReadonlyArray<{ type: string }>,
 ): AssistantContentParts {
   const textParts: string[] = [];
   const toolNames: string[] = [];
   for (const c of content) {
-    if (c.type === "text" && c.text) textParts.push(c.text as string);
-    else if (c.type === "toolCall") toolNames.push(getToolCallName(c));
+    if (c.type === "text") {
+      const text = (c as TextContent).text;
+      if (text) textParts.push(text);
+    } else if (c.type === "toolCall") {
+      toolNames.push(getToolCallName(c));
+    }
   }
   return { textParts, toolNames };
 }

@@ -125,18 +125,6 @@ describe("message-formatters", () => {
       expect(capturedTexts).toEqual(["Part A\nPart B"]);
     });
 
-    it("uses toolName as fallback when name is absent", () => {
-      const content = [{ type: "toolCall", toolName: "bash" }];
-      const result = formatAssistantMessage(content, 80, ctx);
-      expect(result).toEqual(["[bold:[Assistant]]", "[muted:  [Tool: bash]]"]);
-    });
-
-    it("uses 'unknown' when both name and toolName are absent", () => {
-      const content = [{ type: "toolCall" }];
-      const result = formatAssistantMessage(content, 80, ctx);
-      expect(result).toEqual(["[bold:[Assistant]]", "[muted:  [Tool: unknown]]"]);
-    });
-
     it("skips text items with no text value", () => {
       const content = [{ type: "text" }, { type: "text", text: "" }];
       const result = formatAssistantMessage(content, 80, ctx);

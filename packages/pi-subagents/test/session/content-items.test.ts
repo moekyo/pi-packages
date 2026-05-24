@@ -1,23 +1,25 @@
+import type { TextContent, ToolCall } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import { extractAssistantContent, getToolCallName } from "#src/session/content-items";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Minimal valid TextContent fixture. */
+const text = (t: string): TextContent => ({ type: "text", text: t });
+
+/** Minimal valid ToolCall fixture. */
+const toolCall = (name: string): ToolCall => ({
+  type: "toolCall",
+  id: "call_1",
+  name,
+  arguments: {},
+});
+
+// ── getToolCallName ───────────────────────────────────────────────────────────
+
 describe("getToolCallName", () => {
-  it("returns name when present", () => {
-    expect(getToolCallName({ type: "toolCall", name: "Bash" })).toBe("Bash");
-  });
-
-  it("returns toolName when name is absent", () => {
-    expect(getToolCallName({ type: "toolCall", toolName: "Read" })).toBe("Read");
-  });
-
-  it("prefers name over toolName when both are present", () => {
-    expect(
-      getToolCallName({ type: "toolCall", name: "Bash", toolName: "OtherName" }),
-    ).toBe("Bash");
-  });
-
-  it("returns 'unknown' when neither name nor toolName is present", () => {
-    expect(getToolCallName({ type: "toolCall" })).toBe("unknown");
+  it("returns the tool name", () => {
+    expect(getToolCallName(toolCall("Bash"))).toBe("Bash");
   });
 
   it("returns 'unknown' for non-toolCall type", () => {
@@ -25,64 +27,45 @@ describe("getToolCallName", () => {
   });
 });
 
+// ── extractAssistantContent ───────────────────────────────────────────────────
+
 describe("extractAssistantContent", () => {
   it("returns empty arrays for empty content", () => {
     expect(extractAssistantContent([])).toEqual({ textParts: [], toolNames: [] });
   });
 
-  it("collects text items only", () => {
-    const content = [
-      { type: "text", text: "Hello" },
-      { type: "text", text: "World" },
-    ];
-    expect(extractAssistantContent(content)).toEqual({
+  it("collects text items", () => {
+    expect(extractAssistantContent([text("Hello"), text("World")])).toEqual({
       textParts: ["Hello", "World"],
       toolNames: [],
     });
   });
 
-  it("collects toolCall items only", () => {
-    const content = [
-      { type: "toolCall", name: "Bash" },
-      { type: "toolCall", toolName: "Read" },
-    ];
-    expect(extractAssistantContent(content)).toEqual({
+  it("collects toolCall items", () => {
+    expect(extractAssistantContent([toolCall("Bash"), toolCall("Read")])).toEqual({
       textParts: [],
       toolNames: ["Bash", "Read"],
     });
   });
 
   it("collects mixed text and toolCall items", () => {
-    const content = [
-      { type: "text", text: "Some analysis" },
-      { type: "toolCall", name: "Bash" },
-      { type: "text", text: "More text" },
-      { type: "toolCall", name: "Write" },
-    ];
+    const content = [text("Some analysis"), toolCall("Bash"), text("More text"), toolCall("Write")];
     expect(extractAssistantContent(content)).toEqual({
       textParts: ["Some analysis", "More text"],
       toolNames: ["Bash", "Write"],
     });
   });
 
-  it("skips items with other types (e.g. image)", () => {
-    const content = [
-      { type: "text", text: "Before" },
-      { type: "image", data: "base64...", mediaType: "image/png" },
-      { type: "toolCall", name: "Read" },
-    ];
-    expect(extractAssistantContent(content)).toEqual({
+  it("skips items with other types (e.g. thinking blocks)", () => {
+    const thinking = { type: "thinking" };
+    expect(extractAssistantContent([text("Before"), thinking, toolCall("Read")])).toEqual({
       textParts: ["Before"],
       toolNames: ["Read"],
     });
   });
 
-  it("skips text items with falsy text", () => {
-    const content = [
-      { type: "text", text: "" },
-      { type: "text", text: "Real content" },
-    ];
-    expect(extractAssistantContent(content)).toEqual({
+  it("skips text items with empty text", () => {
+    expect(extractAssistantContent([text(""), text("Real content")])).toEqual({
       textParts: ["Real content"],
       toolNames: [],
     });
