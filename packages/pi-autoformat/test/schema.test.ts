@@ -57,7 +57,7 @@ describe("pi-autoformat.schema.json", () => {
     it("accepts dotted extension keys and the literal '*' wildcard", () => {
       const pattern = schema.properties?.chains?.propertyNames?.pattern;
       expect(pattern).toBeDefined();
-      const re = new RegExp(pattern as string);
+      const re = new RegExp(pattern!);
       expect(re.test(".md")).toBe(true);
       expect(re.test(".tsx")).toBe(true);
       expect(re.test("*")).toBe(true);
@@ -65,7 +65,7 @@ describe("pi-autoformat.schema.json", () => {
 
     it("rejects bare names and empty strings", () => {
       const pattern = schema.properties?.chains?.propertyNames?.pattern;
-      const re = new RegExp(pattern as string);
+      const re = new RegExp(pattern!);
       expect(re.test("md")).toBe(false);
       expect(re.test("")).toBe(false);
     });
@@ -85,7 +85,7 @@ describe("pi-autoformat.schema.json", () => {
       const items = schema.properties?.chains?.additionalProperties?.items as
         | { oneOf?: Array<{ type?: string; minLength?: number }> }
         | undefined;
-      const stringVariant = items?.oneOf?.find((v) => v?.type === "string");
+      const stringVariant = items?.oneOf?.find((v) => v.type === "string");
       expect(stringVariant).toBeDefined();
       expect(stringVariant?.minLength).toBe(1);
     });
@@ -94,7 +94,7 @@ describe("pi-autoformat.schema.json", () => {
       const items = schema.properties?.chains?.additionalProperties?.items as
         | { oneOf?: Array<Record<string, unknown>> }
         | undefined;
-      const fallbackVariant = items?.oneOf?.find((v) => v?.type === "object") as
+      const fallbackVariant = items?.oneOf?.find((v) => v.type === "object") as
         | {
             type?: string;
             additionalProperties?: boolean;

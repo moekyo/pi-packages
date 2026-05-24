@@ -18,6 +18,7 @@ export type FallbackChainStep = {
 export type ChainStep = string | FallbackChainStep;
 
 function isFallbackChainStep(step: ChainStep): step is FallbackChainStep {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive null check despite ChainStep type not including null
   return typeof step === "object" && step !== null && "fallback" in step;
 }
 
@@ -117,6 +118,7 @@ function resolveFormatterByName(
   config: FormatterConfig,
 ): ResolvedFormatter | undefined {
   const formatter = config.formatters[name];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- formatter lookup may return undefined despite indexed access type
   if (formatter) {
     if (formatter.disabled) {
       return undefined;

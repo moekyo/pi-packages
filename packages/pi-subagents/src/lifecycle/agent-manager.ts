@@ -235,6 +235,7 @@ export class AgentManager {
       onSessionCreated: (session) => {
         // Capture the session file path early so it's available for display
         // before the run completes (e.g. in background agent status messages).
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- sessionManager is typed as always present but Pi SDK may not provide it
         const outputFile = session.sessionManager?.getSessionFile?.() ?? undefined;
         // Set the execution-state collaborator — born complete at session creation.
         record.execution = { session, outputFile };
@@ -282,7 +283,7 @@ export class AgentManager {
         }
         return responseText;
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         record.markError(err);
 
         unsubRecordObserver?.();
@@ -313,7 +314,7 @@ export class AgentManager {
     while (this.queue.length > 0 && this.runningBackground < this._getMaxConcurrent()) {
       const next = this.queue.shift()!;
       const record = this.agents.get(next.id);
-      if (!record || record.status !== "queued") continue;
+      if (record?.status !== "queued") continue;
       try {
         this.startAgent(next.id, record, next.args);
       } catch (err) {
@@ -402,6 +403,7 @@ export class AgentManager {
 
   /** Dispose a record's session and remove it from the map. */
   private removeRecord(id: string, record: AgentRecord): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dispose may not exist on all session implementations
     record.session?.dispose?.();
     this.agents.delete(id);
     this.pendingSteers.delete(id);
@@ -464,12 +466,13 @@ export class AgentManager {
   async waitForAll(): Promise<void> {
     // Loop because drainQueue respects the concurrency limit — as running
     // agents finish they start queued ones, which need awaiting too.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit break
     while (true) {
       this.drainQueue();
       const pending = [...this.agents.values()]
         .filter(r => r.status === "running" || r.status === "queued")
         .map(r => r.promise)
-        .filter(Boolean);
+        .filter((p): p is Promise<string> => p != null);
       if (pending.length === 0) break;
       await Promise.allSettled(pending);
     }

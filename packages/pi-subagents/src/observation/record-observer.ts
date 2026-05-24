@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- Pi SDK types are not fully exported; see upstream Pi SDK for type improvements */
 /**
  * record-observer.ts — Subscribes to session events and updates AgentRecord stats.
  *

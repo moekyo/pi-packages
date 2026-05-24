@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-redundant-type-constituents -- Pi SDK types are not fully exported; see upstream Pi SDK for type improvements */
 /**
  * agent-widget.ts — Persistent widget showing running/completed agents above the editor.
  *
@@ -76,9 +77,7 @@ export class AgentWidget {
   /** Ensure the widget update timer is running. */
   // fallow-ignore-next-line unused-class-member
   ensureTimer() {
-    if (!this.widgetInterval) {
-      this.widgetInterval = setInterval(() => this.update(), 80);
-    }
+    this.widgetInterval ??= setInterval(() => this.update(), 80);
   }
 
   /** Check if a finished agent should still be shown in the widget. */

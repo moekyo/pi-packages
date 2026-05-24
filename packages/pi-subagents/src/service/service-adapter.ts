@@ -26,7 +26,7 @@ export interface AgentManagerLike {
 /** Create a SubagentsService backed by the given dependencies. */
 export function createSubagentsService(
   manager: AgentManagerLike,
-  resolveModel: (input: string, registry: ModelRegistry) => unknown | string,
+  resolveModel: (input: string, registry: ModelRegistry) => unknown,
   getCtx: () => { pi: unknown; ctx: unknown } | undefined,
   getModelRegistry: () => ModelRegistry | undefined,
 ): SubagentsService {
@@ -85,7 +85,7 @@ export function createSubagentsService(
 
     async steer(id: string, message: string): Promise<boolean> {
       const record = manager.getRecord(id);
-      if (!record || record.status !== "running") {
+      if (record?.status !== "running") {
         return false;
       }
       const session = record.session;

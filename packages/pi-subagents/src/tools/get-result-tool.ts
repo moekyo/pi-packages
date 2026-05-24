@@ -79,7 +79,7 @@ export function createGetResultTool(
       } else if (record.status === "error") {
         output += `Error: ${record.error}`;
       } else {
-        output += record.result?.trim() || "No output.";
+        output += record.result?.trim() ?? "No output.";
       }
 
       // Mark result as consumed — suppresses the completion notification

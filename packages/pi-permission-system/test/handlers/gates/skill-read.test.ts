@@ -74,7 +74,7 @@ describe("describeSkillReadGate", () => {
       makeSkillEntry({ state: "ask" }),
     ]);
     expect(result).not.toBeNull();
-    const desc = result as GateDescriptor;
+    const desc = result!;
     expect(desc.preResolved).toEqual({ state: "ask" });
   });
 
@@ -83,7 +83,7 @@ describe("describeSkillReadGate", () => {
       makeSkillEntry({ state: "allow" }),
     ]);
     expect(result).not.toBeNull();
-    const desc = result as GateDescriptor;
+    const desc = result!;
     expect(desc.preResolved).toEqual({ state: "allow" });
   });
 
@@ -92,14 +92,14 @@ describe("describeSkillReadGate", () => {
       makeSkillEntry({ state: "deny" }),
     ]);
     expect(result).not.toBeNull();
-    const desc = result as GateDescriptor;
+    const desc = result!;
     expect(desc.preResolved).toEqual({ state: "deny" });
   });
 
   it("decision surface is 'skill' and decision value is the skill name", () => {
     const result = describeSkillReadGate(makeTcc(), () => [
       makeSkillEntry({ name: "my-skill" }),
-    ]) as GateDescriptor;
+    ])!;
     expect(result.decision.surface).toBe("skill");
     expect(result.decision.value).toBe("my-skill");
   });
@@ -107,7 +107,7 @@ describe("describeSkillReadGate", () => {
   it("denialContext contains the skill name and read path", () => {
     const result = describeSkillReadGate(makeTcc(), () => [
       makeSkillEntry({ name: "librarian" }),
-    ]) as GateDescriptor;
+    ])!;
     expect(result.denialContext).toEqual({
       kind: "skill_read",
       skillName: "librarian",
@@ -120,7 +120,7 @@ describe("describeSkillReadGate", () => {
     const result = describeSkillReadGate(
       makeTcc({ agentName: "test-agent", toolCallId: "tc-42" }),
       () => [makeSkillEntry({ name: "my-skill" })],
-    ) as GateDescriptor;
+    )!;
     expect(result.promptDetails).toMatchObject({
       source: "skill_read",
       agentName: "test-agent",
@@ -135,7 +135,7 @@ describe("describeSkillReadGate", () => {
     const result = describeSkillReadGate(
       makeTcc({ agentName: "agent-1" }),
       () => [makeSkillEntry({ name: "librarian" })],
-    ) as GateDescriptor;
+    )!;
     expect(result.logContext).toMatchObject({
       source: "skill_read",
       skillName: "librarian",
@@ -144,9 +144,7 @@ describe("describeSkillReadGate", () => {
   });
 
   it("surface is 'skill' on the descriptor", () => {
-    const result = describeSkillReadGate(makeTcc(), () => [
-      makeSkillEntry(),
-    ]) as GateDescriptor;
+    const result = describeSkillReadGate(makeTcc(), () => [makeSkillEntry()])!;
     expect(result.surface).toBe("skill");
   });
 });

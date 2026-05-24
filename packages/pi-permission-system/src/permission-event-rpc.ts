@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- this module implements the deprecated event-bus RPC channel; references to its own deprecated symbols are intentional */
 /**
  * Permission event bus RPC handlers.
  *
@@ -112,6 +113,7 @@ function handleCheckRpc(
     const data: PermissionsCheckReplyData = {
       result: result.state,
       matchedPattern: result.matchedPattern ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the reply record
       origin: result.origin ?? null,
     };
     events.emit(replyChannel, successReply(data));

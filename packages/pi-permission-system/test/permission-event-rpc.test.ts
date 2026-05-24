@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- tests the deprecated RPC channel implementation */
 import { createEventBus } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import {

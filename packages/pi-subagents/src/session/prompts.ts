@@ -57,7 +57,7 @@ Platform: ${env.platform}`;
     extraSections.length > 0 ? "\n\n" + extraSections.join("\n") : "";
 
   if (config.promptMode === "append") {
-    const identity = parentSystemPrompt || genericBase;
+    const identity = parentSystemPrompt ?? genericBase;
 
     const bridge = `<sub_agent_context>
 You are operating as a sub-agent invoked to handle a specific task.
@@ -72,7 +72,7 @@ You are operating as a sub-agent invoked to handle a specific task.
 - Be concise but complete
 </sub_agent_context>`;
 
-    const customSection = config.systemPrompt?.trim()
+    const customSection = config.systemPrompt.trim()
       ? `\n\n<agent_instructions>\n${config.systemPrompt}\n</agent_instructions>`
       : "";
 

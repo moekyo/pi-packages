@@ -87,6 +87,7 @@ export async function findRun(args: FindRunArgs): Promise<string> {
   let attempt = 0;
   let lastSeenRun: RunSummary | null = null;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit return/break
   while (true) {
     attempt++;
 
@@ -197,6 +198,7 @@ export async function watchRun(args: WatchRunArgs): Promise<string> {
   let elapsed = 0;
   const progressLog: string[] = [];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit return/break
   while (true) {
     if (signal?.aborted) {
       return [

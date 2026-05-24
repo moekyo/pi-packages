@@ -78,7 +78,7 @@ export class PermissionManager {
   }
 
   private resolvePermissions(agentName?: string): ResolvedPermissions {
-    const cacheKey = agentName || "__global__";
+    const cacheKey = agentName ?? "__global__";
     const stamp = this.loader.getCacheStamp(agentName);
     const cached = this.resolvedPermissionsCache.get(cacheKey);
     if (cached?.stamp === stamp) {
@@ -107,17 +107,19 @@ export class PermissionManager {
 
       for (const [surface, value] of Object.entries(scope.permission)) {
         const baseVal = mergedPermission[surface];
+        /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive null/type checks; config values may differ at runtime */
         const bothObjects =
           typeof baseVal === "object" &&
           baseVal !== null &&
           typeof value === "object" &&
           value !== null;
+        /* eslint-enable @typescript-eslint/no-unnecessary-condition */
 
         if (bothObjects) {
           // Shallow-merge: each incoming pattern is attributed to this scope;
           // existing patterns from lower scopes keep their earlier origin.
           if (!origins.has(surface)) origins.set(surface, new Map());
-          for (const pattern of Object.keys(value as Record<string, unknown>)) {
+          for (const pattern of Object.keys(value)) {
             origins.get(surface)!.set(pattern, scopeName);
           }
         } else {
@@ -125,10 +127,9 @@ export class PermissionManager {
           const surfaceOrigins = new Map<string, RuleOrigin>();
           if (typeof value === "string") {
             surfaceOrigins.set("*", scopeName);
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive null check
           } else if (typeof value === "object" && value !== null) {
-            for (const pattern of Object.keys(
-              value as Record<string, unknown>,
-            )) {
+            for (const pattern of Object.keys(value)) {
               surfaceOrigins.set(pattern, scopeName);
             }
           }
@@ -146,7 +147,7 @@ export class PermissionManager {
     // The "*" key feeds synthesizeDefaults() only — it is NOT included as a
     // config rule so that extension tools fall through to source:"default".
     const universalFallback = isPermissionState(mergedPermission["*"])
-      ? (mergedPermission["*"] as PermissionState)
+      ? mergedPermission["*"]
       : DEFAULT_UNIVERSAL_FALLBACK;
     // Track which scope contributed the universal fallback.
     const universalFallbackOrigin: RuleOrigin =

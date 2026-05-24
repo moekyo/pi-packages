@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions -- Pi SDK types are not fully exported; see upstream Pi SDK for type improvements */
 import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
@@ -170,7 +171,7 @@ Guidelines:
       const displayName = args.subagent_type
         ? getDisplayName(args.subagent_type as string, registry)
         : "Agent";
-      const desc = (args.description as string) ?? "";
+      const desc = (args.description as string | undefined) ?? "";
       return new Text(
         "▸ " +
           theme.fg("toolTitle", theme.bold(displayName)) +
@@ -325,7 +326,7 @@ Guidelines:
           return textResult(`Failed to resume agent "${params.resume}".`);
         }
         return textResult(
-          record.result?.trim() || record.error?.trim() || "No output.",
+          record.result?.trim() ?? record.error?.trim() ?? "No output.",
           buildDetails(config.detailBase, record),
         );
       }

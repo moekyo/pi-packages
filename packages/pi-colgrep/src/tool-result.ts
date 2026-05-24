@@ -22,7 +22,7 @@ export function ok<TDetails = undefined>(
   };
 }
 
-export function err(text: string): ToolResult<undefined> {
+export function err(text: string): ToolResult {
   return {
     content: [{ type: "text", text }],
     details: undefined,

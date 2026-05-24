@@ -175,6 +175,7 @@ export function prefix(tokens: string[]): string[] {
       .map((t) => t.toLowerCase())
       .join(" ");
     const arity = ARITY[key];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ARITY record type hides that a key may be absent at runtime
     if (arity !== undefined) {
       return tokens.slice(0, Math.min(arity, tokens.length));
     }

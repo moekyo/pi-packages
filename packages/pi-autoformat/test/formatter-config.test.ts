@@ -26,7 +26,7 @@ describe("createFormatterConfig", () => {
 
     const config = createFormatterConfig(userConfig);
 
-    expect(config.formatters.prettier?.command).toEqual([
+    expect(config.formatters.prettier.command).toEqual([
       "pnpm",
       "exec",
       "prettier",
@@ -46,7 +46,7 @@ describe("createFormatterConfig", () => {
 
     const config = createFormatterConfig(userConfig);
 
-    expect(config.formatters.prettier?.disabled).toBe(true);
+    expect(config.formatters.prettier.disabled).toBe(true);
   });
 
   it("does not include notifyAgent in the default config", () => {

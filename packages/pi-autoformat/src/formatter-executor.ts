@@ -207,6 +207,7 @@ export async function executeChainGroupWithPartition(
       const nixAlt = step.alternatives.find(
         (a) => a.builtin?.name === "treefmt-nix" && probe(a.command[0] ?? ""),
       );
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- builtin may be absent on custom formatters
       if (nixAlt && chosen.builtin && nixAlt.builtin) {
         const treefmtRoot = await chosen.builtin.discoverRoot(
           working,

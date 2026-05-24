@@ -61,6 +61,7 @@ function toOnOff(value: boolean): string {
 }
 
 function formatRulesSummary(rules: Ruleset): string {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- origin may be absent despite its type
   const configRules = rules.filter((r) => r.layer === "config" && r.origin);
   if (configRules.length === 0) return "";
   const formatted = configRules
@@ -171,6 +172,7 @@ async function openSettingsModal(
     margin: 1,
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type -- ctx.ui.custom<void> is valid; rule does not allow void in generic fn call type args
   await ctx.ui.custom<void>(
     (_tui, _theme, _keybindings, done) => {
       let current = controller.getConfig();

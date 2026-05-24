@@ -32,7 +32,7 @@ function ansiTheme() {
   return {
     fg: (_color: string, text: string) => `\x1b[38;5;240m${text}\x1b[0m`,
     bold: (text: string) => `\x1b[1m${text}\x1b[22m`,
-  } as unknown as Theme;
+  };
 }
 
 function assertAllLinesFit(lines: string[], width: number) {

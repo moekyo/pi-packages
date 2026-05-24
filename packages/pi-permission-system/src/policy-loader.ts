@@ -169,12 +169,12 @@ export class FilePolicyLoader implements PolicyLoader {
 
   constructor(options: PolicyLoaderOptions = {}) {
     this.globalConfigPath =
-      options.globalConfigPath || defaultGlobalConfigPath();
-    this.agentsDir = options.agentsDir || defaultAgentsDir();
-    this.projectGlobalConfigPath = options.projectGlobalConfigPath || null;
-    this.projectAgentsDir = options.projectAgentsDir || null;
+      options.globalConfigPath ?? defaultGlobalConfigPath();
+    this.agentsDir = options.agentsDir ?? defaultAgentsDir();
+    this.projectGlobalConfigPath = options.projectGlobalConfigPath ?? null;
+    this.projectAgentsDir = options.projectAgentsDir ?? null;
     this.globalMcpConfigPath =
-      options.globalMcpConfigPath || defaultGlobalMcpConfigPath();
+      options.globalMcpConfigPath ?? defaultGlobalMcpConfigPath();
     this.configuredMcpServerNamesOverride = options.mcpServerNames
       ? [
           ...new Set(

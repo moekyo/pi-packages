@@ -40,13 +40,11 @@ async function initParser(): Promise<TSParser> {
   const bashWasm = req.resolve("tree-sitter-bash/tree-sitter-bash.wasm");
   const bash = await Language.load(bashWasm);
   parser.setLanguage(bash);
-  return parser as TSParser;
+  return parser;
 }
 
 function getParser(): Promise<TSParser> {
-  if (!parserPromise) {
-    parserPromise = initParser();
-  }
+  parserPromise ??= initParser();
   return parserPromise;
 }
 
@@ -83,7 +81,7 @@ function resolveNodeText(node: TSNode): string {
     case "raw_string": {
       // Strip surrounding single quotes: 'content' → content
       const t = node.text;
-      if (t.length >= 2 && t[0] === "'" && t[t.length - 1] === "'") {
+      if (t.length >= 2 && t.startsWith("'") && t.endsWith("'")) {
         return t.slice(1, -1);
       }
       return t;

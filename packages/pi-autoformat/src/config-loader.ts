@@ -126,6 +126,7 @@ function validateStringArray(
 
   const normalized: string[] = [];
   for (let index = 0; index < value.length; index += 1) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const entry = value[index];
     if (typeof entry !== "string" || entry.length === 0) {
       pushIssue(
@@ -349,6 +350,7 @@ function validateFallbackStep(
   const names: string[] = [];
   let nameError = false;
   for (let index = 0; index < fallbackValue.length; index += 1) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const entry = fallbackValue[index];
     if (typeof entry !== "string" || entry.length === 0) {
       pushIssue(
@@ -498,6 +500,7 @@ function validateFormatScope(
   if (Array.isArray(value)) {
     const result: string[] = [];
     for (let index = 0; index < value.length; index += 1) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const entry = value[index];
       if (typeof entry !== "string" || entry.length === 0) {
         pushIssue(
@@ -631,6 +634,7 @@ function validateShellMutationDetection(
       const globs: string[] = [];
       let valid = true;
       for (let index = 0; index < entry.length; index += 1) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const glob = entry[index];
         if (typeof glob !== "string" || glob.length === 0) {
           pushIssue(
@@ -765,6 +769,7 @@ function validateCustomMutationToolEntry(
       }
       const collected: string[] = [];
       for (let index = 0; index < entry.length; index += 1) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const item = entry[index];
         if (typeof item !== "string" || item.length === 0) {
           pushIssue(
@@ -814,7 +819,7 @@ function validateCustomMutationToolEntry(
   seenToolNames.add(toolName);
   return pathField !== undefined
     ? { toolName, pathField }
-    : { toolName, pathFields: pathFields as string[] };
+    : { toolName, pathFields: pathFields! };
 }
 
 function validateCustomMutationTools(
@@ -870,7 +875,7 @@ function validateFormatterOutput(
   for (const [key, entry] of Object.entries(value)) {
     if (key === "onFailure") {
       if (entry === "none" || entry === "stderr" || entry === "both") {
-        result.onFailure = entry as FormatterOutputOnFailure;
+        result.onFailure = entry;
         continue;
       }
       pushIssue(
@@ -1103,7 +1108,7 @@ function validateConfigObject(
       ...Object.keys(BUILTIN_FORMATTERS),
     ]);
     const chains = validateChains(
-      (value as Record<string, unknown>).chains,
+      value.chains,
       issues,
       sourcePath,
       knownFormatterNames,
@@ -1123,7 +1128,7 @@ export function validateUserFormatterConfig(
   return validateConfigObject(value, sourcePath);
 }
 
-function readJsonFile(filePath: string): unknown | undefined {
+function readJsonFile(filePath: string): unknown {
   if (!existsSync(filePath)) {
     return undefined;
   }

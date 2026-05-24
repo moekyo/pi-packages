@@ -69,15 +69,18 @@ export async function runCommand(
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      return reject(
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- AbortSignal.reason is not guaranteed to be an Error
+      reject(
         signal.reason ??
           new DOMException("The operation was aborted.", "AbortError"),
       );
+      return;
     }
 
     const onAbort = signal
       ? () => {
           clearTimeout(timer);
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- AbortSignal.reason is not guaranteed to be an Error
           reject(
             signal.reason ??
               new DOMException("The operation was aborted.", "AbortError"),

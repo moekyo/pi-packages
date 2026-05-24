@@ -70,9 +70,9 @@ function parseSkillEntries(sectionBody: string): ParsedSkillPromptEntry[] {
 
   for (const match of sectionBody.matchAll(skillBlockRegex)) {
     const block = match[1];
-    const nameMatch = block.match(SKILL_NAME_REGEX);
-    const descriptionMatch = block.match(SKILL_DESCRIPTION_REGEX);
-    const locationMatch = block.match(SKILL_LOCATION_REGEX);
+    const nameMatch = SKILL_NAME_REGEX.exec(block);
+    const descriptionMatch = SKILL_DESCRIPTION_REGEX.exec(block);
+    const locationMatch = SKILL_LOCATION_REGEX.exec(block);
 
     if (!nameMatch || !descriptionMatch || !locationMatch) {
       continue;

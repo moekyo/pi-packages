@@ -69,6 +69,7 @@ function getContextSystemPrompt(ctx: ExtensionContext): string | undefined {
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- getSystemPrompt is a Pi SDK accessor returning any
     const systemPrompt = getSystemPrompt.call(ctx);
     return typeof systemPrompt === "string" ? systemPrompt : undefined;
   } catch (error) {
@@ -135,8 +136,8 @@ export async function waitForForwardedPermissionApproval(
 
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${process.pid}`;
   const requesterAgentName =
-    getActiveAgentName(ctx) ||
-    getActiveAgentNameFromSystemPrompt(getContextSystemPrompt(ctx)) ||
+    getActiveAgentName(ctx) ??
+    getActiveAgentNameFromSystemPrompt(getContextSystemPrompt(ctx)) ??
     "unknown";
   const request: ForwardedPermissionRequest = {
     id: requestId,

@@ -35,7 +35,7 @@ function buildReverseAliases(
   const reverse = new Map<string, string[]>();
 
   for (const [alias, canonical] of Object.entries(aliases)) {
-    const existing = reverse.get(canonical) || [];
+    const existing = reverse.get(canonical) ?? [];
     if (!existing.includes(alias)) {
       existing.push(alias);
     }

@@ -48,9 +48,7 @@ export function registerReleasePrMerge(pi: ExtensionAPI): void {
         });
         const result = await mergeReleasePR({
           prNumber: params.pr_number,
-          method: (params.method ?? config.defaultMergeMethod) as
-            | MergeMethod
-            | undefined,
+          method: params.method ?? config.defaultMergeMethod,
           signal,
         });
         return result.isError ? err(result.content) : ok(result.content);

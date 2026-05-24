@@ -38,7 +38,7 @@ const mockAgentLookup = {
     ...agentConfigMock.current,
     promptMode: agentConfigMock.current.promptMode as "replace" | "append",
   })),
-  getToolNamesForType: vi.fn((): string[] => agentConfigMock.current.builtinToolNames ?? ["read"]),
+  getToolNamesForType: vi.fn((): string[] => agentConfigMock.current.builtinToolNames ?? ["read"]), // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- builtinToolNames is always defined in type but may be absent at runtime
 };
 
 import { runAgent } from "#src/lifecycle/agent-runner";
@@ -105,7 +105,7 @@ import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 
 const snapshot: ParentSnapshot = {
   cwd: "/tmp",
-  model: undefined as unknown,
+  model: undefined,
   modelRegistry: { find: vi.fn(), getAvailable: vi.fn(() => []) },
   systemPrompt: "parent prompt",
 };

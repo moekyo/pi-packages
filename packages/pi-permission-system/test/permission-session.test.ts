@@ -122,7 +122,7 @@ function makePermissionManager(
       toolName: "read",
       source: "tool",
       origin: "builtin",
-    } as PermissionCheckResult),
+    }),
     getToolPermission: vi.fn().mockReturnValue("allow"),
     getConfigIssues: vi.fn().mockReturnValue([]),
     getPolicyCacheStamp: vi.fn().mockReturnValue("stamp-1"),
@@ -260,7 +260,7 @@ describe("PermissionSession", () => {
           toolName: "bash",
           source: "bash",
           origin: "global",
-        } as PermissionCheckResult),
+        }),
       });
       mockCreatePermissionManagerForCwd.mockReturnValue(pm2);
       const { session } = createSession();

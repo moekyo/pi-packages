@@ -247,7 +247,7 @@ describe("validateUserFormatterConfig", () => {
       expect(shadow).toHaveLength(1);
       expect(shadow[0]?.message).toMatch(/built-in|builtin/i);
       // The user's definition still wins (escape hatch).
-      expect(result.config.formatters?.treefmt?.command).toEqual([
+      expect(result.config.formatters?.treefmt.command).toEqual([
         "treefmt",
         "--ci",
       ]);
@@ -387,13 +387,13 @@ describe("loadAutoformatConfig", () => {
 
     expect(result.config.commandTimeoutMs).toBe(5000);
     expect(result.config.hideSummariesInTui).toBe(true);
-    expect(result.config.formatters.prettier?.command).toEqual([
+    expect(result.config.formatters.prettier.command).toEqual([
       "pnpm",
       "exec",
       "prettier",
       "--write",
     ]);
-    expect(result.config.formatters["markdownlint-cli2"]?.command).toEqual([
+    expect(result.config.formatters["markdownlint-cli2"].command).toEqual([
       "pnpm",
       "exec",
       "markdownlint-cli2",

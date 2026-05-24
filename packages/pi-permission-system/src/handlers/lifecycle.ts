@@ -26,7 +26,7 @@ export class SessionLifecycleHandler {
     private readonly cleanupRpc: () => void,
   ) {}
 
-  async handleSessionStart(
+  handleSessionStart(
     event: SessionStartPayload,
     ctx: ExtensionContext,
   ): Promise<void> {
@@ -48,13 +48,12 @@ export class SessionLifecycleHandler {
         cwd: ctx.cwd,
       });
     }
+    return Promise.resolve();
   }
 
-  async handleResourcesDiscover(
-    event: ResourcesDiscoverPayload,
-  ): Promise<void> {
+  handleResourcesDiscover(event: ResourcesDiscoverPayload): Promise<void> {
     if (event.reason !== "reload") {
-      return;
+      return Promise.resolve();
     }
 
     const { session } = this;
@@ -64,9 +63,10 @@ export class SessionLifecycleHandler {
       reason: event.reason,
       cwd: session.getRuntimeContext()?.cwd ?? null,
     });
+    return Promise.resolve();
   }
 
-  async handleSessionShutdown(): Promise<void> {
+  handleSessionShutdown(): Promise<void> {
     const { session } = this;
     const ctx = session.getRuntimeContext();
     if (ctx) {
@@ -74,5 +74,6 @@ export class SessionLifecycleHandler {
     }
     session.shutdown();
     this.cleanupRpc();
+    return Promise.resolve();
   }
 }

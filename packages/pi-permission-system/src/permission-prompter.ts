@@ -148,6 +148,7 @@ export class PermissionPrompter implements PermissionPrompterApi {
   private buildForwardingDeps(): PermissionForwardingDeps {
     const { deps } = this;
     const logger: ForwardedPermissionLogger = {
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- logger methods are plain function closures; no this-binding issue
       writeReviewLog: deps.writeReviewLog,
       writeDebugLog: () => undefined,
     };
@@ -155,7 +156,9 @@ export class PermissionPrompter implements PermissionPrompterApi {
       forwardingDir: deps.forwardingDir,
       subagentSessionsDir: deps.subagentSessionsDir,
       logger,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- logger methods are plain function closures; no this-binding issue
       writeReviewLog: deps.writeReviewLog,
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- same as above
       requestPermissionDecisionFromUi: deps.requestPermissionDecisionFromUi,
       shouldAutoApprove: () => false,
     };

@@ -299,7 +299,7 @@ export class ConversationViewer implements Component {
       } else if (isBashExecution(msg)) {
         if (needsSeparator) lines.push(th.fg("dim", "───"));
         lines.push(truncateToWidth(th.fg("muted", `  $ ${msg.command}`), width));
-        if (msg.output?.trim()) {
+        if (msg.output.trim()) {
           const out = msg.output.length > 500
             ? msg.output.slice(0, 500) + "... (truncated)"
             : msg.output;

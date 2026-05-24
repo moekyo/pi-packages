@@ -137,7 +137,7 @@ class TestPi {
     ctx: TestContext,
   ): Promise<void> {
     for (const handler of this.handlers.get(eventName) ?? []) {
-      await handler(event as never, ctx as unknown as ExtensionContext);
+      await handler(event as never, ctx);
     }
   }
 }
@@ -525,7 +525,7 @@ describe("createAutoformatExtension", () => {
     const statusTexts = setStatus.mock.calls.map((c) => c[1] as string);
     expect(
       statusTexts.some((m) =>
-        /prettier \(fallback after biome unavailable\)/.test(m),
+        m.includes("prettier (fallback after biome unavailable)"),
       ),
     ).toBe(true);
   });

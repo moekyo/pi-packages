@@ -52,7 +52,7 @@ function makeSession(
     activate: vi.fn(),
     refreshConfig: vi.fn(),
     resolveAgentName: vi.fn().mockReturnValue(null),
-    getToolPermission: vi.fn().mockReturnValue("allow" as PermissionState),
+    getToolPermission: vi.fn().mockReturnValue("allow"),
     checkPermission: vi.fn().mockReturnValue({ state: "allow" }),
     shouldUpdateActiveTools: vi.fn().mockReturnValue(true),
     commitActiveToolsCacheKey: vi.fn(),

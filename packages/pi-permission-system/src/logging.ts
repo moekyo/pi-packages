@@ -21,12 +21,15 @@ export function safeJsonStringify(value: unknown): string | undefined {
     }
 
     if (typeof currentValue === "object" && currentValue !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- JSON.stringify replacer receives any; currentValue is narrowed to object here
       if (seen.has(currentValue)) {
         return "[Circular]";
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- same as above
       seen.add(currentValue);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- JSON.stringify replacer must return any
     return currentValue;
   });
 }

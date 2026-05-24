@@ -49,7 +49,7 @@ export function getActiveAgentNameFromSystemPrompt(
     return null;
   }
 
-  const match = systemPrompt.match(ACTIVE_AGENT_TAG_REGEX);
+  const match = ACTIVE_AGENT_TAG_REGEX.exec(systemPrompt);
   if (!match?.[1]) {
     return null;
   }

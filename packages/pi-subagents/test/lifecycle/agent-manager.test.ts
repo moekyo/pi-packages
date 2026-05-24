@@ -67,7 +67,7 @@ describe("AgentManager — Bug 1 race condition (notification.resultConsumed vs 
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("reproduces bug: onComplete fires with resultConsumed=false when markConsumed called after await", async () => {
@@ -145,7 +145,7 @@ describe("AgentManager — completion callbacks", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("does not let onComplete errors turn a completed agent into a failed run", async () => {
@@ -167,7 +167,7 @@ describe("AgentManager — cleanup timer", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("does not keep the process alive on its own", () => {
@@ -181,7 +181,7 @@ describe("AgentManager — Bug 3 clearCompleted", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("clearCompleted removes completed records", async () => {
@@ -280,7 +280,7 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("spawn initializes lifetimeUsage to zeros and compactionCount to 0", () => {
@@ -404,7 +404,7 @@ describe("AgentManager — getRunConfig threads defaultMaxTurns and graceTurns i
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("passes defaultMaxTurns and graceTurns from getRunConfig to runAgent", async () => {
@@ -445,7 +445,7 @@ describe("AgentManager — parent session threading", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("threads parentSessionFile and parentSessionId from AgentSpawnConfig to RunOptions", async () => {
@@ -479,7 +479,7 @@ describe("AgentManager — isolation: worktree fails loud, no silent fallback", 
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("spawn() throws when worktrees.create returns undefined; no orphan record left behind", async () => {
@@ -509,7 +509,7 @@ describe("AgentManager — dependency injection via options bag", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("calls injected runner.run when spawning an agent", async () => {
@@ -631,13 +631,13 @@ describe("AgentManager — queueing and concurrency with injected stubs", () => 
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("queues excess background agents and drains them in order", async () => {
     const startOrder: string[] = [];
-    const { promise: gate1, resolve: resolve1 } = Promise.withResolvers<void>();
-    const { promise: gate2, resolve: resolve2 } = Promise.withResolvers<void>();
+    const { promise: gate1, resolve: resolve1 } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+    const { promise: gate2, resolve: resolve2 } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
 
     let callCount = 0;
     const runner: AgentRunner = {
@@ -665,13 +665,13 @@ describe("AgentManager — queueing and concurrency with injected stubs", () => 
     expect(manager.getRecord(id2)!.status).toBe("queued");
 
     // Complete first agent — second should start
-    resolve1!();
+    resolve1();
     await manager.getRecord(id1)!.promise;
 
     // Wait for the second to start
     await vi.waitFor(() => expect(manager.getRecord(id2)!.status).toBe("running"));
 
-    resolve2!();
+    resolve2();
     await manager.getRecord(id2)!.promise;
 
     expect(startOrder).toEqual(["start-1", "start-2"]);
@@ -708,7 +708,7 @@ describe("AgentManager — queueing and concurrency with injected stubs", () => 
 
   it("onStart fires when agent transitions from queued to running", async () => {
     const startedIds: string[] = [];
-    const { promise: gate, resolve } = Promise.withResolvers<void>();
+    const { promise: gate, resolve } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
 
     let callCount = 0;
     const runner: AgentRunner = {
@@ -736,7 +736,7 @@ describe("AgentManager — queueing and concurrency with injected stubs", () => 
     expect(startedIds).toEqual([id1]);
 
     // Complete first — second should start and fire onStart
-    resolve!();
+    resolve();
     await manager.getRecord(id1)!.promise;
     await vi.waitFor(() => expect(startedIds).toHaveLength(2));
 
@@ -750,7 +750,7 @@ describe("AgentManager — execution state", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("sets record.execution with session and outputFile after session creation", async () => {
@@ -798,7 +798,7 @@ describe("AgentManager — queueSteer", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("returns false for an unknown agent id", () => {
@@ -850,7 +850,7 @@ describe("AgentManager — onAgentCreated observer", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("fires onAgentCreated when a background agent is spawned", () => {
@@ -902,7 +902,7 @@ describe("AgentManager — onSessionCreated callback receives record", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("passes record as second argument to onSessionCreated callback", async () => {
@@ -958,7 +958,7 @@ describe("AgentManager — toolCallId notification wiring", () => {
   let manager: AgentManager;
 
   afterEach(() => {
-    manager?.dispose();
+    manager.dispose();
   });
 
   it("wires NotificationState on spawn when toolCallId is provided", () => {

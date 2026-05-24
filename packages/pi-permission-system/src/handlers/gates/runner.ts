@@ -61,6 +61,7 @@ export async function runGateCheck(
       value: descriptor.decision.value,
       result: "allow",
       resolution: "session_approved",
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
       origin: check.origin ?? null,
       agentName: agentName ?? null,
       matchedPattern: check.matchedPattern ?? null,
@@ -107,6 +108,7 @@ export async function runGateCheck(
       autoApproved = decision.autoApproved === true;
       return decision;
     },
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- logger methods are plain functions; no this-binding issue
     writeLog: deps.writeReviewLog,
     logContext: { ...descriptor.logContext, agentName },
     messages,
@@ -128,6 +130,7 @@ export async function runGateCheck(
       canConfirm,
       autoApproved,
     ),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
     origin: check.origin ?? null,
     agentName: agentName ?? null,
     matchedPattern: check.matchedPattern ?? null,

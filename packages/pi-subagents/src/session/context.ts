@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- Pi SDK types are not fully exported; see upstream Pi SDK for type improvements */
 /**
  * context.ts — Extract parent conversation context for subagent inheritance.
  */
@@ -19,6 +20,7 @@ export function extractText(content: unknown[]): string {
  */
 export function buildParentContext(ctx: ExtensionContext): string {
   const entries = ctx.sessionManager.getBranch();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getBranch() may return undefined at runtime despite its type
   if (!entries || entries.length === 0) return "";
 
   const parts: string[] = [];

@@ -71,5 +71,6 @@ export function getPermissionsService(): PermissionsService | undefined {
  * extension is torn down.
  */
 export function unpublishPermissionsService(): void {
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- Symbol-keyed global property; Map.delete() is not applicable
   delete (globalThis as Record<symbol, unknown>)[SERVICE_KEY];
 }

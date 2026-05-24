@@ -55,6 +55,7 @@ function walkUp(
   for (const file of files) {
     let dir = path.dirname(path.resolve(file));
     const visited: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit breaks
     while (true) {
       if (cache?.has(dir)) {
         const cached = cache.get(dir) ?? null;
@@ -115,8 +116,8 @@ function treefmtConfigPath(root: string): string {
 
 const treefmt: BuiltinFormatter = {
   name: "treefmt",
-  async discoverRoot(files, context) {
-    return walkUp(files, hasTreefmtConfig, context?.cache);
+  discoverRoot(files, context): Promise<string | undefined> {
+    return Promise.resolve(walkUp(files, hasTreefmtConfig, context?.cache));
   },
   buildCommand(root, files) {
     return {
@@ -161,8 +162,8 @@ function looksLikeNixTransient(stderr: string): boolean {
 
 const treefmtNix: BuiltinFormatter = {
   name: "treefmt-nix",
-  async discoverRoot(files, context) {
-    return walkUp(files, hasTreefmtNixConfig, context?.cache);
+  discoverRoot(files, context): Promise<string | undefined> {
+    return Promise.resolve(walkUp(files, hasTreefmtNixConfig, context?.cache));
   },
   buildCommand(root, files) {
     return {

@@ -45,6 +45,7 @@ export class AgentPrepHandler {
     private readonly toolRegistry: ToolRegistry,
   ) {}
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async handle(
     event: BeforeAgentStartPayload,
     ctx: ExtensionContext,

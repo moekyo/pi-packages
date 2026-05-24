@@ -93,7 +93,7 @@ describe("describeToolGate", () => {
   it("populates denialContext with agent name when provided", () => {
     const check = makeCheckResult("ask", { toolName: "read" });
     const desc = describeToolGate(makeTcc({ agentName: "my-agent" }), check);
-    expect(desc.denialContext!.agentName).toBe("my-agent");
+    expect(desc.denialContext.agentName).toBe("my-agent");
   });
 
   it("populates denialContext with input for tool context", () => {

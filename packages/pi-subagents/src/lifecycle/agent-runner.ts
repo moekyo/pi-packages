@@ -246,7 +246,7 @@ function forwardAbortSignal(
   signal?: AbortSignal,
 ): () => void {
   if (!signal) return () => {};
-  const onAbort = () => session.abort();
+  const onAbort = (): void => { void session.abort(); };
   signal.addEventListener("abort", onAbort, { once: true });
   return () => signal.removeEventListener("abort", onAbort);
 }
@@ -375,12 +375,12 @@ export async function runAgent(
       if (maxTurns != null) {
         if (!softLimitReached && turnCount >= maxTurns) {
           softLimitReached = true;
-          session.steer(
+          void session.steer(
             "You have reached your turn limit. Wrap up immediately — provide your final answer now.",
           );
         } else if (softLimitReached && turnCount >= maxTurns + (options.graceTurns ?? 5)) {
           aborted = true;
-          session.abort();
+          void session.abort();
         }
       }
     }

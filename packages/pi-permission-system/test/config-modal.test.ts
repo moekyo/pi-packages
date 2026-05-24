@@ -68,7 +68,7 @@ function createCommandContext(hasUI: boolean): {
 }
 
 function lastNotification(notifications: Notification[]): Notification {
-  return notifications[notifications.length - 1] as Notification;
+  return notifications[notifications.length - 1];
 }
 
 test("permission-system command completions expose top-level config actions", () => {
@@ -101,7 +101,7 @@ test("permission-system command completions expose top-level config actions", ()
           definition = nextDefinition;
         },
       } as never,
-      controller as never,
+      controller,
     );
 
     expect(definition!.getArgumentCompletions).toBeTypeOf("function");
@@ -172,13 +172,11 @@ test("permission-system command handlers manage config summary, persistence, and
           definition = nextDefinition;
         },
       } as never,
-      controller as never,
+      controller,
     );
 
     expect(registeredName).toBe("permission-system");
-    expect(definition!.description ?? "").toContain(
-      "Configure pi-permission-system",
-    );
+    expect(definition!.description).toContain("Configure pi-permission-system");
 
     const infoCtx = createCommandContext(true);
     await definition!.handler("show", infoCtx.ctx);
@@ -267,7 +265,7 @@ test("show output includes rule origins when getComposedRules is provided", asyn
         definition = nextDef;
       },
     } as never,
-    controller as never,
+    controller,
   );
 
   const ctx = createCommandContext(true);
@@ -300,7 +298,7 @@ test("show output omits rule summary when getComposedRules is not provided", asy
         definition = nextDef;
       },
     } as never,
-    controller as never,
+    controller,
   );
 
   const ctx = createCommandContext(true);

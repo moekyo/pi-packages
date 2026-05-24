@@ -262,6 +262,7 @@ export function readForwardedPermissionRequest(
     const raw = readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<ForwardedPermissionRequest>;
     if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.parse can return null for the string "null"
       !parsed ||
       typeof parsed.id !== "string" ||
       typeof parsed.createdAt !== "number" ||
@@ -303,6 +304,7 @@ export function readForwardedPermissionResponse(
     const raw = readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<ForwardedPermissionResponse>;
     if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.parse can return null for the string "null"
       !parsed ||
       typeof parsed.approved !== "boolean" ||
       !isPermissionDecisionState(parsed.state) ||

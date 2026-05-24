@@ -38,7 +38,7 @@ export function formatAskPrompt(
     const patternInfo = result.matchedPattern
       ? ` (matched '${result.matchedPattern}')`
       : "";
-    return `${subject} requested bash command '${result.command || ""}'${patternInfo}. Allow this command?`;
+    return `${subject} requested bash command '${result.command ?? ""}'${patternInfo}. Allow this command?`;
   }
 
   if ((result.source === "mcp" || result.toolName === "mcp") && result.target) {

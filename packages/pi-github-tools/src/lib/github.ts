@@ -100,7 +100,7 @@ export async function detectRepo(): Promise<RepoInfo> {
   }
 
   const remoteUrl = await git(["remote", "get-url", "origin"]);
-  const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)/);
+  const match = /github\.com[:/]([^/]+)\/([^/.]+)/.exec(remoteUrl);
   if (!match) {
     throw new Error("Could not detect GitHub repository from git remote");
   }

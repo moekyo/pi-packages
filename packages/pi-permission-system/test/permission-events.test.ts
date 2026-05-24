@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated -- tests the deprecated RPC channel implementation */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -164,6 +165,7 @@ describe("type shapes (PermissionsRpcReply)", () => {
       error: "no_ui",
     };
     expect(reply.success).toBe(false);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- narrowing on discriminated union
     if (!reply.success) {
       expect(reply.error).toBe("no_ui");
     }

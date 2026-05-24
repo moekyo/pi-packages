@@ -130,9 +130,9 @@ export async function runRpcSession(
       const events: RpcEvent[] = [];
       for (const message of messages) {
         if (message.type === "response") {
-          responses.push(message as RpcResponse);
+          responses.push(message);
         } else {
-          events.push(message as RpcEvent);
+          events.push(message);
         }
       }
       resolvePromise({ responses, events, stderr, exitCode: code });

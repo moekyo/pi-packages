@@ -80,6 +80,7 @@ export async function runForeground(
     };
     onUpdate?.({
       content: [{ type: "text", text: `${toolUses} tool uses...` }],
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Pi SDK ToolCallUpdate details type is not exported
       details: details as any,
     });
   };
@@ -151,7 +152,7 @@ export async function runForeground(
   if (tokenText) statsParts.push(tokenText);
   return textResult(
     `${fallbackNote}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${getStatusNote(record.status)}.\n\n` +
-      (record.result?.trim() || "No output."),
+      (record.result?.trim() ?? "No output."),
     details,
   );
 }

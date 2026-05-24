@@ -10,7 +10,8 @@ export interface AskPermissionResolutionOptions {
 export function isYoloModeEnabled(
   config: PermissionSystemExtensionConfig,
 ): boolean {
-  return config.yoloMode === true;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-conversion -- typed as boolean but may be undefined at runtime (untyped callers); Boolean() guards against that
+  return Boolean(config.yoloMode);
 }
 
 export function shouldAutoApprovePermissionState(

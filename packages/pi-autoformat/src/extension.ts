@@ -222,7 +222,7 @@ function extractBashCommand(payload: unknown): string | undefined {
     typeof payload === "object" &&
     payload !== null &&
     "command" in payload &&
-    typeof (payload as { command: unknown }).command === "string"
+    typeof payload.command === "string"
   ) {
     return (payload as { command: string }).command;
   }
@@ -235,6 +235,7 @@ function subscribeToEventBus(
   autoformatter: PromptAutoformatterLike,
 ): (() => void) | undefined {
   const channelConfig = config.eventBusMutationChannel;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- pi.events may not exist in all Pi versions
   if (!channelConfig.enabled || !pi.events) {
     return undefined;
   }
@@ -254,6 +255,7 @@ function extractToolOutputText(
   }
   const parts: string[] = [];
   for (const item of content) {
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- content items may be falsy at runtime */
     if (
       item &&
       "text" in item &&
@@ -261,6 +263,7 @@ function extractToolOutputText(
     ) {
       parts.push((item as { text: string }).text);
     }
+    /* eslint-enable @typescript-eslint/no-unnecessary-condition */
   }
   return parts.join("\n");
 }
@@ -411,6 +414,7 @@ function themed(
   text: string,
 ): string {
   const theme = ctx.ui.theme;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Pi theme API not fully typed
   if (!theme || typeof theme.fg !== "function") {
     return text;
   }
@@ -630,7 +634,7 @@ export function createAutoformatExtension(
   );
 
   function ensureState(cwd: string): SessionState {
-    if (state && state.cwd === cwd) {
+    if (state?.cwd === cwd) {
       return state;
     }
 
@@ -685,13 +689,13 @@ export function createAutoformatExtension(
     return pendingFlush;
   }
 
-  pi.on("session_start", async (_event, ctx) => {
+  pi.on("session_start", (_event, ctx) => {
     const sessionState = ensureState(ctx.cwd);
     reportConfigIssues(sessionState.loadResult.issues, { ctx });
     setAutoformatStatus(ctx, undefined);
   });
 
-  pi.on("tool_call", async (event: ToolCallEvent, ctx) => {
+  pi.on("tool_call", (event: ToolCallEvent, ctx) => {
     if (event.toolName !== "bash") {
       return;
     }
@@ -699,7 +703,7 @@ export function createAutoformatExtension(
     sessionState.snapshotTracker?.before();
   });
 
-  pi.on("tool_result", async (event: ToolResultEvent, ctx) => {
+  pi.on("tool_result", (event: ToolResultEvent, ctx) => {
     if (event.isError) {
       return;
     }

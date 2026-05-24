@@ -52,11 +52,12 @@ export class SessionLifecycleHandler {
   // 3. Abort all agents — stop running work
   // 4. Dispose notifications — cancel pending nudges/timers
   // 5. Dispose manager — final cleanup
-  async handleSessionShutdown(): Promise<void> {
+  handleSessionShutdown(): Promise<void> {
     this.unpublishService();
     this.runtime.clearSessionContext();
     this.manager.abortAll();
     this.disposeNotifications();
     this.manager.dispose();
+    return Promise.resolve();
   }
 }

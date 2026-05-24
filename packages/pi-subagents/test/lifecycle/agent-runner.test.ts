@@ -77,7 +77,7 @@ import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 
 const snapshot: ParentSnapshot = {
   cwd: "/tmp",
-  model: undefined as unknown,
+  model: undefined,
   modelRegistry: { find: vi.fn(), getAvailable: vi.fn(() => []) },
   systemPrompt: "parent prompt",
 };

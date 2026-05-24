@@ -25,6 +25,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
             "The session display name (e.g., '#42 Planning — My feature title')",
         }),
       }),
+      // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(_toolCallId, params) {
         pi.setSessionName(params.name);
         return {
@@ -44,6 +45,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       description:
         "Get the current session's display name, if one has been set.",
       parameters: Type.Object({}),
+      // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute() {
         const name = pi.getSessionName();
         return {

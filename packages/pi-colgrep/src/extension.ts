@@ -49,7 +49,7 @@ export default function piColGrepExtension(pi: ExtensionAPI): void {
     await reindexer.runNow();
   });
 
-  pi.on("tool_result", async (event, _ctx) => {
+  pi.on("tool_result", (event, _ctx) => {
     if (event.isError) return;
     if (event.toolName !== "write" && event.toolName !== "edit") return;
     reindexer?.schedule();

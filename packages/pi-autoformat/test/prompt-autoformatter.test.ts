@@ -169,8 +169,8 @@ describe("PromptAutoformatter", () => {
       acc[cmd] = (acc[cmd] ?? 0) + 1;
       return acc;
     }, {});
-    expect(counts.biome ?? 0).toBeLessThanOrEqual(1);
-    expect(counts.prettier ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.biome).toBeLessThanOrEqual(1);
+    expect(counts.prettier).toBeLessThanOrEqual(1);
   });
 
   describe("with a wildcard chain", () => {

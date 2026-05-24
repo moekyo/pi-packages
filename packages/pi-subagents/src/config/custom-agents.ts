@@ -51,7 +51,7 @@ function loadFromDir(dir: string, agents: Map<string, AgentConfig>, source: "pro
       continue;
     }
 
-    const { frontmatter: fm, body } = parseFrontmatter<Record<string, unknown>>(content);
+    const { frontmatter: fm, body } = parseFrontmatter(content);
 
     agents.set(name, {
       name,
@@ -95,6 +95,7 @@ function nonNegativeInt(val: unknown): number | undefined {
  */
 function parseCsvField(val: unknown): string[] | undefined {
   if (val === undefined || val === null) return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- val is already narrowed past null/undefined; String() is the intended coercion here
   const s = String(val).trim();
   if (!s || s === "none") return undefined;
   const items = s.split(",").map(t => t.trim()).filter(Boolean);

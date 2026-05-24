@@ -685,10 +685,12 @@ function createInMemoryPolicyLoader(
 ): PolicyLoader {
   const issues: string[] = [];
   return {
-    loadGlobalConfig: () => scopes.global ?? {},
-    loadProjectConfig: () => scopes.project ?? {},
+    loadGlobalConfig: () => scopes.global ?? ({} as const),
+    loadProjectConfig: () => scopes.project ?? ({} as const),
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- || is intentional: handles both falsy name and missing key
     loadAgentConfig: (name?: string) => (name && scopes.agent?.[name]) || {},
     loadProjectAgentConfig: (name?: string) =>
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- || is intentional: handles both falsy name and missing key
       (name && scopes.projectAgent?.[name]) || {},
     getConfiguredMcpServerNames: () => mcpServerNames,
     getCacheStamp: () => "in-memory",

@@ -12,15 +12,17 @@ export function mergeFlatPermissions(
   const merged: FlatPermissionConfig = { ...base };
   for (const [key, value] of Object.entries(override)) {
     const baseVal = merged[key];
+    /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive null/type checks; config values may differ at runtime */
     if (
       typeof baseVal === "object" &&
       baseVal !== null &&
       typeof value === "object" &&
       value !== null
     ) {
+      /* eslint-enable @typescript-eslint/no-unnecessary-condition */
       merged[key] = {
-        ...(baseVal as Record<string, PermissionState>),
-        ...(value as Record<string, PermissionState>),
+        ...baseVal,
+        ...value,
       };
     } else {
       merged[key] = value;

@@ -69,7 +69,7 @@ function findSkillDirectory(root: string, name: string): string | undefined {
     const current = queue.shift();
     if (current === undefined) continue;
 
-    let entries: Dirent<string>[];
+    let entries: Dirent[];
     try {
       entries = readdirSync(current, { withFileTypes: true });
     } catch (err) {

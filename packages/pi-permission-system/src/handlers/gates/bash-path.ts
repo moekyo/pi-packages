@@ -73,7 +73,7 @@ export async function describeBashPathGate(
       worstToken = token;
       break; // Short-circuit on deny.
     }
-    if (check.state === "ask" && (!worstCheck || worstCheck.state !== "ask")) {
+    if (check.state === "ask" && worstCheck?.state !== "ask") {
       worstCheck = check;
       worstToken = token;
     }

@@ -51,6 +51,7 @@ export async function findReleasePR(args: FindReleasePRArgs): Promise<string> {
   let elapsed = 0;
   let attempt = 0;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit return/break
   while (true) {
     attempt++;
 
@@ -197,6 +198,7 @@ export async function watchRelease(args: WatchReleaseArgs): Promise<string> {
   const pollInterval = 10;
   let elapsed = 0;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional infinite loop with explicit return/break
   while (true) {
     if (signal?.aborted) {
       return ["aborted: cancelled by user", `  elapsed: ${elapsed}s`].join(

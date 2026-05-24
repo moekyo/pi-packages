@@ -24,6 +24,7 @@ describe("SUBAGENT_PARENT_SESSION_ENV_CANDIDATES", () => {
   });
 
   test("deprecated SUBAGENT_PARENT_SESSION_ENV_KEY equals the first candidate", () => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- test verifying the deprecated alias
     expect(SUBAGENT_PARENT_SESSION_ENV_KEY).toBe(
       SUBAGENT_PARENT_SESSION_ENV_CANDIDATES[0],
     );

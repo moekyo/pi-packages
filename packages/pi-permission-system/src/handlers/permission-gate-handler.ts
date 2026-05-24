@@ -104,6 +104,7 @@ export class PermissionGateHandler {
       session.prompt(ctx, details);
     const emitDecision: GateRunnerDeps["emitDecision"] = (e) =>
       emitDecisionEvent(this.events, e);
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- logger.review is a plain function closure; no this-binding issue
     const writeReviewLog = session.logger.review;
     const checkPermission: GateRunnerDeps["checkPermission"] = (
       surface,
@@ -305,6 +306,7 @@ export class PermissionGateHandler {
         skillInputAutoApproved = decision.autoApproved === true;
         return decision;
       },
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- logger.review is a plain function closure; no this-binding issue
       writeLog: session.logger.review,
       logContext: {
         source: "skill_input",
@@ -324,6 +326,7 @@ export class PermissionGateHandler {
       surface: "skill",
       value: skillName,
       result: skillInputGate.action === "allow" ? "allow" : "deny",
+      /* eslint-disable @typescript-eslint/no-unnecessary-condition -- defensive fallback; TypeScript narrows check.state before the ternary's else branch */
       resolution:
         check.state === "allow"
           ? "policy_allow"
@@ -336,6 +339,8 @@ export class PermissionGateHandler {
               : skillInputCanConfirm
                 ? "user_denied"
                 : "confirmation_unavailable",
+      /* eslint-enable @typescript-eslint/no-unnecessary-condition */
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
       origin: check.origin ?? null,
       agentName: agentName ?? null,
       matchedPattern: check.matchedPattern ?? null,

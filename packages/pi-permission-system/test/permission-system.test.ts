@@ -112,6 +112,7 @@ type ExtensionHarnessOptions = {
 
 const INHERITED_SUBAGENT_ENV_KEYS = [
   ...SUBAGENT_ENV_HINT_KEYS,
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- test uses deprecated alias intentionally
   SUBAGENT_PARENT_SESSION_ENV_KEY,
 ] as const;
 
@@ -121,6 +122,7 @@ async function withIsolatedSubagentEnv<T>(
   const originalValues = new Map<string, string | undefined>();
   for (const key of INHERITED_SUBAGENT_ENV_KEYS) {
     originalValues.set(key, process.env[key]);
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- process.env cleanup requires dynamic delete
     delete process.env[key];
   }
 
@@ -129,6 +131,7 @@ async function withIsolatedSubagentEnv<T>(
   } finally {
     for (const [key, value] of originalValues.entries()) {
       if (value === undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- process.env cleanup requires dynamic delete
         delete process.env[key];
       } else {
         process.env[key] = value;
@@ -143,7 +146,7 @@ function createToolCallHarness(
   options: ExtensionHarnessOptions = {},
 ): ExtensionHarness {
   const baseDir = mkdtempSync(join(tmpdir(), "pi-permission-system-runtime-"));
-  const cwd = options.cwd || baseDir;
+  const cwd = options.cwd ?? baseDir;
   const prompts: string[] = [];
   const handlers: Record<string, MockHandler> = {};
   const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -188,10 +191,7 @@ function createToolCallHarness(
     prompts,
     cleanup: async (): Promise<void> => {
       await Promise.resolve(
-        handlers.session_shutdown?.(
-          {},
-          createMockContext(cwd, prompts, options),
-        ),
+        handlers.session_shutdown({}, createMockContext(cwd, prompts, options)),
       );
       rmSync(baseDir, { recursive: true, force: true });
     },
@@ -236,7 +236,7 @@ async function runToolCall(
       handler(event, createMockContext(harness.cwd, harness.prompts, options)),
     ),
   );
-  return (result ?? {}) as Record<string, unknown>;
+  return result ?? {};
 }
 
 test("Yolo mode only auto-approves ask-state permissions", () => {
@@ -1515,7 +1515,7 @@ test("REGRESSION: resolveSkillPromptEntries sanitizes every available_skills blo
 
     expect(result.prompt).not.toContain("denied-skill");
     expect(result.prompt).toContain("visible-skill");
-    expect((result.prompt.match(/<available_skills>/g) || []).length).toBe(1);
+    expect((result.prompt.match(/<available_skills>/g) ?? []).length).toBe(1);
     expect(result.entries.map((entry) => entry.name)).toEqual([
       "visible-skill",
     ]);
@@ -2371,7 +2371,7 @@ test("session approval: session_shutdown clears session approvals", async () => 
       hasUI: true,
       selectResponse: "Yes",
     });
-    await Promise.resolve(harness.handlers.session_shutdown?.({}, shutdownCtx));
+    await Promise.resolve(harness.handlers.session_shutdown({}, shutdownCtx));
 
     // Access same path again — should prompt because cache was cleared
     const result = await runToolCall(

@@ -53,7 +53,7 @@ describe("createReindexer — runNow()", () => {
     let statusAtExecTime: string | undefined = "not set";
     exec.mockImplementation(async () => {
       // Capture the most recent onStatus call at the moment exec fires
-      statusAtExecTime = onStatus.mock.calls.at(-1)?.[0] as string | undefined;
+      statusAtExecTime = onStatus.mock.calls.at(-1)?.[0];
       return { stdout: "", stderr: "", code: 0 };
     });
     const reindexer = createReindexer({ exec, cwd: "/project", onStatus });

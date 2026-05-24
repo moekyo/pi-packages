@@ -20,6 +20,7 @@ export function normalizeFlatConfig(permission: FlatPermissionConfig): Ruleset {
       if (isPermissionState(value)) {
         rules.push({ surface, pattern: "*", action: value, origin: "builtin" });
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive null check; value type does not include null but runtime JSON may
     } else if (typeof value === "object" && value !== null) {
       for (const [pattern, action] of Object.entries(value)) {
         if (isPermissionState(action)) {

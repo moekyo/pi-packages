@@ -413,6 +413,7 @@ export function matchWrapper(
       trimmed.startsWith(`${wrapper.prefix}\n`)
     ) {
       const format = wrapper.outputFormat ?? "lines";
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- format narrows correctly but lint sees "lines" === "lines" as always true
       if (format === "lines") {
         return parseLinesOutput(output);
       }

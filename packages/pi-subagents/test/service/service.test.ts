@@ -12,6 +12,7 @@ const SERVICE_KEY = Symbol.for("@gotgenes/pi-subagents:service");
 describe("SubagentsService accessors", () => {
   afterEach(() => {
     // Clean up globalThis after each test
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- required to clean up Symbol-keyed global in tests
     delete (globalThis as Record<symbol, unknown>)[SERVICE_KEY];
   });
 

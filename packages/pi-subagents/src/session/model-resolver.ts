@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-redundant-type-constituents -- Pi SDK types are not fully exported; see upstream Pi SDK for type improvements */
 /**
  * Model resolution: exact match ("provider/modelId") with fuzzy fallback.
  */
@@ -16,7 +17,7 @@ export interface ModelRegistry {
 
 /** Successful model resolution — `model` is the resolved or inherited model instance. */
 export interface ModelResolutionResult {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   model: any;
   error?: undefined;
 }
