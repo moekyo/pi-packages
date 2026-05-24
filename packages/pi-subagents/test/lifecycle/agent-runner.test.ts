@@ -24,7 +24,8 @@ import { resumeAgent, runAgent } from "#src/lifecycle/agent-runner";
 
 // Return type deliberately unannotated so vi.fn() stubs keep their Mock<...> methods
 // (mockResolvedValue, mockReturnValue, mock.calls, etc.). The inferred type is
-// still structurally compatible with RunnerIO for the runAgent() call site.
+// still structurally compatible with RunnerIO (= EnvironmentIO & SessionFactoryIO)
+// for the runAgent() call site.
 function createRunnerIO() {
   return {
     detectEnv: vi.fn().mockResolvedValue({ isGitRepo: false, branch: "", platform: "linux" }),

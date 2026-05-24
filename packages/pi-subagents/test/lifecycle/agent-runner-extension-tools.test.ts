@@ -45,7 +45,8 @@ import { runAgent } from "#src/lifecycle/agent-runner";
 
 // ── RunnerIO stub factory ──────────────────────────────────────────────────────
 
-// Return type deliberately unannotated so vi.fn() stubs keep their Mock<...> methods.
+// Return type deliberately unannotated so vi.fn() stubs keep their Mock<...> methods
+// and remain structurally compatible with RunnerIO (= EnvironmentIO & SessionFactoryIO).
 function createRunnerIO() {
   return {
     detectEnv: vi.fn().mockResolvedValue({ isGitRepo: false, branch: "", platform: "linux" }),
