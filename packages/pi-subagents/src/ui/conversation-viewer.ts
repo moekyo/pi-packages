@@ -13,35 +13,7 @@ import { extractText } from "#src/session/context";
 import type { AgentRecord } from "#src/types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { buildInvocationTags, describeActivity, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "#src/ui/display";
-
-// ── Local message-shape types ───────────────────────────────────────────────
-// The Pi SDK does not export narrow types for all message content variants.
-// These file-local types document the runtime shapes this module handles.
-
-/** Tool-call content item — SDK exposes this variant at runtime but doesn't export the narrow type. */
-interface ToolCallContent {
-  type: "toolCall";
-  name?: string;
-  toolName?: string;
-}
-
-/** Extracts the tool name from a content item, falling back to 'unknown'. */
-function getToolCallName(c: { type: string }): string {
-  if (c.type !== "toolCall") return "unknown";
-  const tc = c as ToolCallContent;
-  return tc.name ?? tc.toolName ?? "unknown";
-}
-
-/** Bash execution message — 'bashExecution' role is not in the SDK's AgentSession message role union. */
-interface BashExecutionMessage {
-  role: "bashExecution";
-  command: string;
-  output?: string;
-}
-
-function isBashExecution(msg: { role: string }): msg is BashExecutionMessage {
-  return msg.role === "bashExecution";
-}
+import { getToolCallName, isBashExecution } from "#src/ui/message-formatters";
 
 // ─────────────────────────────────────────────────────────────────────────────
 

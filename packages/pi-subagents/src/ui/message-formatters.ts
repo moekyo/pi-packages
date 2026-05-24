@@ -40,7 +40,7 @@ interface ToolCallContent {
 }
 
 /** Extracts the tool name from a toolCall content item, falling back to 'unknown'. */
-function getToolCallName(c: { type: string }): string {
+export function getToolCallName(c: { type: string }): string {
   if (c.type !== "toolCall") return "unknown";
   const tc = c as ToolCallContent;
   return tc.name ?? tc.toolName ?? "unknown";
