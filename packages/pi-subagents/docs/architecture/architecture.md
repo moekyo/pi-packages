@@ -830,15 +830,10 @@ The upstream test suite is run periodically as a regression canary for the agent
 [gotgenes/pi-packages]: https://github.com/gotgenes/pi-packages
 [tintinweb/pi-subagents]: https://github.com/tintinweb/pi-subagents
 
-[164]: https://github.com/gotgenes/pi-packages/issues/164
-[165]: https://github.com/gotgenes/pi-packages/issues/165
 [166]: https://github.com/gotgenes/pi-packages/issues/166
 [167]: https://github.com/gotgenes/pi-packages/issues/167
 [168]: https://github.com/gotgenes/pi-packages/issues/168
 [169]: https://github.com/gotgenes/pi-packages/issues/169
-[170]: https://github.com/gotgenes/pi-packages/issues/170
-[171]: https://github.com/gotgenes/pi-packages/issues/171
-[172]: https://github.com/gotgenes/pi-packages/issues/172
 [192]: https://github.com/gotgenes/pi-packages/issues/192
 [193]: https://github.com/gotgenes/pi-packages/issues/193
 [194]: https://github.com/gotgenes/pi-packages/issues/194

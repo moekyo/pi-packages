@@ -4,6 +4,7 @@
 
 import type { ThinkingLevel } from "@earendil-works/pi-ai";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import type { ModelRegistry } from "#src/session/model-resolver";
 
 
 export { AgentRecord } from "#src/lifecycle/agent-record";
@@ -75,6 +76,26 @@ export interface AgentInvocation {
   inheritContext?: boolean;
   runInBackground?: boolean;
   isolation?: IsolationMode;
+}
+
+/**
+ * Narrow shell-exec callback replacing `ExtensionAPI` in `detectEnv()`.
+ * Matches the shape of `pi.exec()` without carrying an SDK dependency.
+ */
+/**
+ * Narrow interface capturing the ExtensionContext fields SubagentRuntime needs.
+ * Avoids coupling runtime to the full SDK ExtensionContext surface (ISP).
+ */
+export interface SessionContext {
+  readonly cwd: string;
+  readonly model: unknown;
+  readonly modelRegistry: ModelRegistry | undefined;
+  getSystemPrompt(): string;
+  readonly sessionManager: {
+    getSessionFile(): string | undefined;
+    getSessionId(): string;
+    getBranch(): unknown[];
+  };
 }
 
 /**
