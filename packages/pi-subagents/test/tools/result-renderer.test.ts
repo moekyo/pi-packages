@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderRunning, renderStats } from "#src/tools/result-renderer";
+import { renderBackground, renderRunning, renderStats } from "#src/tools/result-renderer";
 import type { AgentDetails, Theme } from "#src/ui/display";
 
 function makeTheme(): Theme {
@@ -120,5 +120,21 @@ describe("renderRunning", () => {
 		const details = makeDetails({ status: "running", activity: "searching" });
 		const result = renderRunning(details, theme);
 		expect(result).toContain("\n[dim:  \u23BF  searching]");
+	});
+});
+
+describe("renderBackground", () => {
+	const theme = makeTheme();
+
+	it("includes agent ID in output", () => {
+		const details = makeDetails({ status: "background", agentId: "agent-42" });
+		expect(renderBackground(details, theme)).toContain("agent-42");
+	});
+
+	it("wraps entire message in dim styling with agent ID", () => {
+		const details = makeDetails({ status: "background", agentId: "agent-42" });
+		expect(renderBackground(details, theme)).toBe(
+			"[dim:  \u23BF  Running in background (ID: agent-42)]",
+		);
 	});
 });
