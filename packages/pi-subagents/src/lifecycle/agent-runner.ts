@@ -455,8 +455,9 @@ export function getAgentConversation(session: AgentSession): string {
       if (text.trim()) parts.push(`[User]: ${text.trim()}`);
     } else if (msg.role === "assistant") {
       const { textParts, toolNames } = extractAssistantContent(msg.content);
+      const attribution = formatAttribution(msg);
       if (textParts.length > 0)
-        parts.push(`[Assistant]: ${textParts.join("\n")}`);
+        parts.push(`[Assistant${attribution}]: ${textParts.join("\n")}`);
       if (toolNames.length > 0)
         parts.push(`[Tool Calls]:\n${toolNames.map((n) => `  Tool: ${n}`).join("\n")}`);
     } else if (msg.role === "toolResult") {
@@ -467,4 +468,12 @@ export function getAgentConversation(session: AgentSession): string {
   }
 
   return parts.join("\n\n");
+}
+
+/** Build a `(provider/model)` attribution suffix for assistant messages. */
+function formatAttribution(msg: { provider?: string; model?: string }): string {
+  const { provider, model } = msg;
+  if (!provider && !model) return "";
+  if (provider && model) return ` (${provider}/${model})`;
+  return ` (${provider ?? model})`;
 }
