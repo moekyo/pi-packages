@@ -15,6 +15,8 @@
     "unused-class-members": "error",
     "circular-dependencies": "error",
     "unlisted-dependencies": "error",
-    "unresolved-imports": "error"
+    "unresolved-imports": "error",
+    "unused-dev-dependencies": "error",
+    "stale-suppressions": "error"
   }
 }

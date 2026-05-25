@@ -22,7 +22,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
-    "@eslint/js": "catalog:",
     "eslint": "catalog:",
     "fallow": "catalog:",
     "globals": "catalog:",
