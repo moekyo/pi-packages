@@ -59,44 +59,47 @@ export function createAgentConfigEditor(
     const choice = await ui.select(name, buildMenuOptions(cfg, file));
     if (!choice || choice === "Back") return;
 
-    if (choice === "Edit" && file) {
-      const content = fileOps.read(file);
-      if (content !== undefined) {
-        const edited = await ui.editor(`Edit ${name}`, content);
-        if (edited !== undefined && edited !== content) {
-          fileOps.write(file, edited);
-          registry.reload();
-          ui.notify(`Updated ${file}`, "info");
-        }
-      }
-    } else if (choice === "Delete") {
-      if (file) {
-        const confirmed = await ui.confirm(
-          "Delete agent",
-          `Delete ${name} (${file})?`,
-        );
-        if (confirmed) {
-          fileOps.remove(file);
-          registry.reload();
-          ui.notify(`Deleted ${file}`, "info");
-        }
-      }
-    } else if (choice === "Reset to default" && file) {
-      const confirmed = await ui.confirm(
-        "Reset to default",
-        `Delete override ${file} and restore embedded default?`,
-      );
-      if (confirmed) {
-        fileOps.remove(file);
-        registry.reload();
-        ui.notify(`Restored default ${name}`, "info");
-      }
-    } else if (choice.startsWith("Eject")) {
-      await ejectAgent(ui, name, cfg);
-    } else if (choice === "Disable") {
-      await disableAgent(ui, name);
-    } else if (choice === "Enable") {
-      await enableAgent(ui, name);
+    if (choice === "Edit" && file) await handleEdit(ui, name, file);
+    else if (choice === "Delete" && file) await handleDelete(ui, name, file);
+    else if (choice === "Reset to default" && file)
+      await handleReset(ui, name, file);
+    else if (choice.startsWith("Eject")) await ejectAgent(ui, name, cfg);
+    else if (choice === "Disable") await disableAgent(ui, name);
+    else if (choice === "Enable") await enableAgent(ui, name);
+  }
+
+  async function handleEdit(ui: MenuUI, name: string, file: string) {
+    const content = fileOps.read(file);
+    if (content === undefined) return;
+    const edited = await ui.editor(`Edit ${name}`, content);
+    if (edited !== undefined && edited !== content) {
+      fileOps.write(file, edited);
+      registry.reload();
+      ui.notify(`Updated ${file}`, "info");
+    }
+  }
+
+  async function handleDelete(ui: MenuUI, name: string, file: string) {
+    const confirmed = await ui.confirm(
+      "Delete agent",
+      `Delete ${name} (${file})?`,
+    );
+    if (confirmed) {
+      fileOps.remove(file);
+      registry.reload();
+      ui.notify(`Deleted ${file}`, "info");
+    }
+  }
+
+  async function handleReset(ui: MenuUI, name: string, file: string) {
+    const confirmed = await ui.confirm(
+      "Reset to default",
+      `Delete override ${file} and restore embedded default?`,
+    );
+    if (confirmed) {
+      fileOps.remove(file);
+      registry.reload();
+      ui.notify(`Restored default ${name}`, "info");
     }
   }
 
