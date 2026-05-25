@@ -208,6 +208,54 @@ function assembleWithinBudget(heading: string, sections: WidgetSections): string
 	return lines;
 }
 
+/**
+ * Assemble widget lines when total body exceeds MAX_WIDGET_LINES.
+ * Prioritizes running > queued > finished and appends an overflow indicator.
+ */
+function assembleOverflow(
+	heading: string,
+	sections: WidgetSections,
+	maxBody: number,
+	truncate: (line: string) => string,
+	theme: Theme,
+): string[] {
+	const { finishedLines, runningLines, queuedLine } = sections;
+	const lines: string[] = [heading];
+	let budget = maxBody - 1;
+	let hiddenRunning = 0;
+	let hiddenFinished = 0;
+
+	for (const pair of runningLines) {
+		if (budget >= 2) {
+			lines.push(...pair);
+			budget -= 2;
+		} else {
+			hiddenRunning++;
+		}
+	}
+
+	if (queuedLine && budget >= 1) {
+		lines.push(queuedLine);
+		budget--;
+	}
+
+	for (const fl of finishedLines) {
+		if (budget >= 1) {
+			lines.push(fl);
+			budget--;
+		} else {
+			hiddenFinished++;
+		}
+	}
+
+	const overflowParts: string[] = [];
+	if (hiddenRunning > 0) overflowParts.push(`${hiddenRunning} running`);
+	if (hiddenFinished > 0) overflowParts.push(`${hiddenFinished} finished`);
+	const overflowText = overflowParts.join(", ");
+	lines.push(truncate(theme.fg("dim", "\u2514\u2500") + ` ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`));
+	return lines;
+}
+
 /** Pure rendering of the widget body. Returns lines to display. */
 export function renderWidgetLines(params: {
 	agents: readonly WidgetAgent[];
@@ -247,41 +295,6 @@ export function renderWidgetLines(params: {
 
 	if (totalBody <= maxBody) {
 		return assembleWithinBudget(heading, { finishedLines, runningLines, queuedLine });
-	} else {
-		// Overflow — prioritize: running > queued > finished.
-		const lines: string[] = [heading];
-		let budget = maxBody - 1;
-		let hiddenRunning = 0;
-		let hiddenFinished = 0;
-
-		for (const pair of runningLines) {
-			if (budget >= 2) {
-				lines.push(...pair);
-				budget -= 2;
-			} else {
-				hiddenRunning++;
-			}
-		}
-
-		if (queuedLine && budget >= 1) {
-			lines.push(queuedLine);
-			budget--;
-		}
-
-		for (const fl of finishedLines) {
-			if (budget >= 1) {
-				lines.push(fl);
-				budget--;
-			} else {
-				hiddenFinished++;
-			}
-		}
-
-		const overflowParts: string[] = [];
-		if (hiddenRunning > 0) overflowParts.push(`${hiddenRunning} running`);
-		if (hiddenFinished > 0) overflowParts.push(`${hiddenFinished} finished`);
-		const overflowText = overflowParts.join(", ");
-		lines.push(truncate(theme.fg("dim", "\u2514\u2500") + ` ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`));
-		return lines;
 	}
+	return assembleOverflow(heading, { finishedLines, runningLines, queuedLine }, maxBody, truncate, theme);
 }
