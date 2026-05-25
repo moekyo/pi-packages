@@ -7,7 +7,10 @@ The main interactive session polls for forwarded requests, shows the confirmatio
 
 This keeps `ask` policies usable even when the original permission check happens inside a non-UI execution context.
 
-For in-process child sessions (e.g. tintinweb/pi-subagents running via `createAgentSession()`), the [Prompt Forwarding RPC](cross-extension-api.md#prompt-forwarding-rpc) is used instead of file-based forwarding.
+For in-process child sessions, detection and forwarding now use an explicit registration API.
+Subagent extensions call `registerSubagentSession()` on the `PermissionsService` before binding extensions, which tells the permission system that the session is a child and provides the parent session ID for forwarding.
+See [Service Accessor — registerSubagentSession](cross-extension-api.md#registersubagentsession--unregistersubagentsession) for the call pattern.
+The [Prompt Forwarding RPC](cross-extension-api.md#prompt-forwarding-rpc) remains available as an alternative for extensions that cannot import the service.
 
 ---
 

@@ -39,17 +39,38 @@ Consumers call `getPermissionsService()` to retrieve it — even though their `i
 
 ### API
 
-The `PermissionsService` interface exposes a single method:
+The `PermissionsService` interface:
 
 ```typescript
 interface PermissionsService {
+  /** Query the permission policy for a surface and value. */
   checkPermission(
     surface: string,
     value?: string,
     agentName?: string,
   ): PermissionCheckResult;
+
+  /** Query tool-level permission state for pre-filtering before session creation. */
+  getToolPermission(toolName: string, agentName?: string): PermissionState;
+
+  /**
+   * Register an in-process subagent session.
+   * Call before bindExtensions(); always pair with unregisterSubagentSession() in a finally block.
+   * sessionKey should be the session directory path (unique per session).
+   */
+  registerSubagentSession(sessionKey: string, info: SubagentSessionInfo): void;
+
+  /** Remove a previously registered in-process subagent session. Safe to call if never registered. */
+  unregisterSubagentSession(sessionKey: string): void;
+}
+
+interface SubagentSessionInfo {
+  agentName: string;
+  parentSessionId?: string; // needed for ask-state forwarding
 }
 ```
+
+#### `checkPermission`
 
 | Parameter   | Required | Description                                                                              |
 | ----------- | -------- | ---------------------------------------------------------------------------------------- |
@@ -57,7 +78,41 @@ interface PermissionsService {
 | `value`     | No       | Value to evaluate (command, name, path); defaults to `""`                                |
 | `agentName` | No       | Agent name for per-agent policy resolution                                               |
 
-The return type is `PermissionCheckResult` with fields `state`, `matchedPattern`, `source`, `origin`, etc.
+Returns `PermissionCheckResult` with fields `state`, `matchedPattern`, `source`, `origin`, etc.
+
+#### `getToolPermission`
+
+Returns `"allow"` | `"deny"` | `"ask"` for a tool name without considering command-level rules.
+Use this to pre-filter a tool list before creating a child session — it avoids calling `checkPermission` per tool and interpreting the full result.
+
+```typescript
+const denied = tools.filter(
+  (t) => permissions.getToolPermission(t, agentName) === "deny",
+);
+```
+
+#### `registerSubagentSession` / `unregisterSubagentSession`
+
+In-process subagent extensions call these to signal child session identity before binding extensions.
+This enables `isSubagentExecutionContext()` to detect the child and `ask`-state forwarding to resolve the parent session ID — both of which previously relied on env vars that are never set for in-process children.
+
+```typescript
+const sessionDir = ctx.sessionManager.getSessionDir();
+const svc = getPermissionsService();
+svc?.registerSubagentSession(sessionDir, {
+  agentName: "Explore",
+  parentSessionId: parentCtx.sessionManager.getSessionId(),
+});
+try {
+  await session.bindExtensions({});
+  // ... run the child session
+} finally {
+  svc?.unregisterSubagentSession(sessionDir);
+}
+```
+
+The `sessionKey` is typically the session directory path, which is unique per concurrent session.
+Registration is process-scoped; entries persist until explicitly removed.
 
 ### Reload Safety
 
