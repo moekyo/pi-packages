@@ -1,42 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
-import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { AgentConfig } from "#src/types";
 import { AgentsMenuHandler } from "#src/ui/agent-menu";
 import { createTestRecord } from "#test/helpers/make-record";
+import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
+import { createTestAgentConfig, makeFileOps, makeMenuManager, makeMenuUI } from "#test/helpers/ui-stubs";
 
-const testDefaultAgentConfig: AgentConfig = {
-  name: "test-agent",
-  description: "A test agent",
-  systemPrompt: "You are a test agent.",
-  promptMode: "replace" as const,
-  extensions: true,
-  skills: true,
-  isDefault: true,
-  source: "default" as const,
-};
+const testDefaultAgentConfig = createTestAgentConfig();
 
 /** Real registry for all tests. Methods are spied on per-test as needed. */
 const testRegistry = new AgentTypeRegistry(() => new Map());
-
-/** Minimal stub satisfying the ParentSnapshot interface. */
-const stubParentSnapshot: ParentSnapshot = {
-  cwd: "/test",
-  systemPrompt: "",
-  model: {},
-  modelRegistry: { find: () => undefined },
-};
-
-function makeFileOps() {
-  return {
-    exists: vi.fn((): boolean => false),
-    read: vi.fn((): string | undefined => undefined),
-    write: vi.fn(),
-    remove: vi.fn(),
-    ensureDir: vi.fn(),
-    findAgentFile: vi.fn((): string | undefined => undefined),
-  };
-}
 
 function makeSettings() {
   return {
@@ -58,26 +30,18 @@ function makeSettings() {
   };
 }
 
-function makeManager() {
-  return {
-    listAgents: vi.fn().mockReturnValue([]),
-    getRecord: vi.fn(),
-    spawnAndWait: vi.fn(),
-  };
-}
-
 /**
  * Create an AgentsMenuHandler with all defaults, returning both the handler
  * and the individual collaborator stubs so tests can assert on them.
  */
 function makeHandler(opts: {
-  manager?: ReturnType<typeof makeManager>;
+  manager?: ReturnType<typeof makeMenuManager>;
   fileOps?: ReturnType<typeof makeFileOps>;
   settings?: ReturnType<typeof makeSettings>;
   personalAgentsDir?: string;
   projectAgentsDir?: string;
 } = {}) {
-  const manager = opts.manager ?? makeManager();
+  const manager = opts.manager ?? makeMenuManager();
   const fileOps = opts.fileOps ?? makeFileOps();
   const settings = opts.settings ?? makeSettings();
   const personalAgentsDir = opts.personalAgentsDir ?? "/home/.pi/agents";
@@ -95,18 +59,10 @@ function makeHandler(opts: {
 }
 
 function makeUI(selectResults: (string | undefined)[] = []) {
-  let selectIdx = 0;
   return {
-    ui: {
-      select: vi.fn().mockImplementation(() => selectResults[selectIdx++]),
-      input: vi.fn(),
-      confirm: vi.fn(),
-      editor: vi.fn(),
-      notify: vi.fn(),
-      custom: vi.fn(),
-    },
+    ui: makeMenuUI(selectResults),
     modelRegistry: { find: () => undefined, getAll: () => [] },
-    parentSnapshot: stubParentSnapshot,
+    parentSnapshot: STUB_SNAPSHOT,
   };
 }
 
