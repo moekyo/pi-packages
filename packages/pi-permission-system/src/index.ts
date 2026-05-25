@@ -27,6 +27,7 @@ import {
 } from "./service";
 import { createSessionLogger } from "./session-logger";
 import { isSubagentExecutionContext } from "./subagent-context";
+import { SubagentSessionRegistry } from "./subagent-registry";
 import {
   canResolveAskPermissionRequest,
   shouldAutoApprovePermissionState,
@@ -97,6 +98,8 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     writeReviewLog: runtime.writeReviewLog.bind(runtime),
   });
 
+  const subagentRegistry = new SubagentSessionRegistry();
+
   const permissionsService: PermissionsService = {
     checkPermission(surface, value, agentName) {
       const input = buildInputForSurface(surface, value);
@@ -107,6 +110,15 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
         agentName,
         sessionRules,
       );
+    },
+    registerSubagentSession(sessionKey, info) {
+      subagentRegistry.register(sessionKey, info);
+    },
+    unregisterSubagentSession(sessionKey) {
+      subagentRegistry.unregister(sessionKey);
+    },
+    getToolPermission(toolName, agentName) {
+      return runtime.permissionManager.getToolPermission(toolName, agentName);
     },
   };
   publishPermissionsService(permissionsService);

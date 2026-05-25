@@ -11,9 +11,10 @@
  * reference — this ensures resilience across `/reload` and load-order edge cases.
  */
 
+import type { SubagentSessionInfo } from "./subagent-registry";
 import type { PermissionCheckResult, PermissionState } from "./types";
 
-export type { PermissionCheckResult, PermissionState };
+export type { PermissionCheckResult, PermissionState, SubagentSessionInfo };
 
 /** Process-global key for the service slot. */
 const SERVICE_KEY = Symbol.for("@gotgenes/pi-permission-system:service");
@@ -42,6 +43,40 @@ export interface PermissionsService {
     value?: string,
     agentName?: string,
   ): PermissionCheckResult;
+
+  /**
+   * Register an in-process subagent session.
+   *
+   * Call this before `bindExtensions()` so that `isSubagentExecutionContext()`
+   * and permission-forwarding target resolution can detect the child session.
+   * Always pair with `unregisterSubagentSession()` in a `finally` block.
+   *
+   * @param sessionKey - Unique session identifier (use the session directory path).
+   * @param info       - Agent name and optional parent session ID.
+   */
+  registerSubagentSession(sessionKey: string, info: SubagentSessionInfo): void;
+
+  /**
+   * Remove a previously registered in-process subagent session.
+   *
+   * Safe to call even if `registerSubagentSession` was never called for this key.
+   *
+   * @param sessionKey - The same key passed to `registerSubagentSession`.
+   */
+  unregisterSubagentSession(sessionKey: string): void;
+
+  /**
+   * Query the tool-level permission state for pre-filtering tools before
+   * creating a child session.
+   *
+   * Returns `"deny"` | `"allow"` | `"ask"` based on the composed policy.
+   * Does not consider command-level rules (e.g. per-bash-command patterns) —
+   * use `checkPermission` for runtime invocation gates.
+   *
+   * @param toolName  - Tool name (e.g. `"bash"`, `"read"`, `"my-extension:tool"`).
+   * @param agentName - Optional agent name for per-agent policy resolution.
+   */
+  getToolPermission(toolName: string, agentName?: string): PermissionState;
 }
 
 /**
