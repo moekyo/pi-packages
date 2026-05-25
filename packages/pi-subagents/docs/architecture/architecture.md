@@ -599,148 +599,11 @@ export type RunnerIO = EnvironmentIO & SessionFactoryIO;
 `RunnerIO` is kept as a type alias for the intersection.
 All existing consumers satisfy both sub-interfaces via structural typing with no call-site changes.
 
-## Improvement roadmap (Phase 11)
+## Phase 11 (complete)
 
-Phase 11 converts closure factories to classes, eliminating the adapter closure density in `index.ts` (the package's #1 churn hotspot: 128 commits, accelerating, fan-out 25).
-The approach is layered: each step makes the next step trivial.
-
-> "Make the change that makes the change easy." —Kent Beck
-
-### Findings
-
-| Metric                    | Value                                      |
-| ------------------------- | ------------------------------------------ |
-| Health score              | 75/100 (B)                                 |
-| #1 hotspot                | `index.ts` (128 commits, accelerating)     |
-| Dead exports              | 0 (down from 1; Layer 2 removed re-export) |
-| Production duplication    | 0                                          |
-| Test duplication          | 1,396 lines (69 clone groups, 22 files)    |
-| `as any` casts in index   | 1 (down from 5; Layer 1 resolved 4)        |
-| Adapter closures in index | 40 (down from 44; Layers 1–2 resolved 4)   |
-| Index fan-out             | 25 imports                                 |
-
-### Root cause
-
-The 44 adapter closures in `index.ts` exist because the tool factories accept narrow interfaces that don't structurally match the real objects.
-The real objects can't satisfy the interfaces because:
-
-1. ~~`SubagentRuntime.currentCtx` is typed `{ pi: unknown; ctx: unknown }` — so every consumer must `as any` cast to read fields.~~
-   Resolved by Layer 0 (#192) + Layer 1 (#193).
-2. ~~Context queries (`buildSnapshot`, `getModelInfo`, `getSessionInfo`) live as closures in index.ts instead of methods on the state holder.~~
-   Resolved by Layer 1 (#193).
-3. ~~`AgentToolManager` mixes fields from `AgentManager` and `SettingsManager` (source mismatch).~~
-   Resolved by Layer 2 (#194).
-4. ~~`AgentToolWidget` uses different method names than `SubagentRuntime` (name mismatch).~~
-   Resolved by Layer 2 (#194).
-
-Fix these structural misalignments and the class conversions become mechanical.
-
-### Layer 0: Define `SessionContext` narrow interface ([#192][192])
-
-`SubagentRuntime` currently types its context as `unknown` to avoid SDK coupling.
-But `ExtensionContext` is exported by the SDK — the `unknown` is a historical choice, not a constraint.
-Define a narrow `SessionContext` interface capturing the 5 fields runtime actually needs:
-
-```typescript
-export interface SessionContext {
-  readonly cwd: string;
-  readonly model: unknown;
-  readonly modelRegistry: ModelRegistry | undefined;
-  getSystemPrompt(): string;
-  readonly sessionManager: {
-    getSessionFile(): string | undefined;
-    getSessionId(): string;
-    getBranch(): unknown[];
-  };
-}
-```
-
-- Target: `src/types.ts`
-- Smell: Category C (platform type threading)
-- Outcome: typed foundation for Layers 1–4; no `as any` needed by consumers of `SubagentRuntime`
-
-### Layer 1: `SubagentRuntime` stores typed context, owns its queries ([#193][193]) ✓ done
-
-Change `currentCtx` from `{ pi: unknown; ctx: unknown }` to `SessionContext | undefined`.
-The single `as SessionContext` cast moves into `handleSessionStart` — the boundary where the SDK hands us the value.
-Add typed methods: `buildSnapshot(inheritContext)`, `getModelInfo()`, `getSessionInfo()`.
-
-- Target: `src/runtime.ts`, `src/handlers/lifecycle.ts`, `src/service/service-adapter.ts`, `src/index.ts`
-- Smell: Category C (closure queries on mutable field → methods on state owner)
-- Outcome: 3 closure queries in index.ts → 0; `SubagentRuntime` is self-sufficient for tool deps
-- Enables: Layer 3 (tools accept `SubagentRuntime` directly)
-
-### Layer 2: Align interfaces so real objects satisfy tool deps structurally ([#194][194]) ✓ done
-
-Three alignment changes:
-
-1. **Move `getMaxConcurrent` off `AgentToolManager`** — it reads from `SettingsManager`, not `AgentManager`.
-   The tool already receives `settings`; read it from there.
-2. **Rename widget methods** — align `SubagentRuntime` method names with `AgentToolWidget` (either rename `updateWidget()` → `update()` on runtime, or rename the interface to match).
-3. **Remove dead re-export** — `getToolCallName` in `ui/message-formatters.ts` (fallow finding).
-
-After this step, `AgentManager` structurally satisfies `AgentToolManager` and `SubagentRuntime` structurally satisfies `AgentToolWidget`.
-
-- Target: `src/tools/agent-tool.ts` (interface), `src/runtime.ts` (method names), `src/ui/message-formatters.ts`
-- Smell: Category C (source mismatch, name mismatch) + Category A (dead export)
-- Outcome: structural typing connects real objects to tool interfaces without adapters; 0 dead exports (fallow clean)
-- Enables: Layer 3 (class constructors accept real objects directly)
-
-### Layer 3: Convert closure factories to classes ([#195][195], [#196][196]) ✓ done
-
-All closure factories converted to classes. ✓ Tool factories in [#195][195]; runner and menu in [#196][196]:
-
-| Factory                          | Class                   | Constructor params                                                   |
-| -------------------------------- | ----------------------- | -------------------------------------------------------------------- |
-| `createAgentTool({...})`         | `AgentTool` ✓           | `manager`, `runtime`, `settings`, `registry`                         |
-| `createGetResultTool(...)`       | `GetResultTool` ✓       | `manager`, `notifications`, `registry`                               |
-| `createSteerTool(...)`           | `SteerTool` ✓           | `manager`, `events`                                                  |
-| `createAgentRunner(runnerIO)`    | `ConcreteAgentRunner` ✓ | `io: RunnerIO`                                                       |
-| `createAgentsMenuHandler({...})` | `AgentsMenuHandler` ✓   | `manager`, `registry`, `agentActivity`, `settings`, `fileOps`, paths |
-
-Each class satisfies the existing interface via structural typing.
-The `defineTool()` wrapper moves into a `toToolDefinition()` method on each tool class.
-`getModelLabel` internalized into `AgentsMenuHandler` (was a 7-line closure in `index.ts`).
-
-- Target: `src/tools/*.ts`, `src/lifecycle/agent-runner.ts`, `src/ui/agent-menu.ts`
-- Smell: Category C (closure factories masquerading as classes)
-- Outcome: deps are constructor params (inspectable, testable); no captured closures
-- Enables: Layer 4 (index.ts simplification)
-
-### Layer 4: Simplify index.ts (included in [#196][196]) ✓ done
-
-With all factories converted to classes and `AgentManager` satisfying `AgentMenuManager` structurally:
-
-```typescript
-const agentsMenu = new AgentsMenuHandler(
-  manager, registry, runtime.agentActivity,
-  settings, new FsAgentFileOps(),
-  join(getAgentDir(), "agents"),
-  join(process.cwd(), ".pi", "agents"),
-);
-```
-
-Eliminated: 4 adapter closures (3 manager method adapters + `getModelLabel`), 4 unused imports.
-Remaining ~15 closures are structural (event registrations, SDK factory callbacks).
-
-- Target: `src/index.ts`
-- Smell: Category B (god file) + Category C (adapter closure density)
-- Outcome: adapter closure count reduced; `AgentManager` passed directly without wrappers; churn hotspot stabilized
-
-### Step dependencies
-
-```mermaid
-flowchart LR
-    L0["Layer 0: SessionContext interface"] --> L1["Layer 1: Runtime owns queries"]
-    L1 --> L3["Layer 3: Classes replace factories"]
-    L2["Layer 2: Align interfaces"] --> L3
-    L3 --> L4["Layer 4: Simplify index.ts"]
-```
-
-Layers 0 and 2 are independent of each other.
-Layer 1 depends on Layer 0.
-Layer 3 depends on both Layer 1 and Layer 2.
-Layer 4 depends on Layer 3.
+Phase 11 converted all closure factories to classes, eliminating adapter closure density in `index.ts`.
+Four layers: SessionContext typing → runtime query methods → interface alignment → class conversions → index.ts simplification.
+See [phase-11-closure-to-class.md](history/phase-11-closure-to-class.md) for details.
 
 ## Improvement roadmap (Phase 12)
 
@@ -786,7 +649,7 @@ Extract shared factories into `test/fixtures/` modules.
 
 ## Refactoring history
 
-Phases 1–5 and 7–10 are complete.
+Phases 1–5 and 7–11 are complete.
 Phase 6 (UI extraction to a separate package) is deferred.
 Detailed records are preserved in per-phase history files:
 
@@ -802,6 +665,7 @@ Detailed records are preserved in per-phase history files:
 | 8     | Testability, display extraction, menu decomposition | Complete | [phase-8-testability.md](history/phase-8-testability.md)                             |
 | 9     | Observation consolidation, ctx elimination          | Complete | [phase-9-observation-ctx.md](history/phase-9-observation-ctx.md)                     |
 | 10    | Domain organization, bag decomposition, complexity  | Complete | [phase-10-structural-decomposition.md](history/phase-10-structural-decomposition.md) |
+| 11    | Closure factories to classes                        | Complete | [phase-11-closure-to-class.md](history/phase-11-closure-to-class.md)                 |
 
 ### Structural refactoring issues
 
@@ -816,6 +680,7 @@ Detailed records are preserved in per-phase history files:
 | Testability        | #131, #132, #133, #134, #135, #136                         | Shared fixtures, session-config IO, runner SDK boundary, as-any reduction, display extraction, menu decomposition                                        |
 | Observation/ctx    | #144, #145, #146, #147, #148                               | Observation consolidation, execute decomposition, UI context, text wrapping injection, widget rendering split                                            |
 | Phase 10           | #164, #165, #166, #167, #168, #169, #170, #171, #172       | Domain directories, ResolvedSpawnConfig, ParentSessionInfo, RunnerIO split, ToolFilterConfig, RunContext, buildContentLines, renderResult, content-items |
+| Phase 11           | #192, #193, #194, #195, #196                               | SessionContext, runtime queries, interface alignment, tool classes, runner/menu classes, index.ts simplification                                         |
 
 The remaining open issue is #22 (parent-session resolution), a cross-extension track that does not gate the structural work.
 
@@ -839,8 +704,3 @@ The upstream test suite is run periodically as a regression canary for the agent
 [167]: https://github.com/gotgenes/pi-packages/issues/167
 [168]: https://github.com/gotgenes/pi-packages/issues/168
 [169]: https://github.com/gotgenes/pi-packages/issues/169
-[192]: https://github.com/gotgenes/pi-packages/issues/192
-[193]: https://github.com/gotgenes/pi-packages/issues/193
-[194]: https://github.com/gotgenes/pi-packages/issues/194
-[195]: https://github.com/gotgenes/pi-packages/issues/195
-[196]: https://github.com/gotgenes/pi-packages/issues/196
