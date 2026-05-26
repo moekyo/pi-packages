@@ -11,6 +11,7 @@ import {
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { ParentSessionInfo } from "#src/lifecycle/agent-manager";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { registerChildSession, unregisterChildSession } from "#src/lifecycle/permission-bridge";
 import { extractAssistantContent } from "#src/session/content-items";
 import { extractText } from "#src/session/context";
 import type { EnvInfo } from "#src/session/env";
@@ -347,6 +348,15 @@ export async function runAgent(
     session.setActiveToolsByName(filtered);
   }
 
+  // Register with pi-permission-system's SubagentSessionRegistry before
+  // bindExtensions() so isSubagentExecutionContext() hits the registry on the
+  // first check during child extension initialization. Unregistered in the
+  // finally block below to guarantee cleanup on both success and error paths.
+  registerChildSession(sessionDir, {
+    agentName: type,
+    parentSessionId: options.context.parentSession?.parentSessionId,
+  });
+
   // Bind extensions so that session_start fires and extensions can initialize
   // (e.g. loading credentials, setting up state). Placed after tool filtering
   // so extension-provided skills/prompts from extendResourcesFromExtensions()
@@ -406,6 +416,7 @@ export async function runAgent(
     unsubTurns();
     collector.unsubscribe();
     cleanupAbort();
+    unregisterChildSession(sessionDir);
   }
 
   const responseText =
