@@ -267,8 +267,7 @@ export class AgentManager {
         // Clean up worktree before transition so the final result includes branch text
         let finalResult = responseText;
         if (record.worktreeState) {
-          const wtResult = this.worktrees.cleanup(record.worktreeState, options.description);
-          record.worktreeState.recordCleanup(wtResult);
+          const wtResult = record.worktreeState.performCleanup(this.worktrees, options.description);
           if (wtResult.hasChanges && wtResult.branch) {
             finalResult += `\n\n---\nChanges saved to branch \`${wtResult.branch}\`. Merge with: \`git merge ${wtResult.branch}\``;
           }
@@ -298,9 +297,7 @@ export class AgentManager {
         // Best-effort worktree cleanup on error
         if (record.worktreeState) {
           try {
-            const wtResult = this.worktrees.cleanup(record.worktreeState, options.description);
-            record.worktreeState.recordCleanup(wtResult);
-
+            record.worktreeState.performCleanup(this.worktrees, options.description);
           } catch (err) { debugLog("cleanupWorktree on agent error", err); }
         }
 
