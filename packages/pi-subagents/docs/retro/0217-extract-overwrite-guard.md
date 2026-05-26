@@ -19,3 +19,18 @@ Confirmed dependency #214 (closure-to-class conversion) is already closed.
 - Narrow ISP interfaces (`FileWriter`, `WriterUI`, `Reloadable`) keep the extracted function decoupled from the full `AgentFileOps` and `MenuUI` interfaces — 2/6 and 2/6 methods respectively.
 - Both consumer call sites hold `this.fileOps` and `this.registry` as private fields and receive `ui` as a method parameter, so no constructor or wiring changes are needed.
 - Existing tests in both consumer test files use `expect.stringContaining("already exists")` for overwrite prompts, which is stable across the extraction.
+
+## Stage: Implementation — TDD (2026-05-26T20:40:00Z)
+
+### Session summary
+
+Implemented `writeAgentFile` in new `src/ui/agent-file-writer.ts`, replaced the inline overwrite-guard blocks in `AgentConfigEditor.ejectAgent` and `AgentCreationWizard.showManualWizard`, and updated the architecture doc.
+All 5 plan steps completed across 4 commits (plan steps 1 and 2 folded into one).
+Test count: 962 → 970 (+8 new tests in `test/ui/agent-file-writer.test.ts`).
+
+### Observations
+
+- Plan steps 1 and 2 naturally collapsed into a single commit — writing all 8 tests at once and implementing the full function body (including the guard) in one pass was cleaner than splitting them artificially.
+- Both consumer refactors were straightforward one-import-add + one-block-replace edits; all existing tests passed without modification, confirming the extraction preserved exact behavior.
+- The notification label `"Ejected ${name} to"` (with trailing space absorbed by `${targetPath}`) matched the pre-existing message format `"Ejected test-agent to /path"` exactly — no test assertions changed.
+- `FileWriter`, `WriterUI`, and `Reloadable` narrow interfaces are exported from `agent-file-writer.ts`; both consumer files import the concrete types from their original sources, satisfying TypeScript's structural checker without any casts.
