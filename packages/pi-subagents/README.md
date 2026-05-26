@@ -421,27 +421,57 @@ disallowed_tools: write, edit
 
 This is useful for creating agents that inherit extension tools but should not have write access.
 
+## Permission System Integration
+
+When [`@gotgenes/pi-permission-system`](https://github.com/gotgenes/pi-permission-system) is installed, this extension integrates automatically:
+
+- **Per-agent permission policies** — define `permission:` in agent YAML frontmatter to set allow/ask/deny rules per agent type.
+  The permission system resolves the agent name from the `<active_agent>` tag in the child system prompt.
+- **Tool filtering** — the permission system's `before_agent_start` handler removes denied tools from the child session before the agent starts.
+- **`ask`-state forwarding** — when a child session triggers an `ask` permission, the prompt forwards to the parent session's UI.
+  The parent approves or denies, and the child resumes.
+- **Deterministic child detection** — every child session registers with the permission system's `SubagentSessionRegistry` before `bindExtensions()` fires, so detection does not rely on env vars or filesystem heuristics.
+
+No configuration is required.
+When `@gotgenes/pi-permission-system` is not installed, the registration calls are silent no-ops.
+
 ## Architecture
+
+See `docs/architecture/architecture.md` for the full architecture document with domain decomposition, Mermaid diagrams, and improvement roadmap.
 
 ```text
 src/
-  index.ts            # Extension entry: tool/command registration, rendering
-  types.ts            # Type definitions (AgentConfig, AgentRecord, etc.)
-  default-agents.ts   # Embedded default agent configs (general-purpose, Explore, Plan)
-  agent-types.ts      # Unified agent registry (defaults + user), tool name resolution
-  agent-runner.ts     # Session creation, execution, graceful max_turns, steer/resume
-  agent-manager.ts    # Agent lifecycle, concurrency queue, completion notifications
-  custom-agents.ts    # Load user-defined agents from .pi/agents/*.md
-  memory.ts           # Persistent agent memory (resolve, read, build prompt blocks)
-  skill-loader.ts     # Preload skills (Pi-standard + Agent Skills spec layouts)
-  output-file.ts      # Streaming output file transcripts for agent sessions
-  worktree.ts         # Git worktree isolation (create, cleanup, prune)
-  prompts.ts          # Config-driven system prompt builder
-  context.ts          # Parent conversation context for inherit_context
-  env.ts              # Environment detection (git, platform)
-  ui/
-    agent-widget.ts       # Persistent widget: spinners, activity, status icons, theming
-    conversation-viewer.ts # Live conversation overlay for viewing agent sessions
+  index.ts                          # Extension entry: tool/command registration, rendering
+  runtime.ts                        # Session-scoped state bag with methods
+  types.ts                          # Shared type definitions
+  settings.ts                       # Persistent settings (concurrency, turn limits)
+  config/                           # Agent type registry and configuration
+    agent-types.ts                  # Unified agent registry (defaults + custom)
+    default-agents.ts               # Embedded default agent configs
+    custom-agents.ts                # Load user-defined agents from .pi/agents/*.md
+    invocation-config.ts            # Per-call merge of tool params + agent config
+  session/                          # Pure session assembly
+    session-config.ts               # Session configuration assembler
+    prompts.ts                      # Config-driven system prompt builder
+    context.ts                      # Parent conversation context for inherit_context
+    skill-loader.ts                 # Preload skills from Pi-standard + Agent Skills spec
+    env.ts                          # Environment detection (git, platform)
+    model-resolver.ts               # Fuzzy model matching
+  lifecycle/                        # Agent execution and state tracking
+    agent-manager.ts                # Spawn, queue, abort, resume, concurrency
+    agent-runner.ts                 # Session creation, turn loop, tool filtering
+    agent-record.ts                 # Status state machine
+    parent-snapshot.ts              # Immutable spawn-time parent state
+    permission-bridge.ts            # Optional bridge to pi-permission-system registry
+    worktree.ts                     # Git worktree isolation
+  observation/                      # Progress tracking and notification
+    record-observer.ts              # Session-event stats observer
+    notification.ts                 # Completion nudges
+  service/                          # Cross-extension API boundary
+    service.ts                      # SubagentsService interface + Symbol.for() accessors
+    service-adapter.ts              # SubagentsService wrapper around AgentManager
+  tools/                            # LLM-facing tools
+  ui/                               # Widget, conversation viewer, /agents menu
 ```
 
 ## Deviations from upstream
@@ -458,6 +488,9 @@ Each has a corresponding upstream PR:
 3. **`<active_agent>` system-prompt tag** (`src/prompts.ts`) — `buildAgentPrompt` prepends `<active_agent name="${config.name}"/>` to every assembled child system prompt (both `replace` and `append` modes).
    Downstream extensions like [`@gotgenes/pi-permission-system`](https://github.com/gotgenes/pi-permission-system) parse this tag to resolve per-agent `permission:` frontmatter inside the child session.
    Upstream PR: [tintinweb/pi-subagents#73](https://github.com/tintinweb/pi-subagents/pull/73).
+4. **Permission-system registration** (`src/lifecycle/permission-bridge.ts`) — `runAgent` registers every child session with `@gotgenes/pi-permission-system`'s `SubagentSessionRegistry` before `bindExtensions()` and unregisters in the `finally` block.
+   This enables deterministic child detection and `ask`-state forwarding to the parent UI.
+   No upstream equivalent — this feature is specific to the `@gotgenes` fork.
 
 The upstream `vitest` suite plus tests added for each patch all pass on every commit.
 

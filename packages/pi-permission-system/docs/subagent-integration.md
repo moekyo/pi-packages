@@ -1,5 +1,20 @@
 # Subagent Integration
 
+## Native integration with `@gotgenes/pi-subagents`
+
+[`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-subagents) is the only subagent extension with native permission-system integration.
+It registers every in-process child session with the `SubagentSessionRegistry` before `bindExtensions()` fires, enabling:
+
+1. **Deterministic child detection** — `isSubagentExecutionContext()` hits the registry on the first check, no env-var or filesystem heuristics needed.
+2. **Per-agent policy enforcement** — the permission system's `before_agent_start` handler resolves the agent name from the `<active_agent>` system-prompt tag and applies per-agent `permission:` frontmatter overrides.
+3. **`ask`-state forwarding** — when a child triggers an `ask` permission, the request forwards to the parent session's UI through the existing polling mechanism.
+   The parent approves or denies, and the child resumes.
+
+No configuration is required — the integration is automatic when both extensions are installed.
+When `@gotgenes/pi-permission-system` is not installed, `@gotgenes/pi-subagents` degrades gracefully (registration calls are silent no-ops).
+
+See [Service Accessor — registerSubagentSession](cross-extension-api.md#registersubagentsession--unregistersubagentsession) for the call pattern used by the integration.
+
 ## Permission Forwarding
 
 When a delegated or routed subagent runs without direct UI access, `ask` permissions can still be enforced by forwarding the confirmation request through Pi session directories.
@@ -7,16 +22,14 @@ The main interactive session polls for forwarded requests, shows the confirmatio
 
 This keeps `ask` policies usable even when the original permission check happens inside a non-UI execution context.
 
-For in-process child sessions, detection and forwarding now use an explicit registration API.
-Subagent extensions call `registerSubagentSession()` on the `PermissionsService` before binding extensions, which tells the permission system that the session is a child and provides the parent session ID for forwarding.
-See [Service Accessor — registerSubagentSession](cross-extension-api.md#registersubagentsession--unregistersubagentsession) for the call pattern.
-The [Prompt Forwarding RPC](cross-extension-api.md#prompt-forwarding-rpc) remains available as an alternative for extensions that cannot import the service.
+For in-process child sessions, detection and forwarding use the explicit registration API described above.
+The [Prompt Forwarding RPC](cross-extension-api.md#prompt-forwarding-rpc) remains available as an alternative for extensions that cannot use the service accessor.
 
 ---
 
-## Coexistence with Subagent Extensions
+## Coexistence with Other Subagent Extensions
 
-Several pi-subagent extensions implement their own tool restriction mechanisms.
+Subagent extensions implement their own tool restriction mechanisms.
 These compose correctly with the permission system because the two operate at different layers: **visibility** (subagent extension) and **policy** (permission system).
 
 ### The Two-Layer Model
@@ -35,11 +48,18 @@ These compose correctly with the permission system because the two operate at di
 
 ### Known Subagent Extensions
 
-| Extension                                                                           | Mechanism                                          | Frontmatter key                                  |
-| ----------------------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
-| [nicobailon/pi-subagents](https://github.com/nicobailon/pi-subagents)               | `--tools` CLI allowlist passed to subprocess       | `tools:` (CSV allowlist)                         |
-| [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents)                 | `session.setActiveToolsByName()` in-process filter | `disallowed_tools:` (CSV denylist)               |
-| [HazAT/pi-interactive-subagents](https://github.com/HazAT/pi-interactive-subagents) | `PI_DENY_TOOLS` env var + `--tools` CLI allowlist  | `deny-tools:` (CSV denylist), `spawning:` (bool) |
+| Extension                                                                           | Type       | Permission integration           | Frontmatter key                    |
+| ----------------------------------------------------------------------------------- | ---------- | -------------------------------- | ---------------------------------- |
+| [@gotgenes/pi-subagents](https://github.com/gotgenes/pi-subagents)                  | in-process | ✓ Native (registry + forwarding) | `disallowed_tools:` (CSV denylist) |
+| [tintinweb/pi-subagents](https://github.com/tintinweb/pi-subagents)                 | in-process | ✗ No registration                | `disallowed_tools:` (CSV denylist) |
+| [nicobailon/pi-subagents](https://github.com/nicobailon/pi-subagents)               | subprocess | ✗ Missing env vars               | `tools:` (CSV allowlist)           |
+| [HazAT/pi-interactive-subagents](https://github.com/HazAT/pi-interactive-subagents) | subprocess | ✗ Missing env vars               | `deny-tools:` (CSV denylist)       |
+
+Process-based subagent extensions (nicobailon, HazAT) spawn child processes but do not set the `PI_SUBAGENT_PARENT_SESSION` env var that the permission system needs for `ask`-state forwarding.
+Without that env var, `ask` permissions in child processes are auto-denied.
+See [docs/guides/permission-frontmatter-for-subagent-extensions.md](docs/guides/permission-frontmatter-for-subagent-extensions.md) for the convention that subagent extension authors should follow.
+
+The upstream `tintinweb/pi-subagents` (which `@gotgenes/pi-subagents` forks) does not call `registerSubagentSession()`, so it lacks deterministic child detection and `ask`-state forwarding.
 
 ### Interaction Rules
 
@@ -63,12 +83,12 @@ You can freely use both in the same agent file:
 
 ```yaml
 ---
-# Subagent extension: allow only bash and read_file in the subprocess
-tools: bash,read_file
+# Subagent extension: allow only bash and read in the child session
+tools: bash,read
 # pi-permission-system: still enforce ask on bash within those allowed tools
 permission:
   bash: ask
 ---
 ```
 
-In this example the subagent extension restricts visibility to `bash` and `read_file`, and the permission system then gates every `bash` call with an `ask` prompt — both rules apply independently.
+In this example the subagent extension restricts visibility to `bash` and `read`, and the permission system then gates every `bash` call with an `ask` prompt — both rules apply independently.

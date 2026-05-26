@@ -20,6 +20,7 @@ Permission enforcement extension for the [Pi](https://pi.mariozechner.at/) codin
 - **Protects sensitive file patterns** — cross-cutting `path` rules deny `.env`, `~/.ssh/*`, etc. across all tools and bash at once
 - **Guards external paths** — prompts before file tools or bash commands reach outside `cwd`
 - **Forwards prompts from subagents** — `ask` policies work even in non-UI execution contexts
+- **Native [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-subagents) integration** — in-process child sessions register with the permission system automatically, enabling per-agent policy enforcement and `ask`-state forwarding to the parent UI without configuration
 
 ## Install
 
