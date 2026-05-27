@@ -55,7 +55,7 @@ flowchart TB
         direction TB
         AgentManager["AgentManager<br/>(spawn, queue, abort)"]
         AgentRunner["agent-runner<br/>(session, turns, results)"]
-        AgentRecord["AgentRecord<br/>(status state machine)"]
+        AgentRecord["Agent<br/>(status, behavior: abort/steer/worktree)"]
         ParentSnapshot["ParentSnapshot<br/>(frozen parent state)"]
         Worktree["worktree<br/>(git isolation)"]
     end
@@ -105,7 +105,7 @@ classDiagram
         +id: string
         +type: SubagentType
         +description: string
-        +status: AgentRecordStatus
+        +status: AgentStatus
         +result?: string
         +error?: string
         +toolUses: number
@@ -120,16 +120,19 @@ classDiagram
         +markError()
         +markStopped()
         +resetForResume()
+        +abort(): boolean
+        +queueSteer(message)
+        +flushPendingSteers(session)
+        +setupWorktree(worktrees, isolation)
     }
 
     class AgentManager {
         +spawn(snapshot, type, prompt, config)
         +spawnAndWait(snapshot, type, prompt, config)
         +resume(id, snapshot, exec)
-        +getRecord(id): AgentRecord
-        +listAgents(): AgentRecord[]
+        +getRecord(id): Agent
+        +listAgents(): Agent[]
         +abort(id)
-        +queueSteer(id, message)
     }
 
     class AgentTypeRegistry {
@@ -216,10 +219,10 @@ sequenceDiagram
     Asm-->>Runner: SessionConfig
     Runner->>Child: create session + run turn loop
     Child-->>Runner: result text
-    Runner-->>Mgr: update AgentRecord
-    Note over Mgr: record-observer subscribes to session events for stats
+    Runner-->>Mgr: update Agent
+    Note over Mgr: agent-observer subscribes to session events for stats
     Note over Mgr: ui-observer subscribes for streaming state
-    Mgr-->>Tool: AgentRecord
+    Mgr-->>Tool: Agent
     Tool-->>LLM: formatted result
 ```
 
@@ -259,7 +262,7 @@ src/
 ├── lifecycle/                      agent execution and state tracking
 │   ├── agent-manager.ts            spawn, queue, abort, resume, concurrency
 │   ├── agent-runner.ts             session creation, turn loop, tool filtering
-│   ├── agent-record.ts             status state machine
+│   ├── agent.ts                    status state machine, per-agent behavior (abort, steer, worktree)
 │   ├── parent-snapshot.ts          immutable spawn-time parent state
 │   ├── execution-state.ts          session/output phase state
 │   ├── permission-bridge.ts        optional bridge to pi-permission-system registry
@@ -504,7 +507,7 @@ Bags with 10+ fields are the highest priority for decomposition.
 | `AgentToolDeps`             | 8                                                      | agent-tool                                        | ✓ done    |
 | `AgentMenuDeps`             | 8                                                      | agent-menu                                        | ✓ done    |
 | `ConversationViewerOptions` | 8                                                      | conversation-viewer                               | Low       |
-| `AgentRecordInit`           | 8                                                      | agent-record                                      | Low       |
+| `AgentInit`                 | 8                                                      | agent                                             | Low       |
 
 ### Complexity hotspots
 
@@ -697,7 +700,7 @@ The scheduling concern (queue, concurrency counter, drain) is tangled into `Agen
 | `resume()` duplicates observer subscribe/unsubscribe pattern  | A: Redundant | 2      | 1    | 8        |
 | `exec`/`registry` relay-only deps on `AgentManager`           | C: Coupling  | 2      | 1    | 6        |
 
-### Step 1: Evolve AgentRecord into Agent with behavior — [#227]
+### Step 1: Evolve AgentRecord into Agent with behavior — [#227] ✅ Complete
 
 Rename `AgentRecord` → `Agent` (or wrap it).
 Move per-agent behavior from `AgentManager` into the agent:
