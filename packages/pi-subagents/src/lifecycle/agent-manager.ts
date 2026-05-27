@@ -167,7 +167,7 @@ export class AgentManager {
     // up the record so callers don't see an orphan in `listAgents()`.
     try {
       record.setupWorktree(this.worktrees, options.isolation);
-      this.startAgent(id, record, args);
+      record.promise = this.startAgent(id, record, args);
     } catch (err) {
       this.agents.delete(id);
       throw err;
@@ -176,7 +176,7 @@ export class AgentManager {
   }
 
   /** Actually start an agent (called immediately or from queue drain). */
-  private startAgent(id: string, record: Agent, { snapshot, type, prompt, options }: SpawnArgs) {
+  private async startAgent(id: string, record: Agent, { snapshot, type, prompt, options }: SpawnArgs): Promise<void> {
     record.markRunning(Date.now());
     if (options.isBackground) this.runningBackground++;
     this.observer?.onAgentStarted(record);
@@ -187,35 +187,38 @@ export class AgentManager {
     record.wireSignal(options.signal, () => this.abort(id));
 
     const runConfig = this.getRunConfig?.();
-    record.promise = this.runner.run(snapshot, type, prompt, {
-      context: {
-        exec: this.exec,
-        registry: this.registry,
-        cwd: record.worktreeState?.path,
-        parentSession: options.parentSession,
-      },
-      model: options.model,
-      maxTurns: options.maxTurns,
-      defaultMaxTurns: runConfig?.defaultMaxTurns,
-      graceTurns: runConfig?.graceTurns,
-      isolated: options.isolated,
-      thinkingLevel: options.thinkingLevel,
-      signal: record.abortController!.signal,
-      onSessionCreated: (session) => {
-        // Capture the session file path early so it's available for display
-        // before the run completes (e.g. in background agent status messages).
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- sessionManager is typed as always present but Pi SDK may not provide it
-        const outputFile = session.sessionManager?.getSessionFile?.() ?? undefined;
-        record.execution = { session, outputFile };
-        record.flushPendingSteers(session);
-        record.attachObserver(subscribeAgentObserver(session, record, {
-          onCompact: (r, info) => this.observer?.onAgentCompacted(r, info),
-        }));
-        options.onSessionCreated?.(session, record);
-      },
-    })
-      .then((result) => { record.completeRun(result, this.worktrees); })
-      .catch((err: unknown) => { record.failRun(err, this.worktrees); });
+    try {
+      const result = await this.runner.run(snapshot, type, prompt, {
+        context: {
+          exec: this.exec,
+          registry: this.registry,
+          cwd: record.worktreeState?.path,
+          parentSession: options.parentSession,
+        },
+        model: options.model,
+        maxTurns: options.maxTurns,
+        defaultMaxTurns: runConfig?.defaultMaxTurns,
+        graceTurns: runConfig?.graceTurns,
+        isolated: options.isolated,
+        thinkingLevel: options.thinkingLevel,
+        signal: record.abortController!.signal,
+        onSessionCreated: (session) => {
+          // Capture the session file path early so it's available for display
+          // before the run completes (e.g. in background agent status messages).
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- sessionManager is typed as always present but Pi SDK may not provide it
+          const outputFile = session.sessionManager?.getSessionFile?.() ?? undefined;
+          record.execution = { session, outputFile };
+          record.flushPendingSteers(session);
+          record.attachObserver(subscribeAgentObserver(session, record, {
+            onCompact: (r, info) => this.observer?.onAgentCompacted(r, info),
+          }));
+          options.onSessionCreated?.(session, record);
+        },
+      });
+      record.completeRun(result, this.worktrees);
+    } catch (err) {
+      record.failRun(err, this.worktrees);
+    }
   }
 
   /** Decrement background counter, notify observer (crash-safe), and drain the queue. */
@@ -233,7 +236,7 @@ export class AgentManager {
       if (record?.status !== "queued") continue;
       try {
         record.setupWorktree(this.worktrees, next.args.options.isolation);
-        this.startAgent(next.id, record, next.args);
+        record.promise = this.startAgent(next.id, record, next.args);
       } catch (err) {
         // Late failure (e.g. strict worktree-isolation) - surface on the record
         // so the user/agent can see it via /agents, then keep draining.
