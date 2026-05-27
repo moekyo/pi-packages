@@ -21,3 +21,21 @@ The plan covers 7 source files, 4 test files, README, and the architecture doc.
 - After removing `disallowedSet`, the `filterActiveTools` `extensions === false` branch simplifies to a trivial passthrough (`return activeTools`), and both guard conditions at the call sites drop the `|| cfg.toolFilter.disallowedSet` arm.
   This leaves the function in the exact shape that Step 3 (#239) expects.
 - The plan orders steps to follow the type dependency chain: `AgentConfig` first (surfaces all downstream errors), then `ToolFilterConfig`, then `filterActiveTools`, then UI, then docs.
+
+## Stage: Implementation — TDD (2026-05-27T00:59:19Z)
+
+### Session summary
+
+All 6 TDD steps completed in one session, producing 7 commits (6 planned + 1 fixup for dead code).
+Test count dropped from 983 to 978 (5 tests removed: 2 from `custom-agents.test.ts`, 1 from `session-config.test.ts`, 2 from `agent-runner-extension-tools.test.ts` after renaming one deleted test into a retained form).
+All checks (type check, lint, fallow dead-code gate) pass clean.
+
+### Observations
+
+- `csvListOptional` in `custom-agents.ts` was left dead after removing the `disallowedTools` parsing call; Biome flagged it as unused.
+  Removed as a separate `refactor:` commit since it couldn't be amended into the `feat!:` commit (later commits already on top of it).
+- One of the three deleted `agent-runner-extension-tools.test.ts` denylist tests ("extensions: false with no disallowedTools skips the filter") was reformulated into a new test ("extensions: false skips the filter entirely") rather than simply deleted, because it covers genuinely different behavior after the simplification: `extensions: false` now always skips the filter, not just when no denylist is present.
+  This adds coverage for the simplified code path.
+- The `filterActiveTools` `extensions === false` branch simplified from "apply denylist to built-in tools" to `return activeTools`, exactly as the plan specified.
+  Both guard conditions at the call sites simplified to `cfg.toolFilter.extensions !== false`.
+- No deviations from the plan's module-level changes list; all 7 source files and 4 test files were touched as specified.
