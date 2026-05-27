@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Agent } from "#src/lifecycle/agent";
+import type { RunResult } from "#src/lifecycle/agent-runner";
+import { WorktreeState } from "#src/lifecycle/worktree-state";
 
 describe("Agent — constructor", () => {
 	it("sets required fields from init", () => {
@@ -497,5 +499,186 @@ describe("Agent — flushPendingSteers", () => {
 		const session = { steer: vi.fn(() => Promise.resolve()) };
 		record.flushPendingSteers(session as any);
 		expect(session.steer).not.toHaveBeenCalled();
+	});
+});
+
+/** Minimal mock worktrees for completeRun / failRun tests. */
+function createMockWorktrees(cleanupResult = { hasChanges: false }) {
+	return { create: vi.fn(), cleanup: vi.fn(() => cleanupResult), prune: vi.fn() };
+}
+
+function createRunResult(overrides?: Partial<RunResult>): RunResult {
+	return {
+		responseText: "done",
+		session: {} as any,
+		aborted: false,
+		steered: false,
+		...overrides,
+	};
+}
+
+describe("Agent — completeRun", () => {
+	it("transitions to completed for a normal result", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.completeRun(createRunResult(), createMockWorktrees());
+		expect(record.status).toBe("completed");
+		expect(record.result).toBe("done");
+	});
+
+	it("transitions to aborted when result.aborted is true", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.completeRun(createRunResult({ aborted: true }), createMockWorktrees());
+		expect(record.status).toBe("aborted");
+	});
+
+	it("transitions to steered when result.steered is true", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.completeRun(createRunResult({ steered: true }), createMockWorktrees());
+		expect(record.status).toBe("steered");
+	});
+
+	it("performs worktree cleanup and appends branch info to result", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.worktreeState = new WorktreeState({ path: "/tmp/wt", branch: "pi-agent-x" });
+		const worktrees = createMockWorktrees({ hasChanges: true, branch: "pi-agent-x" } as any);
+		record.completeRun(createRunResult({ responseText: "result" }), worktrees);
+		expect(record.result).toContain("result");
+		expect(record.result).toContain("pi-agent-x");
+		expect(worktrees.cleanup).toHaveBeenCalledOnce();
+	});
+
+	it("updates execution state with session and outputFile", () => {
+		const session = { fake: true } as any;
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.completeRun(createRunResult({ session, sessionFile: "/tmp/out.jsonl" }), createMockWorktrees());
+		expect(record.execution?.session).toBe(session);
+		expect(record.execution?.outputFile).toBe("/tmp/out.jsonl");
+	});
+
+	it("preserves existing outputFile when sessionFile is undefined", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.execution = { session: {} as any, outputFile: "/existing.jsonl" };
+		record.completeRun(createRunResult({ sessionFile: undefined }), createMockWorktrees());
+		expect(record.execution.outputFile).toBe("/existing.jsonl");
+	});
+
+	it("fires onRunFinished exactly once", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const onFinished = vi.fn();
+		record.setOnRunFinished(onFinished);
+		record.completeRun(createRunResult(), createMockWorktrees());
+		record.completeRun(createRunResult(), createMockWorktrees()); // second call should not fire again
+		expect(onFinished).toHaveBeenCalledOnce();
+	});
+
+	it("releases listeners on completion", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const unsub = vi.fn();
+		record.attachObserver(unsub);
+		record.completeRun(createRunResult(), createMockWorktrees());
+		expect(unsub).toHaveBeenCalledOnce();
+	});
+});
+
+describe("Agent — failRun", () => {
+	it("transitions to error state", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.failRun(new Error("boom"), createMockWorktrees());
+		expect(record.status).toBe("error");
+		expect(record.error).toBe("boom");
+	});
+
+	it("performs best-effort worktree cleanup", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.worktreeState = new WorktreeState({ path: "/tmp/wt", branch: "pi-agent-x" });
+		const worktrees = createMockWorktrees();
+		record.failRun(new Error("boom"), worktrees);
+		expect(worktrees.cleanup).toHaveBeenCalledOnce();
+	});
+
+	it("does not throw when worktree cleanup fails", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		record.worktreeState = new WorktreeState({ path: "/tmp/wt", branch: "pi-agent-x" });
+		const worktrees = createMockWorktrees();
+		worktrees.cleanup.mockImplementation(() => { throw new Error("cleanup failed"); });
+		expect(() => record.failRun(new Error("boom"), worktrees)).not.toThrow();
+		expect(record.status).toBe("error");
+	});
+
+	it("fires onRunFinished exactly once", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const onFinished = vi.fn();
+		record.setOnRunFinished(onFinished);
+		record.failRun(new Error("boom"), createMockWorktrees());
+		expect(onFinished).toHaveBeenCalledOnce();
+	});
+
+	it("releases listeners on failure", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const unsub = vi.fn();
+		record.attachObserver(unsub);
+		record.failRun(new Error("boom"), createMockWorktrees());
+		expect(unsub).toHaveBeenCalledOnce();
+	});
+});
+
+describe("Agent — wireSignal", () => {
+	it("calls onAbort when the signal fires", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const controller = new AbortController();
+		const onAbort = vi.fn();
+		record.wireSignal(controller.signal, onAbort);
+		controller.abort();
+		expect(onAbort).toHaveBeenCalledOnce();
+	});
+
+	it("does nothing when signal is undefined", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		expect(() => record.wireSignal(undefined, vi.fn())).not.toThrow();
+	});
+
+	it("releaseListeners detaches the signal listener", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const controller = new AbortController();
+		const onAbort = vi.fn();
+		record.wireSignal(controller.signal, onAbort);
+		record.releaseListeners();
+		controller.abort();
+		expect(onAbort).not.toHaveBeenCalled();
+	});
+});
+
+describe("Agent — attachObserver / releaseListeners", () => {
+	it("stores unsub and calls it on releaseListeners", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const unsub = vi.fn();
+		record.attachObserver(unsub);
+		record.releaseListeners();
+		expect(unsub).toHaveBeenCalledOnce();
+	});
+
+	it("is idempotent — second release does not call unsub again", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const unsub = vi.fn();
+		record.attachObserver(unsub);
+		record.releaseListeners();
+		record.releaseListeners();
+		expect(unsub).toHaveBeenCalledOnce();
+	});
+});
+
+describe("Agent — resetForResume releases listeners", () => {
+	it("releases listeners and clears onRunFinished", () => {
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const unsub = vi.fn();
+		const onFinished = vi.fn();
+		record.attachObserver(unsub);
+		record.setOnRunFinished(onFinished);
+		record.markCompleted("done");
+		record.resetForResume(Date.now());
+		expect(unsub).toHaveBeenCalledOnce();
+		// onRunFinished should not fire on subsequent completion
+		record.markCompleted("again");
+		expect(onFinished).not.toHaveBeenCalled();
 	});
 });

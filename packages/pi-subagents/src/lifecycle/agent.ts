@@ -16,6 +16,8 @@
  */
 
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import { debugLog } from "#src/debug";
+import type { RunResult } from "#src/lifecycle/agent-runner";
 import type { ExecutionState } from "#src/lifecycle/execution-state";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import { addUsage } from "#src/lifecycle/usage";
@@ -248,12 +250,90 @@ export class Agent {
 		this._pendingSteers = [];
 	}
 
-	/** Reset for resume: running status, new startedAt, clear completedAt/result/error. */
+	/** Reset for resume: running status, new startedAt, clear completedAt/result/error/listeners. */
 	resetForResume(startedAt: number): void {
 		this._status = "running";
 		this._startedAt = startedAt;
 		this._completedAt = undefined;
 		this._result = undefined;
 		this._error = undefined;
+		this.releaseListeners();
+		this._onRunFinished = undefined;
+	}
+
+	// --- Per-run listener state (released on completion or resume reset) ---
+	private _unsub?: () => void;
+	private _detachFn?: () => void;
+	private _onRunFinished?: () => void;
+
+	/** Wire a parent AbortSignal so it stops this agent when fired. */
+	wireSignal(signal: AbortSignal | undefined, onAbort: () => void): void {
+		if (!signal) return;
+		const listener = () => onAbort();
+		signal.addEventListener("abort", listener, { once: true });
+		this._detachFn = () => signal.removeEventListener("abort", listener);
+	}
+
+	/** Store the record-observer unsubscribe handle. */
+	attachObserver(unsub: () => void): void {
+		this._unsub = unsub;
+	}
+
+	/** Release observer + signal listener handles. */
+	releaseListeners(): void {
+		this._unsub?.();
+		this._unsub = undefined;
+		this._detachFn?.();
+		this._detachFn = undefined;
+	}
+
+	/** Set the callback fired once when the run finishes (for concurrency drain). */
+	setOnRunFinished(fn: (() => void) | undefined): void {
+		this._onRunFinished = fn;
+	}
+
+	/** Fire the onRunFinished callback at most once. */
+	private fireOnRunFinished(): void {
+		const fn = this._onRunFinished;
+		this._onRunFinished = undefined;
+		fn?.();
+	}
+
+	/** Complete a run: release listeners, worktree cleanup, status transition, execution update, fire onRunFinished. */
+	completeRun(result: RunResult, worktrees: WorktreeManager): void {
+		this.releaseListeners();
+
+		let finalResult = result.responseText;
+		if (this.worktreeState) {
+			const wtResult = this.worktreeState.performCleanup(worktrees, this.description);
+			if (wtResult.hasChanges && wtResult.branch) {
+				finalResult += `\n\n---\nChanges saved to branch \`${wtResult.branch}\`. Merge with: \`git merge ${wtResult.branch}\``;
+			}
+		}
+
+		if (result.aborted) this.markAborted(finalResult);
+		else if (result.steered) this.markSteered(finalResult);
+		else this.markCompleted(finalResult);
+
+		this.execution = {
+			session: result.session,
+			outputFile: result.sessionFile ?? this.execution?.outputFile,
+		};
+
+		this.fireOnRunFinished();
+	}
+
+	/** Fail a run: mark error, release listeners, best-effort worktree cleanup, fire onRunFinished. */
+	failRun(err: unknown, worktrees: WorktreeManager): void {
+		this.markError(err);
+		this.releaseListeners();
+
+		if (this.worktreeState) {
+			try {
+				this.worktreeState.performCleanup(worktrees, this.description);
+			} catch (cleanupErr) { debugLog("cleanupWorktree on agent error", cleanupErr); }
+		}
+
+		this.fireOnRunFinished();
 	}
 }
