@@ -418,10 +418,7 @@ export class AgentManager {
       return true;
     }
 
-    if (record.status !== "running") return false;
-    record.abortController?.abort();
-    record.markStopped();
-    return true;
+    return record.abort();
   }
 
   /** Dispose a record's session and remove it from the map. */
@@ -474,11 +471,7 @@ export class AgentManager {
     this.queue = [];
     // Abort running agents
     for (const record of this.agents.values()) {
-      if (record.status === "running") {
-        record.abortController?.abort();
-        record.markStopped();
-        count++;
-      }
+      if (record.abort()) count++;
     }
     return count;
   }
