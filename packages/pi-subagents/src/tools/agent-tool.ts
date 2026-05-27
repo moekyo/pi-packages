@@ -156,12 +156,12 @@ export class AgentTool {
 		const registry = this.registry;
 
 		return defineTool({
-			name: "Agent" as const,
-			label: "Agent",
-			promptSnippet: "Agent: Launch a specialized agent for complex, multi-step tasks.",
+			name: "subagent" as const,
+			label: "Subagent",
+			promptSnippet: "subagent: Launch a specialized agent for complex, multi-step tasks.",
 			description: `Launch a new agent to handle complex, multi-step tasks autonomously.
 
-The Agent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
+The subagent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
 
 Available agent types:
 ${typeListText}
@@ -172,7 +172,7 @@ Guidelines:
 - Use Plan for architecture and implementation planning.
 - Use general-purpose for complex tasks that need file editing.
 - Provide clear, detailed prompts so the agent can work autonomously.
-- Agent results are returned as text — summarize them for the user.
+- Subagent results are returned as text — summarize them for the user.
 - Use run_in_background for work you don't need immediately. You will be notified when it completes.
 - Use resume with an agent ID to continue a previous agent's work.
 - Use steer_subagent to send mid-run messages to a running background agent.
@@ -244,7 +244,7 @@ Guidelines:
 			renderCall(args: Record<string, unknown>, theme: any) {
 				const displayName = args.subagent_type
 					? getDisplayName(args.subagent_type as string, registry)
-					: "Agent";
+					: "Subagent";
 				const desc = (args.description as string | undefined) ?? "";
 				return new Text(
 					"▸ " +

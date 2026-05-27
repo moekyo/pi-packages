@@ -32,14 +32,14 @@ async function execute(
 describe("AgentTool", () => {
 	it("returns tool definition with correct name and label", () => {
 		const def = makeTool(createToolDeps()).toToolDefinition();
-		expect(def.name).toBe("Agent");
-		expect(def.label).toBe("Agent");
+		expect(def.name).toBe("subagent");
+		expect(def.label).toBe("Subagent");
 	});
 
 	it("includes promptSnippet", () => {
 		const def = makeTool(createToolDeps()).toToolDefinition();
 		expect(def.promptSnippet).toBe(
-			"Agent: Launch a specialized agent for complex, multi-step tasks.",
+			"subagent: Launch a specialized agent for complex, multi-step tasks.",
 		);
 	});
 

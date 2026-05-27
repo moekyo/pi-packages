@@ -89,7 +89,7 @@ describe("print mode background notifications", () => {
     const ctx = makeHeadlessCtx();
     await handlers.get("session_start")?.({}, ctx);
 
-    const agentTool = tools.get("Agent");
+    const agentTool = tools.get("subagent");
     await agentTool.execute(
       "tool-call-1",
       {

@@ -140,7 +140,7 @@ describe("Patch 2: post-bind active-tool re-filter", () => {
     agentConfigMock.current.extensions = true;
     const session = createSessionWithExtensionToolRegistration(
       ["read"],
-      ["read", "Agent", "get_subagent_result", "steer_subagent", "external"],
+      ["read", "subagent", "get_subagent_result", "steer_subagent", "external"],
     );
     io.createSession.mockResolvedValue({ session });
 
@@ -150,7 +150,7 @@ describe("Patch 2: post-bind active-tool re-filter", () => {
     expect(postBindArgs).toContain("read");
     expect(postBindArgs).toContain("external");
     // Our own subagent-dispatch tools must never reach children.
-    expect(postBindArgs).not.toContain("Agent");
+    expect(postBindArgs).not.toContain("subagent");
     expect(postBindArgs).not.toContain("get_subagent_result");
     expect(postBindArgs).not.toContain("steer_subagent");
   });

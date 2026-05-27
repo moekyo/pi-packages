@@ -19,7 +19,7 @@ import { type AssemblerIO, assembleSessionConfig, type ToolFilterConfig } from "
 import type { ShellExec, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Names of tools registered by this extension that subagents must NOT inherit. */
-const EXCLUDED_TOOL_NAMES = ["Agent", "get_subagent_result", "steer_subagent"];
+const EXCLUDED_TOOL_NAMES = ["subagent", "get_subagent_result", "steer_subagent"];
 
 /**
  * Filter the session's active tool names according to extension rules.

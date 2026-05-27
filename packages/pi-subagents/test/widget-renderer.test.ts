@@ -48,7 +48,7 @@ describe("renderFinishedLine", () => {
 
 		// Success icon
 		expect(line).toContain("[success:✓]");
-		// Display name (general-purpose → "Agent")
+		// Display name (general-purpose type displayName → "Agent"; tool name is now "subagent")
 		expect(line).toContain("[dim:Agent]");
 		// Description
 		expect(line).toContain("[dim:test task]");
