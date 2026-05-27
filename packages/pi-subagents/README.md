@@ -31,7 +31,6 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 - **Persistent agent memory** — three scopes (project, local, user) with automatic read-only fallback for agents without write tools
 - **Git worktree isolation** — run agents in isolated repo copies; changes auto-committed to branches on completion
 - **Skill preloading** — inject named skills into agent system prompts, discovered from `.pi/skills/`, `.agents/skills/`, and global locations (Pi-standard `<name>/SKILL.md` directory layout supported)
-- **Tool denylist** — block specific tools via `disallowed_tools` frontmatter
 - **Styled completion notifications** — background agent results render as themed, compact notification boxes (icon, stats, result preview) instead of raw XML.
   Expandable to show full output
 - **Event bus** — lifecycle events (`subagents:created`, `started`, `completed`, `failed`, `steered`, `compacted`) emitted via `pi.events`, enabling other extensions to react to sub-agent activity
@@ -179,7 +178,6 @@ All fields are optional — sensible defaults for everything.
 | `extensions`        | `true`         | Inherit MCP/extension tools. `false` to disable                                                                                                                                                        |
 | `skills`            | `true`         | Inherit skills from parent. Can be a comma-separated list of skill names to preload (see [Skill Preloading](#skill-preloading) for discovery locations)                                                |
 | `memory`            | —              | Persistent agent memory scope: `project`, `local`, or `user`. Auto-detects read-only agents                                                                                                            |
-| `disallowed_tools`  | —              | Comma-separated tools to deny even if extensions provide them                                                                                                                                          |
 | `isolation`         | —              | Set to `worktree` to run in an isolated git worktree                                                                                                                                                   |
 | `model`             | inherit parent | Model — `provider/modelId` or fuzzy name (`"haiku"`, `"sonnet"`)                                                                                                                                       |
 | `thinking`          | inherit        | off, minimal, low, medium, high, xhigh                                                                                                                                                                 |
@@ -356,8 +354,6 @@ Agents with write tools get full read-write access.
 **Read-only agents** (no `write`/`edit` tools) automatically get read-only memory — they can consume memories written by other agents but cannot modify them.
 This prevents unintended tool escalation.
 
-The `disallowed_tools` field is respected when determining write capability — an agent with `tools: write` + `disallowed_tools: write` correctly gets read-only memory.
-
 ## Worktree Isolation
 
 Set `isolation: worktree` to run an agent in a temporary git worktree:
@@ -408,18 +404,19 @@ Traversal is byte-order sorted for deterministic resolution across filesystems.
 **Security:** symlinks are rejected at every layer (root, flat file, skill directory, `SKILL.md` inside a skill directory) — intentional deviation from Pi, which follows symlinks.
 Skill names with path-traversal characters (`..`, `/`, `\`, spaces, leading dot, >128 chars) are rejected.
 
-## Tool Denylist
+## Migrating from `disallowed_tools`
 
-Block specific tools from an agent even if extensions provide them:
+The `disallowed_tools` frontmatter field has been removed.
+Use [`@gotgenes/pi-permission-system`](https://github.com/gotgenes/pi-permission-system)'s `permission:` frontmatter instead — it provides richer semantics (allow/ask/deny vs. binary hide):
 
 ```yaml
----
-tools: read, bash, grep, write
-disallowed_tools: write, edit
----
-```
+# Before (no longer supported)
+disallowed_tools: bash
 
-This is useful for creating agents that inherit extension tools but should not have write access.
+# After
+permission:
+  bash: deny
+```
 
 ## Permission System Integration
 
@@ -483,7 +480,7 @@ Each has a corresponding upstream PR:
    Also fixes a latent bug where `ThinkingLevel` was imported from `pi-agent-core` (an undeclared transitive dep that breaks under pnpm).
    Upstream PR: [tintinweb/pi-subagents#71](https://github.com/tintinweb/pi-subagents/pull/71).
 2. **Post-`bindExtensions` active-tool re-filter** (`src/agent-runner.ts`) — `runAgent` re-runs its active-tool filter after `session.bindExtensions(...)` so extension-registered tools join the child's active tool set.
-   Without this, the `extensions: string[]` allowlist branch was functionally dead for extension tools, and `extensions: true` with a `disallowedTools` denylist let denylisted extension tools slip through.
+   Without this, the `extensions: string[]` allowlist branch was functionally dead for extension tools.
    Upstream PR: [tintinweb/pi-subagents#72](https://github.com/tintinweb/pi-subagents/pull/72).
 3. **`<active_agent>` system-prompt tag** (`src/prompts.ts`) — `buildAgentPrompt` prepends `<active_agent name="${config.name}"/>` to every assembled child system prompt (both `replace` and `append` modes).
    Downstream extensions like [`@gotgenes/pi-permission-system`](https://github.com/gotgenes/pi-permission-system) parse this tag to resolve per-agent `permission:` frontmatter inside the child session.
