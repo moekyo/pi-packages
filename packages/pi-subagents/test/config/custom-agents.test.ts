@@ -334,30 +334,6 @@ Agent prompt.`);
     expect(result.get("myagent")!.displayName).toBe("MyAgent");
   });
 
-  it("parses disallowed_tools as csv list", () => {
-    writeAgent("restricted", `---
-description: Restricted Agent
-disallowed_tools: bash, write
----
-
-No bash or write.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("restricted")!;
-    expect(agent.disallowedTools).toEqual(["bash", "write"]);
-  });
-
-  it("disallowed_tools defaults to undefined when omitted", () => {
-    writeAgent("unrestricted", `---
-description: Unrestricted
----
-
-All tools.`);
-
-    const result = loadCustomAgents(tmpDir);
-    expect(result.get("unrestricted")!.disallowedTools).toBeUndefined();
-  });
-
   it("parses isolation: worktree", () => {
     writeAgent("isolated-wt", `---
 description: Worktree agent

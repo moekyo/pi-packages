@@ -42,8 +42,6 @@ export interface AgentPromptConfig {
 /** Unified agent configuration — used for both default and user-defined agents. */
 export interface AgentConfig extends AgentIdentity, AgentPromptConfig {
   builtinToolNames?: string[];
-  /** Tool denylist — these tools are removed even if `builtinToolNames` or extensions include them. */
-  disallowedTools?: string[];
   /** true = inherit all, string[] = only listed, false = none */
   extensions: true | string[] | false;
   /** true = inherit all, string[] = only listed, false = none */
