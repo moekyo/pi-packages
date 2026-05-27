@@ -163,9 +163,10 @@ export class AgentManager {
       return id;
     }
 
-    // startAgent can throw (e.g. strict worktree-isolation failure) - clean
+    // setupWorktree can throw (e.g. strict worktree-isolation failure) - clean
     // up the record so callers don't see an orphan in `listAgents()`.
     try {
+      record.setupWorktree(this.worktrees, options.isolation);
       this.startAgent(id, record, args);
     } catch (err) {
       this.agents.delete(id);
@@ -176,8 +177,6 @@ export class AgentManager {
 
   /** Actually start an agent (called immediately or from queue drain). */
   private startAgent(id: string, record: Agent, { snapshot, type, prompt, options }: SpawnArgs) {
-    const worktreeCwd = record.setupWorktree(this.worktrees, options.isolation);
-
     record.markRunning(Date.now());
     if (options.isBackground) this.runningBackground++;
     this.observer?.onAgentStarted(record);
@@ -192,7 +191,7 @@ export class AgentManager {
       context: {
         exec: this.exec,
         registry: this.registry,
-        cwd: worktreeCwd,
+        cwd: record.worktreeState?.path,
         parentSession: options.parentSession,
       },
       model: options.model,
@@ -233,6 +232,7 @@ export class AgentManager {
       const record = this.agents.get(next.id);
       if (record?.status !== "queued") continue;
       try {
+        record.setupWorktree(this.worktrees, next.args.options.isolation);
         this.startAgent(next.id, record, next.args);
       } catch (err) {
         // Late failure (e.g. strict worktree-isolation) - surface on the record
