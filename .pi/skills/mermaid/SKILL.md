@@ -12,6 +12,16 @@ Load this skill before authoring or reviewing Mermaid diagrams in any doc type (
 
 ## Pitfalls
 
+### Backslash-n in node labels
+
+`\n` inside a quoted node label is rendered as a literal backslash followed by the letter n — not a line break.
+Use `<br/>` for line breaks in node labels.
+
+```text
+WRONG:  A["Step 1\nDo the thing"]
+RIGHT:  A["Step 1<br/>Do the thing"]
+```
+
 ### Semicolons
 
 Mermaid uses `;` as a statement terminator.

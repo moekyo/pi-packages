@@ -34,44 +34,44 @@ The extension is organized around six domains, each responsible for one aspect o
 flowchart TB
     subgraph config["Config domain"]
         direction TB
-        AgentTypeRegistry["AgentTypeRegistry\n(registry of agent types)"]
-        DefaultAgents["default-agents\n(built-in types)"]
-        CustomAgents["custom-agents\n(user .md files)"]
-        InvocationConfig["invocation-config\n(per-call merge)"]
+        AgentTypeRegistry["AgentTypeRegistry<br/>(registry of agent types)"]
+        DefaultAgents["default-agents<br/>(built-in types)"]
+        CustomAgents["custom-agents<br/>(user .md files)"]
+        InvocationConfig["invocation-config<br/>(per-call merge)"]
     end
 
     subgraph session["Session domain"]
         direction TB
-        SessionConfig["assembleSessionConfig\n(pure assembler)"]
-        Prompts["prompts\n(system prompt)"]
-        Context["context\n(parent history)"]
-        SafeFs["safe-fs\n(symlink/name guards)"]
-        SkillLoader["skill-loader\n(preload skills)"]
-        Env["env\n(git/platform)"]
-        ModelResolver["model-resolver\n(fuzzy match)"]
+        SessionConfig["assembleSessionConfig<br/>(pure assembler)"]
+        Prompts["prompts<br/>(system prompt)"]
+        Context["context<br/>(parent history)"]
+        SafeFs["safe-fs<br/>(symlink/name guards)"]
+        SkillLoader["skill-loader<br/>(preload skills)"]
+        Env["env<br/>(git/platform)"]
+        ModelResolver["model-resolver<br/>(fuzzy match)"]
     end
 
     subgraph lifecycle["Lifecycle domain"]
         direction TB
-        AgentManager["AgentManager\n(spawn, queue, abort)"]
-        AgentRunner["agent-runner\n(session, turns, results)"]
-        AgentRecord["AgentRecord\n(status state machine)"]
-        ParentSnapshot["ParentSnapshot\n(frozen parent state)"]
-        Worktree["worktree\n(git isolation)"]
+        AgentManager["AgentManager<br/>(spawn, queue, abort)"]
+        AgentRunner["agent-runner<br/>(session, turns, results)"]
+        AgentRecord["AgentRecord<br/>(status state machine)"]
+        ParentSnapshot["ParentSnapshot<br/>(frozen parent state)"]
+        Worktree["worktree<br/>(git isolation)"]
     end
 
     subgraph observation["Observation domain"]
         direction TB
-        RecordObserver["record-observer\n(stats via events)"]
-        Notification["notification\n(completion nudges)"]
-        UIObserver["ui-observer\n(streaming state)"]
+        RecordObserver["record-observer<br/>(stats via events)"]
+        Notification["notification<br/>(completion nudges)"]
+        UIObserver["ui-observer<br/>(streaming state)"]
     end
 
     subgraph tools["Tools domain"]
         direction TB
-        AgentTool["subagent tool\n(dispatch)"]
-        ResultRenderer["result-renderer\n(pure rendering)"]
-        SpawnConfig["spawn-config\n(resolve params)"]
+        AgentTool["subagent tool<br/>(dispatch)"]
+        ResultRenderer["result-renderer<br/>(pure rendering)"]
+        SpawnConfig["spawn-config<br/>(resolve params)"]
         FgRunner["foreground-runner"]
         BgSpawner["background-spawner"]
         GetResult["get_subagent_result"]
@@ -80,9 +80,9 @@ flowchart TB
 
     subgraph ui["UI domain"]
         direction TB
-        Widget["agent-widget\n(live status)"]
-        ConvViewer["conversation-viewer\n(session overlay)"]
-        Menu["agent-menu\n(slash command)"]
+        Widget["agent-widget<br/>(live status)"]
+        ConvViewer["conversation-viewer<br/>(session overlay)"]
+        Menu["agent-menu<br/>(slash command)"]
     end
 
     AgentTool --> AgentManager
@@ -751,10 +751,10 @@ The companion tools are already lowercase snake_case (`get_subagent_result`, `st
 
 ```mermaid
 flowchart LR
-    S1["Step 1\nRemove disallowed_tools"]
-    S2["Step 2\nRemove extensions filtering"]
-    S3["Step 3\nCollapse filterActiveTools"]
-    S4["Step 4\nRename Agent to subagent"]
+    S1["Step 1<br/>Remove disallowed_tools"]
+    S2["Step 2<br/>Remove extensions filtering"]
+    S3["Step 3<br/>Collapse filterActiveTools"]
+    S4["Step 4<br/>Rename Agent to subagent"]
 
     S1 --> S3
     S2 --> S3
@@ -854,12 +854,12 @@ The agent manages its own observer subscription lifecycle.
 
 ```mermaid
 flowchart LR
-    S1["Step 1\nAgent with behavior"]
-    S2["Step 2\nasync startAgent"]
-    S3["Step 3\nonSessionCreated observer"]
-    S4["Step 4\nConcurrencyQueue"]
-    S5["Step 5\nrelay deps"]
-    S6["Step 6\nresume unification"]
+    S1["Step 1<br/>Agent with behavior"]
+    S2["Step 2<br/>async startAgent"]
+    S3["Step 3<br/>onSessionCreated observer"]
+    S4["Step 4<br/>ConcurrencyQueue"]
+    S5["Step 5<br/>relay deps"]
+    S6["Step 6<br/>resume unification"]
 
     S1 --> S2
     S1 --> S6

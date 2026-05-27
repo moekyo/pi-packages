@@ -138,7 +138,7 @@ flowchart TD
     Branch -->|special| S["findCompiledWildcardMatch(compiledSpecial, name)"]
     Branch -->|skill| SK["findCompiledWildcardMatch(compiledSkills, skillName)"]
     Branch -->|bash| B["BashFilter.check(command)"]
-    Branch -->|mcp| M["createMcpPermissionTargets(input)\n→ findCompiledWildcardMatchForNames(compiledMcp, targets)"]
+    Branch -->|mcp| M["createMcpPermissionTargets(input)<br/>→ findCompiledWildcardMatchForNames(compiledMcp, targets)"]
     Branch -->|built-in tool| T["merged.tools[name]"]
     Branch -->|other| D["merged.tools[name] ?? defaultPolicy.tools"]
 
