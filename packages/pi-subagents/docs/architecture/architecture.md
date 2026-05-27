@@ -69,7 +69,7 @@ flowchart TB
 
     subgraph tools["Tools domain"]
         direction TB
-        AgentTool["Agent tool\n(dispatch)"]
+        AgentTool["subagent tool\n(dispatch)"]
         ResultRenderer["result-renderer\n(pure rendering)"]
         SpawnConfig["spawn-config\n(resolve params)"]
         FgRunner["foreground-runner"]
@@ -200,14 +200,14 @@ Other terminal transitions guard against overwriting `stopped` — once an agent
 ```mermaid
 sequenceDiagram
     participant LLM as Parent LLM
-    participant Tool as Agent tool
+    participant Tool as subagent tool
     participant Spawn as spawn-config
     participant Mgr as AgentManager
     participant Runner as agent-runner
     participant Asm as assembleSessionConfig
     participant Child as Child session
 
-    LLM->>Tool: Agent(type, prompt, ...)
+    LLM->>Tool: subagent(type, prompt, ...)
     Tool->>Spawn: resolveSpawnConfig(params)
     Spawn-->>Tool: ResolvedSpawnConfig
     Tool->>Mgr: spawn(snapshot, type, prompt, config)
@@ -323,7 +323,7 @@ flowchart TD
     subgraph core["@gotgenes/pi-subagents"]
         direction TB
         exports["SubagentsService API<br/>publish / getSubagentsService<br/>SubagentRecord, SubagentStatus"]
-        engine["Tools: Agent, get_subagent_result,<br/>steer_subagent<br/>AgentManager, agent-runner"]
+        engine["Tools: subagent, get_subagent_result,<br/>steer_subagent<br/>AgentManager, agent-runner"]
         ui_int["Internal UI: widget, viewer,<br/>/agents menu"]
     end
 
@@ -337,7 +337,7 @@ They declare this package as an optional peer dependency and use dynamic import 
 
 ### What the core owns
 
-- The three tools: `Agent`, `get_subagent_result`, `steer_subagent`.
+- The three tools: `subagent` (née `Agent`), `get_subagent_result`, `steer_subagent`.
 - `AgentManager` — spawn, queue, abort, resume, concurrency control.
 - `agent-runner` — session creation, turn loop, extension binding.
 - `permission-bridge` — optional cross-extension bridge to `@gotgenes/pi-permission-system`; registers each child session with `SubagentSessionRegistry` before `bindExtensions()` so the permission system detects in-process children deterministically.
@@ -679,6 +679,7 @@ Removing it simplifies `runAgent`, shrinks `AgentConfig` and `SessionConfig`, an
 | `extensions: string[]` allowlist is tool filtering disguised as lifecycle control         | A: Overlap    | 3      | 2    | 9        |
 | `filterActiveTools` runs twice (pre-bind + post-bind) to catch extension-registered tools | B: Complexity | 3      | 1    | 6        |
 | `ToolFilterConfig` exists solely to carry filtering state through the runner              | C: Accidental | 2      | 1    | 4        |
+| `Agent` tool name is PascalCase — misaligns with Pi's lowercase built-in convention       | D: Convention | 2      | 1    | 3        |
 
 ### Step 1: Remove `disallowed_tools` — [#237] ✅ Complete
 
@@ -728,6 +729,24 @@ Inline the `extensions === false` passthrough into the callsite and reduce the f
 - Smell: B (accidental complexity), C (two-pass filter dance)
 - Outcome: `filterActiveTools` is a one-liner; `SessionConfig` loses one nested type; the pre-bind/post-bind dance is gone
 
+### Step 4: Rename `Agent` tool to `subagent` — [#242]
+
+Rename the `Agent` tool to `subagent` to align with Pi's built-in tool naming convention (all lowercase: `read`, `bash`, `write`, `edit`, `find`, `grep`, `ls`).
+The PascalCase name was inherited from tintinweb/pi-subagents (mimicking Claude Code's convention), but Pi uses lowercase for all built-in tools.
+The companion tools are already lowercase snake_case (`get_subagent_result`, `steer_subagent`), and nicobailon/pi-subagents already uses `subagent`.
+
+1. Rename tool name from `"Agent"` to `"subagent"` in `agent-tool.ts`.
+2. Update `label` and `promptSnippet` in the tool definition.
+3. Update `EXCLUDED_TOOL_NAMES` in `agent-runner.ts`.
+4. Update the fallback display name in `agent-tool.ts`.
+5. Update architecture docs (tool references, domain diagrams, cross-extension section).
+6. Update pi-permission-system docs that reference the `Agent` tool name.
+7. Update tests.
+
+- Target: `tools/agent-tool.ts`, `lifecycle/agent-runner.ts`, `docs/`, `../pi-permission-system/docs/`
+- Smell: D (convention mismatch — PascalCase in a lowercase ecosystem)
+- Outcome: all three tools use consistent lowercase naming; aligns with Pi's built-in convention
+
 ### Step dependency diagram
 
 ```mermaid
@@ -735,17 +754,19 @@ flowchart LR
     S1["Step 1\nRemove disallowed_tools"]
     S2["Step 2\nRemove extensions filtering"]
     S3["Step 3\nCollapse filterActiveTools"]
+    S4["Step 4\nRename Agent to subagent"]
 
     S1 --> S3
     S2 --> S3
 ```
 
-Steps 1 and 2 are independent and can proceed in parallel.
-Step 3 depends on both.
+Steps 1, 2, and 4 are independent and can proceed in parallel.
+Step 3 depends on Steps 1 and 2.
 
 [#237]: https://github.com/gotgenes/pi-packages/issues/237
 [#238]: https://github.com/gotgenes/pi-packages/issues/238
 [#239]: https://github.com/gotgenes/pi-packages/issues/239
+[#242]: https://github.com/gotgenes/pi-packages/issues/242
 
 ## Improvement roadmap (Phase 15 — domain model evolution)
 
