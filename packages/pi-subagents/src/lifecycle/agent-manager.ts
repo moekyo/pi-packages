@@ -15,7 +15,6 @@ import type { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { WorktreeManager } from "#src/lifecycle/worktree";
 
-import { subscribeAgentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
 import type { AgentInvocation, CompactionInfo, IsolationMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
@@ -173,34 +172,17 @@ export class AgentManager {
 
   /**
    * Resume an existing agent session with a new prompt.
+   * Delegates to Agent.resume(), which owns the observer subscription lifecycle.
    */
   async resume(
     id: string,
     prompt: string,
     signal?: AbortSignal,
   ): Promise<Agent | undefined> {
-    const record = this.agents.get(id);
-    const session = record?.session;
-    if (!session) return undefined;
-
-    record.resetForResume(Date.now());
-
-    const unsubResume = subscribeAgentObserver(session, record, {
-      onCompact: (r, info) => this.observer?.onAgentCompacted(r, info),
-    });
-
-    try {
-      const responseText = await this.runner.resume(session, prompt, {
-        signal,
-      });
-      record.markCompleted(responseText);
-    } catch (err) {
-      record.markError(err);
-    } finally {
-      unsubResume();
-    }
-
-    return record;
+    const agent = this.agents.get(id);
+    if (!agent?.session) return undefined;
+    await agent.resume(prompt, signal);
+    return agent;
   }
 
   getRecord(id: string): Agent | undefined {
