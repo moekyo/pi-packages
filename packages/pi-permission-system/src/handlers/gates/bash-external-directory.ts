@@ -83,10 +83,9 @@ export async function describeBashExternalDirectoryGate(
   // Use the most restrictive check among uncovered paths as the pre-check result.
   // This ensures a config-level "deny" rule is not downgraded to "ask" by the
   // generic "*" catch-all that the old path-less checkPermission call returned.
-  const worstCheck = uncoveredEntries.reduce<PermissionCheckResult>(
-    (worst, { check }) => (check.state === "deny" ? check : worst),
-    uncoveredEntries[0].check,
-  );
+  const worstCheck =
+    uncoveredEntries.find(({ check }) => check.state === "deny")?.check ??
+    uncoveredEntries[0].check;
 
   const bashExtMessage = formatBashExternalDirectoryAskPrompt(
     command,

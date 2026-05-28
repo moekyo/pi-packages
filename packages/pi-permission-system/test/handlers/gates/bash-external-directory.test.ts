@@ -193,6 +193,53 @@ describe("describeBashExternalDirectoryGate", () => {
     });
   });
 
+  it("config-allowed path is excluded; remaining ask path produces a descriptor", async () => {
+    // One path config-allowed, one config-ask → descriptor with only the ask path.
+    const checkPermission = vi
+      .fn()
+      .mockImplementation(
+        (_surface: string, input: Record<string, unknown>) => {
+          if (input.path === "/outside/a.ts")
+            return makeCheckResult("allow", { source: "special" });
+          return makeCheckResult("ask");
+        },
+      );
+    const result = await describeBashExternalDirectoryGate(
+      makeTcc({ input: { command: "diff /outside/a.ts /outside/b.ts" } }),
+      checkPermission,
+      vi.fn().mockReturnValue([]),
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    const patterns = (desc.sessionApproval as { patterns: string[] }).patterns;
+    expect(patterns.length).toBe(1);
+    expect(desc.preCheck?.state).toBe("ask");
+  });
+
+  it("config-denied path makes worstCheck deny even when another path is ask", async () => {
+    // One path config-denied, one config-ask → descriptor with preCheck.state === "deny".
+    const checkPermission = vi
+      .fn()
+      .mockImplementation(
+        (_surface: string, input: Record<string, unknown>) => {
+          if (input.path === "/outside/a.ts")
+            return makeCheckResult("deny", { source: "special" });
+          return makeCheckResult("ask");
+        },
+      );
+    const result = await describeBashExternalDirectoryGate(
+      makeTcc({ input: { command: "diff /outside/a.ts /outside/b.ts" } }),
+      checkPermission,
+      vi.fn().mockReturnValue([]),
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    expect(desc.preCheck?.state).toBe("deny");
+    // Both paths are uncovered (neither is allow), so both patterns are included.
+    const patterns = (desc.sessionApproval as { patterns: string[] }).patterns;
+    expect(patterns.length).toBe(2);
+  });
+
   it("only includes uncovered paths when some are session-covered", async () => {
     const checkPermission = vi
       .fn()
