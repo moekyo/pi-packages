@@ -15,7 +15,6 @@ import type { AgentRunner } from "#src/lifecycle/agent-runner";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { WorktreeManager } from "#src/lifecycle/worktree";
 
-import { NotificationState } from "#src/observation/notification-state";
 import { subscribeAgentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
 import type { AgentInvocation, CompactionInfo, IsolationMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
@@ -123,21 +122,16 @@ export class AgentManager {
     options: AgentSpawnConfig,
   ): string {
     const id = randomUUID().slice(0, 17);
-    const abortController = new AbortController();
     const record = new Agent({
       id,
       type,
       description: options.description,
       status: options.isBackground ? "queued" : "running",
       startedAt: Date.now(),
-      abortController,
       invocation: options.invocation,
+      parentSession: options.parentSession,
     });
     this.agents.set(id, record);
-
-    if (options.parentSession?.toolCallId) {
-      record.notification = new NotificationState(options.parentSession.toolCallId);
-    }
 
     if (options.isBackground) {
       this.observer?.onAgentCreated(record);
@@ -187,7 +181,7 @@ export class AgentManager {
         graceTurns: runConfig?.graceTurns,
         isolated: options.isolated,
         thinkingLevel: options.thinkingLevel,
-        signal: record.abortController!.signal,
+        signal: record.abortController.signal,
         onSessionCreated: (session) => {
           // Capture the session file path early so it's available for display
           // before the run completes (e.g. in background agent status messages).

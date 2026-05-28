@@ -99,9 +99,9 @@ describe("GetResultTool", () => {
 		const record = createTestAgent({
 			status: "running",
 			completedAt: undefined,
-			promise: Promise.resolve().then(() => {
-				record.markCompleted("Finished after wait.");
-			}),
+		});
+		record.promise = Promise.resolve().then(() => {
+			record.markCompleted("Finished after wait.");
 		});
 		const records = new Map([["agent-1", record]]);
 		const result = await execute(makeManager(records), makeNotifications(), { agent_id: "agent-1", wait: true });

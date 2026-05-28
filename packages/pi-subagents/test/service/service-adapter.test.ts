@@ -51,19 +51,21 @@ describe("toSubagentRecord", () => {
   });
 
   it("strips abortController from the record", () => {
-    const record = createTestAgent({ abortController: new AbortController() });
+    const record = createTestAgent();
     const result = toSubagentRecord(record);
     expect(result).not.toHaveProperty("abortController");
   });
 
   it("strips promise from the record", () => {
-    const record = createTestAgent({ promise: Promise.resolve() });
+    const record = createTestAgent();
+    record.promise = Promise.resolve();
     const result = toSubagentRecord(record);
     expect(result).not.toHaveProperty("promise");
   });
 
   it("strips abortController, promise, and collaborator fields from the record", () => {
-    const record = createTestAgent({ abortController: new AbortController(), promise: Promise.resolve() });
+    const record = createTestAgent();
+    record.promise = Promise.resolve();
     const result = toSubagentRecord(record);
     expect(result).not.toHaveProperty("abortController");
     expect(result).not.toHaveProperty("promise");
@@ -144,7 +146,6 @@ describe("SubagentsServiceAdapter — getRecord and listAgents", () => {
     type: "Explore",
     description: "task A",
     lifetimeUsage: { input: 10, output: 20, cacheWrite: 5 },
-    abortController: new AbortController(),
   });
 
   const recordB = createTestAgent({

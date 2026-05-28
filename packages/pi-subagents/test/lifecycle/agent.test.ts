@@ -54,15 +54,13 @@ describe("Agent — constructor", () => {
 	});
 
 	it("passes through optional identity fields", () => {
-		const controller = new AbortController();
 		const record = new Agent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
-			abortController: controller,
 			invocation: { modelName: "haiku" },
 		});
-		expect(record.abortController).toBe(controller);
+		expect(record.abortController).toBeInstanceOf(AbortController);
 		expect(record.invocation).toEqual({ modelName: "haiku" });
 		// Stats always start at zero — set via mutation methods after construction
 		expect(record.toolUses).toBe(0);
@@ -82,6 +80,46 @@ describe("Agent — constructor", () => {
 		expect(record.promise).toBeUndefined();
 		expect(record.execution).toBeUndefined();
 		expect(record.worktreeState).toBeUndefined();
+		expect(record.notification).toBeUndefined();
+	});
+
+	it("always creates its own AbortController", () => {
+		const record = new Agent({
+			id: "1",
+			type: "general-purpose",
+			description: "test",
+		});
+		expect(record.abortController).toBeInstanceOf(AbortController);
+		expect(record.abortController.signal.aborted).toBe(false);
+	});
+
+	it("creates NotificationState when parentSession.toolCallId is provided", () => {
+		const record = new Agent({
+			id: "1",
+			type: "general-purpose",
+			description: "test",
+			parentSession: { toolCallId: "tc-42" },
+		});
+		expect(record.notification).toBeDefined();
+		expect(record.notification!.toolCallId).toBe("tc-42");
+	});
+
+	it("does not create NotificationState when toolCallId is absent", () => {
+		const record = new Agent({
+			id: "1",
+			type: "general-purpose",
+			description: "test",
+			parentSession: { parentSessionFile: "/sessions/p.jsonl" },
+		});
+		expect(record.notification).toBeUndefined();
+	});
+
+	it("does not create NotificationState when parentSession is absent", () => {
+		const record = new Agent({
+			id: "1",
+			type: "general-purpose",
+			description: "test",
+		});
 		expect(record.notification).toBeUndefined();
 	});
 });
@@ -427,10 +465,9 @@ describe("Agent — abort", () => {
 	});
 
 	it("fires the AbortController, marks stopped, and returns true when running", () => {
-		const abortController = new AbortController();
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running", abortController });
+		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
 		expect(record.abort()).toBe(true);
-		expect(abortController.signal.aborted).toBe(true);
+		expect(record.abortController.signal.aborted).toBe(true);
 		expect(record.status).toBe("stopped");
 	});
 

@@ -15,16 +15,19 @@
  * after construction as lifecycle information becomes available.
  */
 
+import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { debugLog } from "#src/debug";
-import type { RunResult } from "#src/lifecycle/agent-runner";
+import type { AgentRunner, RunResult } from "#src/lifecycle/agent-runner";
 import type { ExecutionState } from "#src/lifecycle/execution-state";
+import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import { addUsage } from "#src/lifecycle/usage";
 import type { WorktreeManager } from "#src/lifecycle/worktree";
 import { WorktreeState } from "#src/lifecycle/worktree-state";
-import type { NotificationState } from "#src/observation/notification-state";
-import type { AgentInvocation, CompactionInfo, IsolationMode, SubagentType } from "#src/types";
+import { NotificationState } from "#src/observation/notification-state";
+import type { RunConfig } from "#src/runtime";
+import type { AgentInvocation, CompactionInfo, IsolationMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Per-agent lifecycle observer — created by AgentManager for each spawn. */
 export interface AgentLifecycleObserver {
@@ -48,17 +51,36 @@ export type AgentStatus =
 	| "error";
 
 export interface AgentInit {
+	// Identity
 	id: string;
 	type: SubagentType;
 	description: string;
+	invocation?: AgentInvocation;
+
+	// Status (for tests and restore scenarios)
 	status?: AgentStatus;
 	startedAt?: number;
 	completedAt?: number;
 	result?: string;
 	error?: string;
-	abortController?: AbortController;
-	invocation?: AgentInvocation;
-	promise?: Promise<void>;
+
+	// Shared deps (required for run(), optional for tests)
+	runner?: AgentRunner;
+	worktrees?: WorktreeManager;
+	observer?: AgentLifecycleObserver;
+	getRunConfig?: () => RunConfig;
+
+	// Run config (required for run(), optional for tests)
+	snapshot?: ParentSnapshot;
+	prompt?: string;
+	model?: Model<any>;
+	maxTurns?: number;
+	isolated?: boolean;
+	thinkingLevel?: ThinkingLevel;
+	isolation?: IsolationMode;
+	parentSession?: ParentSessionInfo;
+	isBackground?: boolean;
+	signal?: AbortSignal;
 }
 
 export class Agent {
@@ -94,10 +116,28 @@ export class Agent {
 	private _compactionCount: number;
 	get compactionCount(): number { return this._compactionCount; }
 
-	/** AbortController for cancelling this agent. Set at construction; used only by AgentManager. */
-	readonly abortController?: AbortController;
-	/** Promise for the full agent run (including post-processing). Set once by AgentManager. */
+	/** AbortController for cancelling this agent. Created at construction. */
+	readonly abortController: AbortController;
+	/** Promise for the full agent run (including post-processing). Set by run(). */
 	promise?: Promise<void>;
+
+	// Shared deps — optional (required for run())
+	private readonly _runner?: AgentRunner;
+	private readonly _worktrees?: WorktreeManager;
+	readonly observer?: AgentLifecycleObserver;
+	private readonly _getRunConfig?: () => RunConfig;
+
+	// Run config — optional (required for run())
+	private readonly _snapshot?: ParentSnapshot;
+	private readonly _prompt?: string;
+	private readonly _model?: Model<any>;
+	private readonly _maxTurns?: number;
+	private readonly _isolated?: boolean;
+	private readonly _thinkingLevel?: ThinkingLevel;
+	private readonly _isolation?: IsolationMode;
+	private readonly _parentSession?: ParentSessionInfo;
+	private readonly _isBackground?: boolean;
+	private readonly _signal?: AbortSignal;
 
 	// Phase-specific collaborators — each born complete when their info becomes available
 	execution?: ExecutionState;
@@ -138,22 +178,49 @@ export class Agent {
 	}
 
 	constructor(init: AgentInit) {
+		// Identity
 		this.id = init.id;
 		this.type = init.type;
 		this.description = init.description;
 		this.invocation = init.invocation;
 
+		// Status
 		this._status = init.status ?? "queued";
 		this._result = init.result;
 		this._error = init.error;
 		this._startedAt = init.startedAt ?? Date.now();
 		this._completedAt = init.completedAt;
 
+		// Stats
 		this._toolUses = 0;
 		this._lifetimeUsage = { input: 0, output: 0, cacheWrite: 0 };
 		this._compactionCount = 0;
-		this.abortController = init.abortController;
-		this.promise = init.promise;
+
+		// Abort controller — always created, never injected
+		this.abortController = new AbortController();
+
+		// Shared deps
+		this._runner = init.runner;
+		this._worktrees = init.worktrees;
+		this.observer = init.observer;
+		this._getRunConfig = init.getRunConfig;
+
+		// Run config
+		this._snapshot = init.snapshot;
+		this._prompt = init.prompt;
+		this._model = init.model;
+		this._maxTurns = init.maxTurns;
+		this._isolated = init.isolated;
+		this._thinkingLevel = init.thinkingLevel;
+		this._isolation = init.isolation;
+		this._parentSession = init.parentSession;
+		this._isBackground = init.isBackground;
+		this._signal = init.signal;
+
+		// Notification state — created from parentSession.toolCallId if present
+		if (init.parentSession?.toolCallId) {
+			this.notification = new NotificationState(init.parentSession.toolCallId);
+		}
 	}
 
 	/** Increment tool use count. Called by record-observer on tool_execution_end. */
@@ -238,7 +305,7 @@ export class Agent {
 	 */
 	abort(): boolean {
 		if (this._status !== "running") return false;
-		this.abortController?.abort();
+		this.abortController.abort();
 		this.markStopped();
 		return true;
 	}
