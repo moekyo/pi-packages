@@ -21,3 +21,18 @@ Both dependencies (#229 Agent.run(), #231 runner self-contained) are confirmed c
   Verified this is safe: observer notification only processes the completed agent and drain only starts promises without awaiting.
 - `SettingsManager` does not change — only the callback wiring in `index.ts` changes target from `manager.notifyConcurrencyChanged()` to `queue.drain()`.
 - The `agent.ts` `abort()` method has a comment referencing #230 that should be updated in the implementation step.
+
+## Stage: Implementation — TDD (2026-05-28T21:35:00Z)
+
+### Session summary
+
+Implemented all 3 TDD steps: (1) `ConcurrencyQueue` class + 22 unit tests, (2) migrated `AgentManager` to use injected `ConcurrencyQueue` and updated `index.ts` wiring + test helper, (3) architecture docs and SKILL.md updates.
+Test count delta: 1020 → 1042 (+22 new `ConcurrencyQueue` tests, 0 removed).
+
+### Observations
+
+- The `createManager` test helper required the forward-reference-via-closure pattern (`let mgr` then closure then assignment) with a `prefer-const` ESLint suppression — same pattern used in production `index.ts` for `onMaxConcurrentChanged`.
+- Pre-completion reviewer returned WARN for one stale comment (`drainQueue` reference in `waitForAll`) — fixed by amending the docs commit.
+- No plan deviations.
+  All module-level changes matched the plan exactly.
+- Pre-completion reviewer: WARN → fixed (stale comment).
