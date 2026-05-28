@@ -687,172 +687,6 @@ See [phase-14-strip-policy.md](history/phase-14-strip-policy.md) for details.
 [#239]: https://github.com/gotgenes/pi-packages/issues/239
 [#242]: https://github.com/gotgenes/pi-packages/issues/242
 
-## Improvement roadmap (Phase 15 — domain model evolution)
-
-Phase 15 evolves `Agent` from a passive state machine into an object that **owns its entire execution lifecycle**.
-
-Steps 1–2 (complete) moved per-agent behavior from `AgentManager` onto `Agent`: abort, steer buffering, worktree setup, and run lifecycle methods (`completeRun`, `failRun`).
-However, Agent still cannot *run itself*.
-`AgentManager.startAgent()` orchestrates the entire execution: calling the runner, handling session creation, wiring observers, and cleaning up worktrees.
-The manager reaches into Agent 10 times across `spawn()` + `startAgent()` — writing to `notification`, `execution`, and `promise` after construction, passing its own `worktrees` and `runner` as method arguments, and threading `onSessionCreated` callbacks through three layers.
-
-The remaining steps address this by making **Agent born complete**: constructed with all dependencies and configuration, owning its entire execution lifecycle.
-
-### Architecture target
-
-Agent receives three concerns at construction:
-
-| Concern     | Fields                                                                        | Lifetime                  |
-| ----------- | ----------------------------------------------------------------------------- | ------------------------- |
-| Identity    | id, type, description, invocation                                             | Immutable                 |
-| Run config  | snapshot, prompt, model, isolation, maxTurns, thinking, signal, parentSession | Immutable per-run         |
-| Shared deps | runner, worktrees                                                             | Shared service references |
-
-`Agent.run()` encapsulates the full execution lifecycle:
-
-1. Set up worktree internally (knows its own isolation mode, has worktrees).
-2. Call `this.runner.run()` (has the runner).
-3. Handle session creation internally: set `execution`, flush pending steers, attach record-observer.
-4. Notify lifecycle observer (started, session created, completed, compacted).
-5. Clean up worktree on completion or error.
-6. Transition status.
-
-`AgentManager` becomes a collection manager + observer wiring:
-
-- Creates complete Agent objects, stores them in the map.
-- Decides when to run (immediate or queue) and calls `agent.run()`.
-- Provides high-level actions: abort, list, cleanup.
-- Does *not* own the runner, worktrees, or any run-orchestration logic.
-
-The queue stores agent IDs, not `SpawnArgs`.
-When capacity opens, the manager looks up the agent and calls `agent.run()` — the agent already has everything.
-
-The `onSessionCreated` callback that currently threads through `AgentSpawnConfig` → `startAgent` → `RunOptions` → runner disappears.
-Agent handles session creation internally during `run()` and notifies external observers via the lifecycle observer pattern.
-
-The synchronous-throw contract for worktree failure (introduced in Step 2's hoist) is replaced by a uniform async error surface.
-Worktree failures inside `agent.run()` propagate through the promise.
-For background agents, errors surface via `get_subagent_result` and appear in `/agents`.
-For foreground agents, `spawnAndWait` awaits the promise naturally.
-
-The scheduling concern (queue, concurrency counter, drain) is tangled into `AgentManager` alongside collection management and run orchestration.
-`notifyConcurrencyChanged()` is a scheduling method exposed as a public API so settings can poke the queue — a cross-concern leak.
-
-### Findings summary
-
-| Finding                                                                | Category     | Impact | Risk | Priority |
-| ---------------------------------------------------------------------- | ------------ | ------ | ---- | -------- |
-| ~~`AgentRecord` is anemic — no behavior, manager reaches in 37×~~      | B: Oversized | 5      | 3    | ✅       |
-| ~~Agent cannot run itself — manager orchestrates 10 external touches~~ | C: Coupling  | 5      | 3    | ✅       |
-| ~~Scheduling tangled into `AgentManager` (3 fields, 3 methods)~~       | A: Coupling  | 4      | 2    | ✅       |
-| ~~`startAgent` uses `.then()`/`.catch()` instead of async/await~~      | C: Callbacks | 3      | 2    | ✅       |
-| ~~`onSessionCreated` callback flows through 3 layers~~                 | C: Callbacks | 3      | 2    | subsumed |
-| ~~`resume()` duplicates observer subscribe/unsubscribe pattern~~       | A: Redundant | 2      | 1    | ✅       |
-| ~~`exec`/`registry` relay-only deps on `AgentManager`~~                | C: Coupling  | 2      | 1    | ✅       |
-
-### Step 1: Evolve AgentRecord into Agent with behavior — [#227] ✅ Complete
-
-Rename `AgentRecord` → `Agent` (or wrap it).
-Move per-agent behavior from `AgentManager` into the agent:
-
-1. `Agent.abort()` — absorbs status-check + controller.abort + markStopped.
-2. `Agent.queueSteer(message)` / `Agent.flushPendingSteers(session)` — moves pending steers from manager map to per-agent array.
-3. `Agent.setupWorktree(worktrees, isolation)` — moves worktree creation into the agent.
-
-- Target: `src/lifecycle/agent-record.ts` → `src/lifecycle/agent.ts`, `src/lifecycle/agent-manager.ts`
-- Smell: B (anemic domain model) + C (manager reaching into records)
-- Outcome: `AgentManager` delegates via Tell-Don't-Ask; per-agent state lives on the agent
-
-### Step 2: Convert startAgent to async/await — [#228] ✅ Complete
-
-Converted `startAgent` to `async` with `try/catch` and dissolved `RunHandle` into `Agent` methods.
-`spawn()` assigns `record.promise = this.startAgent(...)` instead of calling `startAgent()` synchronously.
-`Agent` gained run lifecycle methods: `completeRun`, `failRun`, `wireSignal`, `attachObserver`, `releaseListeners`, `setOnRunFinished`.
-Worktree setup was hoisted to callers (`spawn`, `drainQueue`) to preserve the synchronous-throw contract.
-
-- Depends on: #227
-- Target: `src/lifecycle/agent-manager.ts`, `src/lifecycle/agent.ts`
-- Smell: C (raw promise callbacks)
-- Outcome: zero `.then()`/`.catch()` in `agent-manager.ts`; `RunHandle` deleted; Agent owns run lifecycle
-
-### Step 3: Push exec/registry relay deps to runner construction — [#231] ✅
-
-`exec` and `registry` moved from `AgentManager` to `ConcreteAgentRunner` via a new `RunnerDeps` interface.
-`RunContext` shrunk from 4 to 2 per-call fields (`cwd`, `parentSession`).
-`AgentManagerOptions` shrunk from 7 to 5 fields.
-
-- Target: `src/lifecycle/agent-manager.ts`, `src/lifecycle/agent-runner.ts`, `src/index.ts`
-- Smell: C (relay-only dependencies)
-- Outcome: `AgentManager` loses 2 fields; `AgentManagerOptions` shrinks from 7 to 5 fields; runner is self-contained
-
-### Step 4: Agent born complete — Agent.run() absorbs startAgent — [#229] ✅
-
-Agent receives `runner`, `worktrees`, and a lifecycle observer at construction.
-Agent creates its own `AbortController` and `NotificationState` from `parentSession.toolCallId` — no external writes.
-`Agent.run()` encapsulates the entire execution lifecycle: worktree setup, runner invocation, session-creation handling, observer wiring, worktree cleanup, and status transitions.
-`startAgent` is deleted from `AgentManager`.
-The `onSessionCreated` callback is removed from `AgentSpawnConfig` — replaced by `AgentLifecycleObserver` passed at construction.
-`SpawnArgs` is deleted — Agent has its config from construction.
-The queue is simplified from `{ id, args }[]` to `string[]` (agent IDs only).
-
-`AgentManager.spawn()` becomes: create complete Agent, put in map, call `agent.run()` or queue the agent ID.
-
-- Depends on: #228, #231
-- Target: `src/lifecycle/agent.ts`, `src/lifecycle/agent-manager.ts`, `src/tools/background-spawner.ts`, `src/tools/foreground-runner.ts`
-- Smell: C (manager orchestrates 10 external touches on Agent) + C (callback flowing through 3 layers)
-- Outcome: Agent owns its entire execution lifecycle; `startAgent`, `SpawnArgs`, `onSessionCreated` callback deleted; zero post-construction writes from `AgentManager`
-
-### Step 5: Extract ConcurrencyQueue from AgentManager — [#230]
-
-Extract `queue[]`, `runningBackground`, `_getMaxConcurrent`, `drainQueue()`, `finalizeBackgroundRun()` into a `ConcurrencyQueue` class.
-The queue stores agent IDs — not `SpawnArgs`.
-Drain calls `agent.run()` directly — no worktree setup, no args threading.
-`SettingsManager` talks to the queue directly — `notifyConcurrencyChanged()` is eliminated from `AgentManager`.
-
-- Depends on: #229
-- Target: new `src/lifecycle/concurrency-queue.ts`, `src/lifecycle/agent-manager.ts`, `src/index.ts`
-- Smell: A (tangled concerns) + C (cross-concern leak via `notifyConcurrencyChanged`)
-- Outcome: `AgentManager` loses 3 fields, 3 methods (~40 lines); scheduling is independently testable; queue interface is trivial (agent has everything)
-
-### Step 6: Agent.resume() with internal observer lifecycle — [#232] ✅
-
-Agent has the runner from construction.
-`Agent.resume(prompt, signal)` manages its own observer subscription lifecycle using the same internal wiring as `run()`.
-`AgentManager.resume()` becomes a one-liner delegation to `agent.resume(prompt, signal)` — no manual `subscribeRecordObserver` / try-finally.
-
-- Depends on: #229
-- Target: `src/lifecycle/agent.ts`, `src/lifecycle/agent-manager.ts`
-- Smell: A (duplicated observer subscribe/unsubscribe pattern)
-- Outcome: `AgentManager.resume()` is a 4-line delegation; observer lifecycle is Agent-internal
-
-### Step dependency diagram
-
-```mermaid
-flowchart LR
-    S1["Step 1<br/>Agent with behavior"]
-    S2["Step 2<br/>async startAgent"]
-    S3["Step 3<br/>runner self-contained"]
-    S4["Step 4<br/>Agent.run()"]
-    S5["Step 5<br/>ConcurrencyQueue"]
-    S6["Step 6<br/>Agent.resume()"]
-
-    S1 --> S2
-    S2 --> S4
-    S3 --> S4
-    S4 --> S5
-    S4 --> S6
-```
-
-### Tracks
-
-1. **Track A — Foundation** (Step 3): Runner becomes self-contained.
-   No dependencies on other Phase 15 steps; can start immediately.
-2. **Track B — Agent lifecycle** (Steps 4, 6): Agent born complete, owns run + resume.
-   Step 4 depends on Track A + Step 2.
-   Step 6 depends on Step 4.
-3. **Track C — Scheduling** (Step 5): ConcurrencyQueue extraction.
-   Depends on Step 4 (queue drains via `agent.run()`).
-
 ## Improvement roadmap (Phase 16 — agent collaborator architecture)
 
 Phase 16 gives Agent proper collaborators so it can do its work without accumulating raw materials.
@@ -1002,7 +836,7 @@ This naturally resolves the original Phase 16 dependency-inversion concern.
 
 ### Steps
 
-#### Step 1: Extract `WorktreeIsolation` collaborator
+#### Step 1: Extract `WorktreeIsolation` collaborator — [#256]
 
 Create a collaborator that owns the worktree lifecycle: setup, path access, and cleanup.
 Agent receives `worktree?: WorktreeIsolation` instead of `_worktrees` + `_isolation` + managing `worktreeState` internally.
@@ -1013,7 +847,7 @@ AgentManager creates the collaborator only when `isolation === "worktree"` and p
 - Smell: C (Ask-Don't-Tell — Agent checks `_isolation !== "worktree"` and orchestrates `_worktrees.create()` + `worktreeState.performCleanup()` instead of telling a collaborator)
 - Outcome: Agent loses `_worktrees`, `_isolation` fields + `setupWorktree()` method; `completeRun()`/`failRun()` simplify from 4-line null-check blocks to `this.worktree?.cleanup()`; AgentInit loses 2 fields
 
-#### Step 2: Extract `ChildSessionFactory` from runner
+#### Step 2: Extract `ChildSessionFactory` from runner — [#257]
 
 Define the factory interface and extract session creation logic from `runAgent()` into a factory class.
 The factory is per-agent: constructed by AgentManager with config (snapshot, prompt, model, maxTurns, isolated, thinkingLevel, parentSession, getRunConfig) already bound.
@@ -1037,7 +871,7 @@ interface ChildSessionResult {
 - Smell: B (conflated concerns — `runAgent()` mixes session creation with session interaction)
 - Outcome: session creation is independently testable; `permission-bridge.ts` imports move from runner to factory; factory interface is narrow (one method)
 
-#### Step 3: Agent owns session lifecycle — run + resume via factory
+#### Step 3: Agent owns session lifecycle — run + resume via factory — [#258]
 
 The central step: Agent's `run()` calls `this.factory.create()` to get a session, then interacts with it directly.
 Agent absorbs turn-limit enforcement (subscribe to `turn_end`, steer/abort on limits), response collection (read `session.messages` after prompt), and abort forwarding (wire parent signal to `session.abort()`).
@@ -1050,7 +884,7 @@ Combined with Step 1, AgentInit goes from ~20 to ~10 fields.
 - Smell: C (Agent assembles 9 raw fields into a runner call instead of telling a collaborator) + B (runner conflates creation and interaction)
 - Outcome: Agent owns session interaction; `run()` is coordination not assembly; `resume()` is trivially `session.prompt()`; AgentInit has ~10 fields
 
-#### Step 4: Dissolve runner concept
+#### Step 4: Dissolve runner concept — [#259]
 
 Delete `AgentRunner` interface, `ConcreteAgentRunner` class, `runAgent()` function, `resumeAgent()` function.
 The shared service that creates per-agent factories gets a clean interface (e.g., `SessionFactoryProvider`).
@@ -1112,25 +946,25 @@ Phases 1–5, 7–14 are complete.
 Phase 6 (UI extraction to a separate package) is deferred.
 Detailed records are preserved in per-phase history files:
 
-| Phase    | Title                                               | Status                                                                           | History                                                                              |
-| -------- | --------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 1        | Export SubagentsService API boundary                | Complete                                                                         | [phase-1-api-boundary.md](history/phase-1-api-boundary.md)                           |
-| 2        | Remove scheduling subsystem                         | Complete                                                                         | [phase-2-remove-scheduling.md](history/phase-2-remove-scheduling.md)                 |
-| 3        | Remove group-join, RPC; replace output-file         | Complete                                                                         | [phase-3-remove-rpc-groupjoin.md](history/phase-3-remove-rpc-groupjoin.md)           |
-| 4        | Implement and publish SubagentsService              | Complete                                                                         | [phase-4-implement-service.md](history/phase-4-implement-service.md)                 |
-| 5        | Decompose index.ts                                  | Complete                                                                         | [phase-5-decompose-index.md](history/phase-5-decompose-index.md)                     |
-| 6        | Extract UI to separate package                      | Deferred → Phase 17                                                              | —                                                                                    |
-| 7        | Encapsulation and dependency narrowing              | Complete                                                                         | [phase-7-encapsulation.md](history/phase-7-encapsulation.md)                         |
-| 8        | Testability, display extraction, menu decomposition | Complete                                                                         | [phase-8-testability.md](history/phase-8-testability.md)                             |
-| 9        | Observation consolidation, ctx elimination          | Complete                                                                         | [phase-9-observation-ctx.md](history/phase-9-observation-ctx.md)                     |
-| 10       | Domain organization, bag decomposition, complexity  | Complete                                                                         | [phase-10-structural-decomposition.md](history/phase-10-structural-decomposition.md) |
-| 11       | Closure factories to classes                        | Complete                                                                         | [phase-11-closure-to-class.md](history/phase-11-closure-to-class.md)                 |
-| 12       | Complexity reduction and test fixture extraction    | Complete                                                                         | [phase-12-complexity-test-fixtures.md](history/phase-12-complexity-test-fixtures.md) |
-| 13       | Remaining structural smells                         | Complete                                                                         | [phase-13-remaining-smells.md](history/phase-13-remaining-smells.md)                 |
-| 14       | Strip policy from core                              | Complete                                                                         | [phase-14-strip-policy.md](history/phase-14-strip-policy.md)                         |
-| 15       | Domain model evolution                              | Complete                                                                         | —                                                                                    |
-| 16       | Agent collaborator architecture                     | Investigation                                                                    | —                                                                                    |
-| 17       | Extract UI to separate package                      | Planned                                                                          | —                                                                                    |
+| Phase | Title                                               | Status              | History                                                                              |
+| ----- | --------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| 1     | Export SubagentsService API boundary                | Complete            | [phase-1-api-boundary.md](history/phase-1-api-boundary.md)                           |
+| 2     | Remove scheduling subsystem                         | Complete            | [phase-2-remove-scheduling.md](history/phase-2-remove-scheduling.md)                 |
+| 3     | Remove group-join, RPC; replace output-file         | Complete            | [phase-3-remove-rpc-groupjoin.md](history/phase-3-remove-rpc-groupjoin.md)           |
+| 4     | Implement and publish SubagentsService              | Complete            | [phase-4-implement-service.md](history/phase-4-implement-service.md)                 |
+| 5     | Decompose index.ts                                  | Complete            | [phase-5-decompose-index.md](history/phase-5-decompose-index.md)                     |
+| 6     | Extract UI to separate package                      | Deferred → Phase 17 | —                                                                                    |
+| 7     | Encapsulation and dependency narrowing              | Complete            | [phase-7-encapsulation.md](history/phase-7-encapsulation.md)                         |
+| 8     | Testability, display extraction, menu decomposition | Complete            | [phase-8-testability.md](history/phase-8-testability.md)                             |
+| 9     | Observation consolidation, ctx elimination          | Complete            | [phase-9-observation-ctx.md](history/phase-9-observation-ctx.md)                     |
+| 10    | Domain organization, bag decomposition, complexity  | Complete            | [phase-10-structural-decomposition.md](history/phase-10-structural-decomposition.md) |
+| 11    | Closure factories to classes                        | Complete            | [phase-11-closure-to-class.md](history/phase-11-closure-to-class.md)                 |
+| 12    | Complexity reduction and test fixture extraction    | Complete            | [phase-12-complexity-test-fixtures.md](history/phase-12-complexity-test-fixtures.md) |
+| 13    | Remaining structural smells                         | Complete            | [phase-13-remaining-smells.md](history/phase-13-remaining-smells.md)                 |
+| 14    | Strip policy from core                              | Complete            | [phase-14-strip-policy.md](history/phase-14-strip-policy.md)                         |
+| 15    | Domain model evolution                              | Complete            | [phase-15-domain-model-evolution.md](history/phase-15-domain-model-evolution.md)     |
+| 16    | Agent collaborator architecture                     | Planned             | —                                                                                    |
+| 17    | Extract UI to separate package                      | Planned             | —                                                                                    |
 
 ### Structural refactoring issues
 
@@ -1150,6 +984,7 @@ Detailed records are preserved in per-phase history files:
 | Phase 13           | #214, #215, #216, #217, #218, #219                         | Closure-to-class, buildParentContext, startAgent decomp, overwrite guard, settings SDK, test duplication                                                 |
 | Phase 14           | #237, #238, #239, #242                                     | Remove disallowed_tools, remove extensions filtering, collapse filterActiveTools, rename Agent to subagent                                               |
 | Phase 15           | #227, #228, #231, #229, #230, #232                         | Agent domain model, async startAgent, runner self-contained, Agent.run(), ConcurrencyQueue, Agent.resume()                                               |
+| Phase 16           | #256, #257, #258, #259                                     | WorktreeIsolation, ChildSessionFactory, Agent owns session, dissolve runner                                                                              |
 
 The remaining open issue is #22 (parent-session resolution), a cross-extension track that does not gate the structural work.
 
@@ -1188,3 +1023,7 @@ The upstream test suite is run periodically as a regression canary for the agent
 [#230]: https://github.com/gotgenes/pi-packages/issues/230
 [#231]: https://github.com/gotgenes/pi-packages/issues/231
 [#232]: https://github.com/gotgenes/pi-packages/issues/232
+[#256]: https://github.com/gotgenes/pi-packages/issues/256
+[#257]: https://github.com/gotgenes/pi-packages/issues/257
+[#258]: https://github.com/gotgenes/pi-packages/issues/258
+[#259]: https://github.com/gotgenes/pi-packages/issues/259
