@@ -54,3 +54,53 @@ Root `pnpm run check`, root `pnpm run lint`, and `verify:public-types` all pass.
 - No `src/`/`test/` `.ts` files were touched, so the vitest suite and `tsc` were unaffected (confirmed via root check).
 - Pre-completion reviewer: WARN — no findings attributable to this session.
   Reviewer warnings: (1) the `package-pi-subagents` skill lacked a build-step note — addressed in commit `2ff5a375`; (2) `pnpm fallow dead-code` exits non-zero on a pre-existing finding in `packages/pi-subagents-worktrees/package.json` from the #263 scaffold (commit `9a7dcfc5`), out of scope for #270 and left for #263.
+
+## Stage: Final Retrospective (2026-05-29T21:00:00Z)
+
+### Session summary
+
+Shipped #270 end-to-end across planning, build, and ship stages: diagnosed the cross-package type-resolution failure empirically, built a `rollup-plugin-dts` declaration bundle plus a pack-based verification harness, and published `@gotgenes/pi-subagents@11.6.0` (tag `pi-subagents-v11.6.0`).
+Two CI failures during the ship stage — a pre-existing `pnpm fallow dead-code` gate and lockfile drift — required two extra fix commits before CI went green.
+
+### Observations
+
+#### What went well
+
+- Empirical-first diagnosis: `tsc --traceResolution` in planning pinned the exact two-part failure (consumer `paths` collision + the publisher's `imports`-field extensionless-`.ts` miss) and directly justified the chosen `.d.ts`-emit approach over the alias-free restructure.
+- The flagged primary risk evaporated: `rollup-plugin-dts` resolved `#src/*` out of the box via the package `tsconfig` paths, producing a clean 178-line `dist/public.d.ts` with no resolver plugin.
+- Novel, reusable pattern: `scripts/verify-public-types.sh` proves a ship-source package is externally type-consumable via `pnpm pack` → throwaway-consumer → `tsc`, with no publish round-trip.
+  Worth promoting if other packages grow public surfaces.
+- Disciplined `ask_user` use on the genuinely ambiguous decisions (approach, bundler, artifact handling, scope), with strong user steering — the `tsup`-is-unmaintained redirect to `rollup-plugin-dts`, the "no workspace trickery / use released versions" directive, and the #263 chicken-and-egg catch that correctly narrowed scope.
+
+#### What caused friction (agent side)
+
+- `missing-context` — Pushed to `main` with a pre-existing `pnpm fallow dead-code` failure (unused `@earendil-works/pi-coding-agent` devDependency in `packages/pi-subagents-worktrees/package.json`, from the #263 scaffold).
+  The pre-completion reviewer reported it as `FAIL` but labelled it out-of-scope, and I accepted that framing and pushed.
+  The CI `Fallow dead-code gate` runs `if: github.ref == 'refs/heads/main'` — a hard gate that fires on every `main` push regardless of who introduced the failure — so CI failed (run `26659647270`).
+  Impact: 2 fix commits (`7e7afadd`, `10e74f2f`) and 2 extra CI cycles (~10 min).
+  The ship pre-push step runs only `pnpm run lint`, never `pnpm fallow dead-code`.
+- `missing-context` — Removed the devDependency and committed/pushed `package.json` (`7e7afadd`) without the updated `pnpm-lock.yaml`.
+  CI's `pnpm install --frozen-lockfile` failed with `ERR_PNPM_OUTDATED_LOCKFILE` (run `26659851716`).
+  Impact: 1 extra commit (`10e74f2f`) and 1 extra CI cycle.
+  Self-identified from the CI log.
+- `rabbit-hole` (minor) — While debugging the harness's `ERR_PNPM_IGNORED_BUILDS`, the `pnpm ... | tail; echo $?` idiom reported `tail`'s exit code, masking pnpm's real failure; took ~4 tool calls before tracing with `bash -x`.
+  Impact: added friction, no rework.
+
+#### What caused friction (user side)
+
+- The "pi-subagents-* extensions should use the released, npm-installed version, no workspace trickery" directive arrived mid-planning, after initial exploration.
+  Surfacing the consumption-model constraint at kickoff would have framed the scope question earlier.
+  Opportunity, not criticism — the same exchange produced the high-value chicken-and-egg catch (the registry version with the fix cannot exist until #270 publishes) that correctly deferred the worktrees flip to #263.
+- A brief "there is no ADR 0003" → "My mistake" exchange; no rework.
+
+### Diagnostic details
+
+- Model-performance correlation — the lone subagent dispatch (`pre-completion-reviewer`) ran on `anthropic/claude-sonnet-4-6`, appropriate for judgment-heavy review.
+  The dead-code-gate framing miss was a protocol-scope issue (pre-existing vs blocking), not a model-capability mismatch.
+- Escalation-delay — no error sequence exceeded 5 consecutive tool calls; the harness `ERR_PNPM_IGNORED_BUILDS` resolved in ~4.
+- Feedback-loop gap — build-stage verification ran incrementally after each step (good); the gap was at ship: the pre-push check omits the `main`-only gates (`pnpm fallow dead-code`) and lockfile validation that CI enforces, so a locally-clean `pnpm run lint` still failed CI twice.
+
+### Changes made
+
+1. `.pi/prompts/ship-issue.md` — renamed Step 2 to "Pre-push checks" and added `pnpm fallow dead-code` alongside `pnpm run lint`, with a one-line note that the gate is `main`-only and blocks pushes regardless of who introduced the failure.
+2. `AGENTS.md` (§ Code Style pnpm rules) — added a rule to run `pnpm install` and commit the updated `pnpm-lock.yaml` in the same commit when a `package.json` dependency changes, since CI installs with `--frozen-lockfile`.

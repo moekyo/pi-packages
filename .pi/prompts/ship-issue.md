@@ -15,11 +15,14 @@ Before pushing, make sure local `HEAD` is current with the remote:
    Do not attempt to stash, rebase, force, or otherwise resolve.
 3. Only proceed once the pull reports a clean fast-forward (or `Already up to date.`).
 
-## 2. Pre-push lint check
+## 2. Pre-push checks
 
-Run `pnpm run lint` from the **repo root** (not a package subdirectory) to catch cross-package lint violations locally.
-CI runs lint at the root level; package-level `pnpm run lint` may miss issues in sibling packages.
-If it fails, fix the issues and commit before pushing.
+Run from the **repo root** (not a package subdirectory):
+
+1. `pnpm run lint` — catches cross-package lint violations CI runs at root level; package-level `pnpm run lint` may miss sibling-package issues.
+2. `pnpm fallow dead-code` — CI runs this gate on every `main` push (not on PRs), so a pre-existing failure blocks your push regardless of whether this issue introduced it.
+
+If either fails, fix the issues and commit before pushing.
 
 ## 3. Push
 
