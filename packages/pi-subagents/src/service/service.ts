@@ -10,8 +10,13 @@
  */
 
 import type { LifetimeUsage } from "#src/lifecycle/usage";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 
-export type { LifetimeUsage };
+// Generative extension seam (ADR 0002, Phase 16 Step 2). Only the provider
+// entry-point type is re-exported here; a consumer assigning to
+// `WorkspaceProvider` gets `Workspace` and the context types via inference.
+// The worktrees package (#263) adds named re-exports when it imports them.
+export type { LifetimeUsage, WorkspaceProvider };
 
 export type SubagentStatus =
   | "queued"
@@ -73,6 +78,13 @@ export interface SubagentsService {
 
   /** Whether any agents are running or queued. */
   hasRunning(): boolean;
+
+  /**
+   * Register the single workspace provider that supplies a child's working
+   * directory plus bracketed setup/teardown. Throws if one is already
+   * registered. Returns a disposer that unregisters the provider.
+   */
+  registerWorkspaceProvider(provider: WorkspaceProvider): () => void;
 }
 
 /** Event channel constants for pi.events subscriptions. */

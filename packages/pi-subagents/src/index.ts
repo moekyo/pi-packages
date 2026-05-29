@@ -167,6 +167,7 @@ export default function (pi: ExtensionAPI) {
   const manager = new AgentManager({
     runner: new ConcreteAgentRunner(runnerDeps),
     worktrees: new GitWorktreeManager(process.cwd()),
+    baseCwd: process.cwd(),
     observer,
     queue,
     getRunConfig: () => settings,

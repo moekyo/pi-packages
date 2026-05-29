@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { WorktreeCleanupResult, WorktreeManager } from "#src/lifecycle/worktree";
 import { WorktreeIsolation } from "#src/lifecycle/worktree-isolation";
 import { NotificationState } from "#src/observation/notification-state";
@@ -181,6 +182,7 @@ describe("SubagentsServiceAdapter — getRecord and listAgents", () => {
       abort: vi.fn(() => true),
       waitForAll: vi.fn(async () => {}),
       hasRunning: vi.fn(() => false),
+      registerWorkspaceProvider: vi.fn(() => () => {}),
     };
   }
 
@@ -228,6 +230,7 @@ describe("SubagentsServiceAdapter — spawn", () => {
       abort: vi.fn(() => true),
       waitForAll: vi.fn(async () => {}),
       hasRunning: vi.fn(() => false),
+      registerWorkspaceProvider: vi.fn(() => () => {}),
     };
   }
 
@@ -345,6 +348,7 @@ describe("SubagentsServiceAdapter — steer, abort, waitForAll, hasRunning", () 
       abort: vi.fn<AgentManagerLike["abort"]>(() => true),
       waitForAll: vi.fn(async () => {}),
       hasRunning: vi.fn(() => true),
+      registerWorkspaceProvider: vi.fn(() => () => {}),
     };
   }
 
@@ -424,5 +428,27 @@ describe("SubagentsServiceAdapter — steer, abort, waitForAll, hasRunning", () 
       expect(await svc.steer("a-1", "focus on tests")).toBe(true);
       expect(mockSteer).toHaveBeenCalledWith("focus on tests");
     });
+  });
+});
+
+describe("SubagentsServiceAdapter — registerWorkspaceProvider", () => {
+  it("delegates to manager.registerWorkspaceProvider and returns its disposer", () => {
+    const disposer = vi.fn();
+    const mgr: AgentManagerLike = {
+      spawn: vi.fn(() => "id"),
+      getRecord: vi.fn(),
+      listAgents: vi.fn(() => []),
+      abort: vi.fn(() => true),
+      waitForAll: vi.fn(async () => {}),
+      hasRunning: vi.fn(() => false),
+      registerWorkspaceProvider: vi.fn(() => disposer),
+    };
+    const svc = new SubagentsServiceAdapter(mgr, vi.fn(), makeRuntimeStub());
+    const provider: WorkspaceProvider = { prepare: vi.fn(async () => undefined) };
+
+    const result = svc.registerWorkspaceProvider(provider);
+
+    expect(mgr.registerWorkspaceProvider).toHaveBeenCalledWith(provider);
+    expect(result).toBe(disposer);
   });
 });

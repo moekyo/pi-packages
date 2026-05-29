@@ -13,6 +13,7 @@ import { Agent, type AgentLifecycleObserver } from "#src/lifecycle/agent";
 import type { AgentRunner } from "#src/lifecycle/agent-runner";
 import type { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { WorktreeManager } from "#src/lifecycle/worktree";
 import { WorktreeIsolation } from "#src/lifecycle/worktree-isolation";
 
@@ -33,6 +34,8 @@ export interface AgentManagerOptions {
   worktrees: WorktreeManager;
   /** Concurrency queue — owns scheduling, limit checks, and drain logic. */
   queue: ConcurrencyQueue;
+  /** Base working directory handed to a workspace provider (the parent cwd). */
+  baseCwd: string;
   getRunConfig?: () => RunConfig;
   observer?: AgentManagerObserver;
 }
@@ -70,17 +73,42 @@ export class AgentManager {
   private readonly runner: AgentRunner;
   private readonly worktrees: WorktreeManager;
   private readonly queue: ConcurrencyQueue;
+  private readonly baseCwd: string;
   private getRunConfig?: () => RunConfig;
+  private _workspaceProvider?: WorkspaceProvider;
+
+  /** The registered workspace provider, or undefined when none is registered. */
+  get workspaceProvider(): WorkspaceProvider | undefined {
+    return this._workspaceProvider;
+  }
 
   constructor(options: AgentManagerOptions) {
     this.runner = options.runner;
     this.worktrees = options.worktrees;
     this.queue = options.queue;
+    this.baseCwd = options.baseCwd;
     this.observer = options.observer;
     this.getRunConfig = options.getRunConfig;
     // Cleanup completed agents after 10 minutes (but keep sessions for resume)
     this.cleanupInterval = setInterval(() => this.cleanup(), 60_000);
     this.cleanupInterval.unref();
+  }
+
+  /**
+   * Register the single workspace provider. Throws if one is already
+   * registered (chaining is out of scope — see ADR 0002). Returns a disposer
+   * that clears the slot only if this provider is still the active one.
+   */
+  registerWorkspaceProvider(provider: WorkspaceProvider): () => void {
+    if (this._workspaceProvider) {
+      throw new Error(
+        "A WorkspaceProvider is already registered; only one is supported.",
+      );
+    }
+    this._workspaceProvider = provider;
+    return () => {
+      if (this._workspaceProvider === provider) this._workspaceProvider = undefined;
+    };
   }
 
   /** Compose a per-agent lifecycle observer from manager and spawn-config concerns. */

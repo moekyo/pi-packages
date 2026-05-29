@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentManager, type AgentManagerObserver } from "#src/lifecycle/agent-manager";
 import type { AgentRunner } from "#src/lifecycle/agent-runner";
 import { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { WorktreeManager } from "#src/lifecycle/worktree";
 import { NotificationState } from "#src/observation/notification-state";
 import type { RunConfig } from "#src/runtime";
@@ -20,6 +21,7 @@ function createManager(overrides?: {
   observer?: Partial<AgentManagerObserver>;
   getMaxConcurrent?: () => number;
   getRunConfig?: () => RunConfig;
+  baseCwd?: string;
 }) {
   const runner: AgentRunner = overrides?.runner ?? {
     run: vi.fn().mockResolvedValue({
@@ -59,6 +61,7 @@ function createManager(overrides?: {
     worktrees,
     observer,
     queue,
+    baseCwd: overrides?.baseCwd ?? "/repo",
     getRunConfig: overrides?.getRunConfig,
   });
   return { manager: mgr, runner, worktrees, queue };
@@ -831,5 +834,63 @@ describe("AgentManager — toolCallId notification wiring", () => {
 
     expect(record.notification).toBeUndefined();
     manager.abort(id);
+  });
+});
+
+describe("AgentManager — registerWorkspaceProvider", () => {
+  let manager: AgentManager;
+
+  afterEach(() => {
+    manager.dispose();
+  });
+
+  function makeProvider(): WorkspaceProvider {
+    return { prepare: vi.fn(async () => undefined) };
+  }
+
+  it("returns a disposer and exposes the registered provider via getter", () => {
+    ({ manager } = createManager());
+    const provider = makeProvider();
+
+    const dispose = manager.registerWorkspaceProvider(provider);
+
+    expect(typeof dispose).toBe("function");
+    expect(manager.workspaceProvider).toBe(provider);
+  });
+
+  it("throws when a provider is already registered", () => {
+    ({ manager } = createManager());
+    manager.registerWorkspaceProvider(makeProvider());
+
+    expect(() => manager.registerWorkspaceProvider(makeProvider())).toThrow(
+      /already registered/i,
+    );
+  });
+
+  it("disposer clears the slot, allowing re-registration", () => {
+    ({ manager } = createManager());
+    const first = makeProvider();
+    const dispose = manager.registerWorkspaceProvider(first);
+
+    dispose();
+
+    expect(manager.workspaceProvider).toBeUndefined();
+    const second = makeProvider();
+    manager.registerWorkspaceProvider(second);
+    expect(manager.workspaceProvider).toBe(second);
+  });
+
+  it("stale disposer does not evict a later provider", () => {
+    ({ manager } = createManager());
+    const first = makeProvider();
+    const disposeFirst = manager.registerWorkspaceProvider(first);
+    disposeFirst();
+    const second = makeProvider();
+    manager.registerWorkspaceProvider(second);
+
+    // Calling the first disposer again must not clear the second provider.
+    disposeFirst();
+
+    expect(manager.workspaceProvider).toBe(second);
   });
 });

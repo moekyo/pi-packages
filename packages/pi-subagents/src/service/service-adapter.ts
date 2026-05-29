@@ -6,6 +6,7 @@
  */
 
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { SpawnOptions, SubagentRecord, SubagentsService } from "#src/service/service";
 import type { ModelRegistry } from "#src/session/model-resolver";
 import type { Agent, SessionContext } from "#src/types";
@@ -18,6 +19,7 @@ export interface AgentManagerLike {
   abort(id: string): boolean;
   waitForAll(): Promise<void>;
   hasRunning(): boolean;
+  registerWorkspaceProvider(provider: WorkspaceProvider): () => void;
 }
 
 /**
@@ -106,6 +108,10 @@ export class SubagentsServiceAdapter implements SubagentsService {
 
   hasRunning(): boolean {
     return this.manager.hasRunning();
+  }
+
+  registerWorkspaceProvider(provider: WorkspaceProvider): () => void {
+    return this.manager.registerWorkspaceProvider(provider);
   }
 }
 
