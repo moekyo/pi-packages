@@ -1,5 +1,5 @@
 /**
- * manager-stubs.ts — Shared AgentRunner and WorktreeManager stubs for agent-manager tests.
+ * manager-stubs.ts — Shared AgentRunner stubs for agent-manager tests.
  *
  * Extracts the four most-repeated inline clone families from agent-manager.test.ts.
  * Tests with unique runner behavior (event-emitting, gated, error-throwing) keep
@@ -7,7 +7,6 @@
  */
 import { vi } from "vitest";
 import type { AgentRunner, RunResult } from "#src/lifecycle/agent-runner";
-import type { WorktreeCleanupResult, WorktreeInfo, WorktreeManager } from "#src/lifecycle/worktree";
 import { createMockSession, type MockSession, toAgentSession } from "#test/helpers/mock-session";
 
 // ── createBlockingRunner ─────────────────────────────────────────────────────
@@ -65,37 +64,5 @@ export function createSessionRunner(session: MockSession): AgentRunner {
 			},
 		),
 		resume: vi.fn(),
-	};
-}
-
-// ── createMockWorktrees ──────────────────────────────────────────────────────
-
-/** Default path and branch returned by the worktree create stub. */
-const DEFAULT_WORKTREE: WorktreeInfo = { path: "/tmp/wt", branch: "pi-agent-x" };
-
-/**
- * WorktreeManager stub with sensible defaults.
- *
- * - `create` returns `{ path: "/tmp/wt", branch: "pi-agent-x" }` by default.
- * - `cleanup` returns `{ hasChanges: false }` by default.
- * - Pass `createResult: undefined` to simulate a non-git-repo (create returns undefined).
- * - Pass `cleanupResult` to control the cleanup outcome (e.g., `{ hasChanges: true, branch: "pi-agent-x" }`).
- */
-export function createMockWorktrees(overrides?: {
-	createResult?: WorktreeInfo | undefined;
-	cleanupResult?: WorktreeCleanupResult;
-}): WorktreeManager {
-	// Distinguish "no override" (use default) from "explicit undefined" (simulate failure).
-	const createReturn =
-		overrides !== undefined && "createResult" in overrides
-			? overrides.createResult
-			: DEFAULT_WORKTREE;
-	const cleanupReturn: WorktreeCleanupResult =
-		overrides?.cleanupResult ?? { hasChanges: false };
-
-	return {
-		create: vi.fn().mockReturnValue(createReturn),
-		cleanup: vi.fn(() => cleanupReturn),
-		prune: vi.fn(),
 	};
 }

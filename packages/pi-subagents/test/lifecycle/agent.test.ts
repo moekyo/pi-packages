@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { Agent, type AgentLifecycleObserver } from "#src/lifecycle/agent";
 import type { AgentRunner, RunResult } from "#src/lifecycle/agent-runner";
 import type { Workspace, WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { WorktreeManager } from "#src/lifecycle/worktree";
-import { WorktreeIsolation } from "#src/lifecycle/worktree-isolation";
 import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
@@ -83,7 +81,6 @@ describe("Agent — constructor", () => {
 		expect(record.completedAt).toBeUndefined();
 		expect(record.promise).toBeUndefined();
 		expect(record.execution).toBeUndefined();
-		expect(record.worktree).toBeUndefined();
 		expect(record.notification).toBeUndefined();
 	});
 
@@ -514,26 +511,10 @@ describe("Agent — flushPendingSteers", () => {
 	});
 });
 
-/** Minimal mock worktrees for completeRun / failRun tests. */
-function createMockWorktrees(cleanupResult = { hasChanges: false }) {
+/** Create an Agent for completeRun / failRun tests. */
+function createCompletionAgent(overrides?: { observer?: AgentLifecycleObserver }) {
 	return {
-		create: vi.fn(() => ({ path: "/tmp/wt", branch: "pi-agent-x" })),
-		cleanup: vi.fn(() => cleanupResult),
-		prune: vi.fn(),
-	};
-}
-
-/** Create a WorktreeIsolation collaborator that has already run setup() (path populated). */
-function createSetUpWorktree(worktrees: ReturnType<typeof createMockWorktrees>): WorktreeIsolation {
-	const worktree = new WorktreeIsolation(worktrees, "1");
-	worktree.setup();
-	return worktree;
-}
-
-/** Create an Agent (optionally with a worktree collaborator) for completeRun / failRun tests. */
-function createAgentWithWorktrees(overrides?: { worktree?: WorktreeIsolation; observer?: AgentLifecycleObserver }) {
-	return {
-		record: new Agent({ id: "1", type: "general-purpose", description: "test", status: "running", worktree: overrides?.worktree, observer: overrides?.observer }),
+		record: new Agent({ id: "1", type: "general-purpose", description: "test", status: "running", observer: overrides?.observer }),
 	};
 }
 
@@ -549,43 +530,34 @@ function createRunResult(overrides?: Partial<RunResult>): RunResult {
 
 describe("Agent — completeRun", () => {
 	it("transitions to completed for a normal result", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.completeRun(createRunResult());
 		expect(record.status).toBe("completed");
 		expect(record.result).toBe("done");
 	});
 
 	it("transitions to aborted when result.aborted is true", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.completeRun(createRunResult({ aborted: true }));
 		expect(record.status).toBe("aborted");
 	});
 
 	it("transitions to steered when result.steered is true", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.completeRun(createRunResult({ steered: true }));
 		expect(record.status).toBe("steered");
 	});
 
-	it("performs worktree cleanup and appends branch info to result", () => {
-		const worktrees = createMockWorktrees({ hasChanges: true, branch: "pi-agent-x" } as any);
-		const { record } = createAgentWithWorktrees({ worktree: createSetUpWorktree(worktrees) });
-		record.completeRun(createRunResult({ responseText: "result" }));
-		expect(record.result).toContain("result");
-		expect(record.result).toContain("pi-agent-x");
-		expect(worktrees.cleanup).toHaveBeenCalledOnce();
-	});
-
 	it("updates execution state with session and outputFile", () => {
 		const session = { fake: true } as any;
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.completeRun(createRunResult({ session, sessionFile: "/tmp/out.jsonl" }));
 		expect(record.execution?.session).toBe(session);
 		expect(record.execution?.outputFile).toBe("/tmp/out.jsonl");
 	});
 
 	it("preserves existing outputFile when sessionFile is undefined", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.execution = { session: {} as any, outputFile: "/existing.jsonl" };
 		record.completeRun(createRunResult({ sessionFile: undefined }));
 		expect(record.execution.outputFile).toBe("/existing.jsonl");
@@ -593,14 +565,14 @@ describe("Agent — completeRun", () => {
 
 	it("fires observer.onRunFinished on completion", () => {
 		const onRunFinished = vi.fn();
-		const { record } = createAgentWithWorktrees({ observer: { onRunFinished } });
+		const { record } = createCompletionAgent({ observer: { onRunFinished } });
 		record.completeRun(createRunResult());
 		expect(onRunFinished).toHaveBeenCalledOnce();
 		expect(onRunFinished).toHaveBeenCalledWith(record);
 	});
 
 	it("releases listeners on completion", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		const unsub = vi.fn();
 		record.attachObserver(unsub);
 		record.completeRun(createRunResult());
@@ -610,38 +582,22 @@ describe("Agent — completeRun", () => {
 
 describe("Agent — failRun", () => {
 	it("transitions to error state", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		record.failRun(new Error("boom"));
 		expect(record.status).toBe("error");
 		expect(record.error).toBe("boom");
 	});
 
-	it("performs best-effort worktree cleanup", () => {
-		const worktrees = createMockWorktrees();
-		const { record } = createAgentWithWorktrees({ worktree: createSetUpWorktree(worktrees) });
-		record.failRun(new Error("boom"));
-		expect(worktrees.cleanup).toHaveBeenCalledOnce();
-	});
-
-	it("does not throw when worktree cleanup fails", () => {
-		const worktrees = createMockWorktrees();
-		const worktree = createSetUpWorktree(worktrees);
-		worktrees.cleanup.mockImplementation(() => { throw new Error("cleanup failed"); });
-		const { record } = createAgentWithWorktrees({ worktree });
-		expect(() => record.failRun(new Error("boom"))).not.toThrow();
-		expect(record.status).toBe("error");
-	});
-
 	it("fires observer.onRunFinished on failure", () => {
 		const onRunFinished = vi.fn();
-		const { record } = createAgentWithWorktrees({ observer: { onRunFinished } });
+		const { record } = createCompletionAgent({ observer: { onRunFinished } });
 		record.failRun(new Error("boom"));
 		expect(onRunFinished).toHaveBeenCalledOnce();
 		expect(onRunFinished).toHaveBeenCalledWith(record);
 	});
 
 	it("releases listeners on failure", () => {
-		const { record } = createAgentWithWorktrees();
+		const { record } = createCompletionAgent();
 		const unsub = vi.fn();
 		record.attachObserver(unsub);
 		record.failRun(new Error("boom"));
@@ -728,26 +684,21 @@ function createMockRunner(overrides?: Partial<AgentRunner>): AgentRunner {
 /** Create a complete Agent ready for run(). */
 function createRunnableAgent(overrides?: {
 	runner?: AgentRunner;
-	worktrees?: WorktreeManager;
 	observer?: AgentLifecycleObserver;
 	getRunConfig?: () => { defaultMaxTurns: number | undefined; graceTurns: number };
-	isolation?: "worktree";
 	parentSession?: { toolCallId?: string; parentSessionFile?: string; parentSessionId?: string };
 	signal?: AbortSignal;
 	baseCwd?: string;
 	workspaceProvider?: WorkspaceProvider;
 }) {
 	const runner = overrides?.runner ?? createMockRunner();
-	const worktrees: WorktreeManager = overrides?.worktrees ?? { create: vi.fn(), cleanup: vi.fn(() => ({ hasChanges: false })), prune: vi.fn() };
 	const observer = overrides?.observer ?? {};
-	const worktree = overrides?.isolation === "worktree" ? new WorktreeIsolation(worktrees, "run-1") : undefined;
 	const provider = overrides?.workspaceProvider;
 	return new Agent({
 		id: "run-1",
 		type: "general-purpose",
 		description: "run test",
 		runner,
-		worktree,
 		observer,
 		snapshot: STUB_SNAPSHOT,
 		prompt: "do something",
@@ -802,51 +753,6 @@ describe("Agent.run() — happy path", () => {
 		expect(agent.pendingSteerCount).toBe(1);
 		await agent.run();
 		expect(agent.pendingSteerCount).toBe(0);
-	});
-});
-
-describe("Agent.run() — worktree", () => {
-	it("sets up worktree when isolation is 'worktree'", async () => {
-		const worktrees: WorktreeManager = {
-			create: vi.fn(() => ({ path: "/tmp/wt", branch: "pi-agent-run-1" })),
-			cleanup: vi.fn(() => ({ hasChanges: false })),
-			prune: vi.fn(),
-		};
-		const agent = createRunnableAgent({ worktrees, isolation: "worktree" });
-		await agent.run();
-		expect(worktrees.create).toHaveBeenCalledWith("run-1");
-		expect(agent.worktree?.path).toBe("/tmp/wt");
-		expect(worktrees.cleanup).toHaveBeenCalledOnce();
-	});
-
-	it("marks error and fires onRunFinished when worktree setup fails", async () => {
-		const worktrees: WorktreeManager = {
-			create: vi.fn(() => undefined),
-			cleanup: vi.fn(() => ({ hasChanges: false })),
-			prune: vi.fn(),
-		};
-		const onRunFinished = vi.fn();
-		const agent = createRunnableAgent({ worktrees, isolation: "worktree", observer: { onRunFinished } });
-		await agent.run();
-		expect(agent.status).toBe("error");
-		expect(agent.error).toContain("Cannot run with isolation");
-		expect(onRunFinished).toHaveBeenCalledOnce();
-	});
-
-	it("releases the parent-signal listener when worktree setup fails", async () => {
-		const worktrees: WorktreeManager = {
-			create: vi.fn(() => undefined),
-			cleanup: vi.fn(() => ({ hasChanges: false })),
-			prune: vi.fn(),
-		};
-		const controller = new AbortController();
-		const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
-		const agent = createRunnableAgent({ worktrees, isolation: "worktree", signal: controller.signal });
-		await agent.run();
-		expect(agent.status).toBe("error");
-		// The abort listener wired before worktree setup must be detached on failure,
-		// not leaked onto the parent signal.
-		expect(removeSpy).toHaveBeenCalledWith("abort", expect.any(Function));
 	});
 });
 
@@ -909,19 +815,6 @@ describe("Agent.run() — workspace provider", () => {
 		expect(agent.status).toBe("error");
 		expect(workspace.dispose).toHaveBeenCalledWith({ status: "error", description: "run test" });
 		expect(agent.result).toBeUndefined();
-	});
-
-	it("takes precedence over the worktree collaborator (worktree not set up)", async () => {
-		const worktrees: WorktreeManager = {
-			create: vi.fn(() => ({ path: "/tmp/wt", branch: "pi-agent-run-1" })),
-			cleanup: vi.fn(() => ({ hasChanges: false })),
-			prune: vi.fn(),
-		};
-		const provider = makeWorkspaceProvider(makeWorkspace("/ws/dir"));
-		const agent = createRunnableAgent({ worktrees, isolation: "worktree", workspaceProvider: provider });
-		await agent.run();
-		expect(worktrees.create).not.toHaveBeenCalled();
-		expect(worktrees.cleanup).not.toHaveBeenCalled();
 	});
 });
 

@@ -133,8 +133,6 @@ export function toSubagentRecord(record: Agent): SubagentRecord {
   if (record.result !== undefined) out.result = record.result;
   if (record.error !== undefined) out.error = record.error;
   if (record.completedAt !== undefined) out.completedAt = record.completedAt;
-  const worktreeResult = record.worktree?.cleanupResult;
-  if (worktreeResult !== undefined) out.worktreeResult = worktreeResult;
 
   return out;
 }

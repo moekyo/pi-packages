@@ -28,7 +28,6 @@ import { ConcreteAgentRunner, type RunnerDeps } from "#src/lifecycle/agent-runne
 import { createChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import { buildParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import { GitWorktreeManager } from "#src/lifecycle/worktree";
 import { buildEventData, type NotificationDetails, NotificationManager } from "#src/observation/notification";
 import { createNotificationRenderer } from "#src/observation/renderer";
 import { createSubagentRuntime } from "#src/runtime";
@@ -166,7 +165,6 @@ export default function (pi: ExtensionAPI) {
 
   const manager = new AgentManager({
     runner: new ConcreteAgentRunner(runnerDeps),
-    worktrees: new GitWorktreeManager(process.cwd()),
     baseCwd: process.cwd(),
     observer,
     queue,

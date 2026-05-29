@@ -3,11 +3,10 @@ import { AgentManager, type AgentManagerObserver } from "#src/lifecycle/agent-ma
 import type { AgentRunner } from "#src/lifecycle/agent-runner";
 import { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { WorktreeManager } from "#src/lifecycle/worktree";
 import { NotificationState } from "#src/observation/notification-state";
 import type { RunConfig } from "#src/runtime";
 import type { Agent } from "#src/types";
-import { createBlockingRunner, createMockWorktrees, createRunResult, createSessionRunner } from "#test/helpers/manager-stubs";
+import { createBlockingRunner, createRunResult, createSessionRunner } from "#test/helpers/manager-stubs";
 import { createMockSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
@@ -17,7 +16,6 @@ const DEFAULT_MAX_CONCURRENT = 4;
 /** Test helper: construct an AgentManager with injected stubs. */
 function createManager(overrides?: {
   runner?: AgentRunner;
-  worktrees?: WorktreeManager;
   observer?: Partial<AgentManagerObserver>;
   getMaxConcurrent?: () => number;
   getRunConfig?: () => RunConfig;
@@ -31,11 +29,6 @@ function createManager(overrides?: {
       steered: false,
     }),
     resume: vi.fn().mockResolvedValue("resumed"),
-  };
-  const worktrees: WorktreeManager = overrides?.worktrees ?? {
-    create: vi.fn(),
-    cleanup: vi.fn(() => ({ hasChanges: false })),
-    prune: vi.fn(),
   };
   const observer: AgentManagerObserver | undefined = overrides?.observer
     ? {
@@ -58,13 +51,12 @@ function createManager(overrides?: {
   );
   mgr = new AgentManager({
     runner,
-    worktrees,
     observer,
     queue,
     baseCwd: overrides?.baseCwd ?? "/repo",
     getRunConfig: overrides?.getRunConfig,
   });
-  return { manager: mgr, runner, worktrees, queue };
+  return { manager: mgr, runner, queue };
 }
 
 /** Spawn a background agent using STUB_SNAPSHOT. */
@@ -364,9 +356,6 @@ describe("AgentManager — lifetime usage + compaction count are eagerly initial
   });
 });
 
-// Regression: `isolation: "worktree"` MUST fail loud when the cwd can't host
-// a worktree. The previous behavior silently fell back to the main tree and
-// injected a warning into the LLM's prompt — invisible to the caller.
 describe("AgentManager — getRunConfig threads defaultMaxTurns and graceTurns into RunOptions", () => {
   let manager: AgentManager;
 
@@ -427,42 +416,6 @@ describe("AgentManager — parent session threading", () => {
   });
 });
 
-describe("AgentManager — dispose calls worktrees.prune", () => {
-  it("calls worktrees.prune on dispose", () => {
-    const { manager, worktrees } = createManager();
-    manager.dispose();
-    expect(worktrees.prune).toHaveBeenCalledOnce();
-  });
-});
-
-describe("AgentManager — isolation: worktree fails loud, no silent fallback", () => {
-  let manager: AgentManager;
-
-  afterEach(() => {
-    manager.dispose();
-  });
-
-  it("records error on agent when worktrees.create returns undefined (async error surface)", async () => {
-    const worktrees = createMockWorktrees({ createResult: undefined });
-    const runner: AgentRunner = {
-      run: vi.fn(),
-      resume: vi.fn(),
-    };
-    ({ manager } = createManager({ runner, worktrees }));
-    const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
-      description: "test",
-      isolation: "worktree",
-    });
-
-    // Error propagates through the promise
-    await manager.getRecord(id)!.promise;
-    expect(manager.getRecord(id)!.status).toBe("error");
-    expect(manager.getRecord(id)!.error).toContain('isolation: "worktree"');
-    // runner.run never invoked — strict, no silent fallback
-    expect(runner.run).not.toHaveBeenCalled();
-  });
-});
-
 describe("AgentManager — dependency injection via options bag", () => {
   let manager: AgentManager;
 
@@ -503,63 +456,6 @@ describe("AgentManager — dependency injection via options bag", () => {
     expect(manager.getRecord(id)!.result).toBe("second");
   });
 
-  it("calls worktrees.create for worktree isolation", async () => {
-    const worktrees = createMockWorktrees();
-    ({ manager } = createManager({ worktrees }));
-
-    manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
-      description: "test",
-      isolation: "worktree",
-      isBackground: true,
-    });
-
-    expect(worktrees.create).toHaveBeenCalledOnce();
-  });
-
-  it("calls worktrees.cleanup after agent completes with a worktree", async () => {
-    const worktrees = createMockWorktrees();
-    ({ manager } = createManager({ worktrees }));
-
-    const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
-      description: "test",
-      isolation: "worktree",
-      isBackground: true,
-    });
-    await manager.getRecord(id)!.promise;
-
-    expect(worktrees.cleanup).toHaveBeenCalledOnce();
-  });
-
-  it("sets record.worktree path from worktrees.create", async () => {
-    const worktrees = createMockWorktrees();
-    ({ manager } = createManager({ worktrees }));
-
-    const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
-      description: "test",
-      isolation: "worktree",
-      isBackground: true,
-    });
-    await manager.getRecord(id)!.promise;
-
-    const record = manager.getRecord(id)!;
-    expect(record.worktree).toBeDefined();
-    expect(record.worktree!.path).toBe("/tmp/wt");
-  });
-
-  it("records cleanup result on worktree after completion", async () => {
-    const worktrees = createMockWorktrees({ cleanupResult: { hasChanges: true, branch: "pi-agent-x" } });
-    ({ manager } = createManager({ worktrees }));
-
-    const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
-      description: "test",
-      isolation: "worktree",
-      isBackground: true,
-    });
-    await manager.getRecord(id)!.promise;
-
-    const record = manager.getRecord(id)!;
-    expect(record.worktree!.cleanupResult).toEqual({ hasChanges: true, branch: "pi-agent-x" });
-  });
 });
 
 describe("AgentManager — queueing and concurrency with injected stubs", () => {

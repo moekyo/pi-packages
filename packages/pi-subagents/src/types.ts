@@ -21,9 +21,6 @@ export interface SubscribableSession {
 /** Agent type: any string name (built-in defaults or user-defined). */
 export type SubagentType = string;
 
-/** Isolation mode for agent execution. */
-export type IsolationMode = "worktree";
-
 /** UI display and agent listing — name, display name, description, prompt mode. */
 export interface AgentIdentity {
   name: string;

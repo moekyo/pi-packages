@@ -14,11 +14,9 @@ import type { AgentRunner } from "#src/lifecycle/agent-runner";
 import type { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { WorktreeManager } from "#src/lifecycle/worktree";
-import { WorktreeIsolation } from "#src/lifecycle/worktree-isolation";
 
 import type { RunConfig } from "#src/runtime";
-import type { AgentInvocation, CompactionInfo, IsolationMode, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
+import type { AgentInvocation, CompactionInfo, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Observer interface for agent lifecycle notifications. */
 export interface AgentManagerObserver {
@@ -31,7 +29,6 @@ export interface AgentManagerObserver {
 
 export interface AgentManagerOptions {
   runner: AgentRunner;
-  worktrees: WorktreeManager;
   /** Concurrency queue — owns scheduling, limit checks, and drain logic. */
   queue: ConcurrencyQueue;
   /** Base working directory handed to a workspace provider (the parent cwd). */
@@ -54,8 +51,6 @@ export interface AgentSpawnConfig {
    * callers (e.g. cross-extension RPC) that must not be deferred by the queue.
    */
   bypassQueue?: boolean;
-  /** Isolation mode - "worktree" creates a temp git worktree for the agent. */
-  isolation?: IsolationMode;
   /** Resolved invocation snapshot captured for UI display. */
   invocation?: AgentInvocation;
   /** Parent abort signal - when aborted, the subagent is also stopped. */
@@ -71,7 +66,6 @@ export class AgentManager {
   private cleanupInterval: ReturnType<typeof setInterval>;
   private readonly observer?: AgentManagerObserver;
   private readonly runner: AgentRunner;
-  private readonly worktrees: WorktreeManager;
   private readonly queue: ConcurrencyQueue;
   private readonly baseCwd: string;
   private getRunConfig?: () => RunConfig;
@@ -84,7 +78,6 @@ export class AgentManager {
 
   constructor(options: AgentManagerOptions) {
     this.runner = options.runner;
-    this.worktrees = options.worktrees;
     this.queue = options.queue;
     this.baseCwd = options.baseCwd;
     this.observer = options.observer;
@@ -162,10 +155,6 @@ export class AgentManager {
       signal: options.signal,
       // Shared deps
       runner: this.runner,
-      worktree:
-        options.isolation === "worktree"
-          ? new WorktreeIsolation(this.worktrees, id)
-          : undefined,
       observer: this.buildObserver(options),
       getRunConfig: this.getRunConfig,
       baseCwd: this.baseCwd,
@@ -322,7 +311,5 @@ export class AgentManager {
       record.session?.dispose();
     }
     this.agents.clear();
-    // Prune any orphaned git worktrees (crash recovery)
-    try { this.worktrees.prune(); } catch (err) { debugLog("pruneWorktrees on dispose", err); }
   }
 }

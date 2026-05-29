@@ -14,8 +14,9 @@ import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 
 // Generative extension seam (ADR 0002, Phase 16 Step 2). Only the provider
 // entry-point type is re-exported here; a consumer assigning to
-// `WorkspaceProvider` gets `Workspace` and the context types via inference.
-// The worktrees package (#263) adds named re-exports when it imports them.
+// `WorkspaceProvider` recovers `Workspace` and the context types via inference
+// (e.g. `Parameters<WorkspaceProvider["prepare"]>[0]`). Named re-exports of
+// those collaborator types are tracked in #272.
 export type { LifetimeUsage, WorkspaceProvider };
 
 export type SubagentStatus =
@@ -40,7 +41,6 @@ export interface SubagentRecord {
   completedAt?: number;
   lifetimeUsage: LifetimeUsage;
   compactionCount: number;
-  worktreeResult?: { hasChanges: boolean; branch?: string };
 }
 
 /** Options for spawning an agent via the service. */

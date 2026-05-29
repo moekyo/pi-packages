@@ -8,11 +8,11 @@
  * Stats (toolUses, lifetimeUsage, compactionCount) are owned by the class and
  * accumulated via mutation methods (incrementToolUses, addUsage, incrementCompactions).
  *
- * Behavior (abort, steer buffering, worktree setup) lives on the agent
- * rather than on AgentManager — each agent manages its own lifecycle concerns.
+ * Behavior (abort, steer buffering) lives on the agent rather than on
+ * AgentManager — each agent manages its own lifecycle concerns.
  *
- * Worktree isolation is delegated to an optional WorktreeIsolation collaborator
- * (set at construction when isolation is requested); its presence IS the mode.
+ * The child's working directory is supplied by a registered WorkspaceProvider
+ * (the workspace seam); with no provider the child runs in the parent cwd.
  *
  * Phase-specific collaborators (execution, notification) are attached
  * after construction as lifecycle information becomes available.
@@ -27,7 +27,6 @@ import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import { addUsage } from "#src/lifecycle/usage";
 import type { Workspace, WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { WorktreeIsolation } from "#src/lifecycle/worktree-isolation";
 import { NotificationState } from "#src/observation/notification-state";
 import { subscribeAgentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
@@ -70,7 +69,6 @@ export interface AgentInit {
 
 	// Shared deps (required for run(), optional for tests)
 	runner?: AgentRunner;
-	worktree?: WorktreeIsolation;
 	observer?: AgentLifecycleObserver;
 	getRunConfig?: () => RunConfig;
 	/** Resolves the registered workspace provider (if any) at run-start. */
@@ -130,8 +128,6 @@ export class Agent {
 
 	// Shared deps — optional (required for run())
 	private readonly _runner?: AgentRunner;
-	/** Worktree isolation collaborator — present only when isolation: "worktree". */
-	readonly worktree?: WorktreeIsolation;
 	readonly observer?: AgentLifecycleObserver;
 	private readonly _getRunConfig?: () => RunConfig;
 	private readonly _getWorkspaceProvider?: () => WorkspaceProvider | undefined;
@@ -192,7 +188,6 @@ export class Agent {
 
 		// Shared deps
 		this._runner = init.runner;
-		this.worktree = init.worktree;
 		this.observer = init.observer;
 		this._getRunConfig = init.getRunConfig;
 		this._getWorkspaceProvider = init.getWorkspaceProvider;
@@ -215,8 +210,8 @@ export class Agent {
 	}
 
 	/**
-	 * Execute the full agent lifecycle: worktree setup, runner invocation,
-	 * session-creation handling, observer wiring, worktree cleanup, and
+	 * Execute the full agent lifecycle: workspace preparation, runner invocation,
+	 * session-creation handling, observer wiring, workspace disposal, and
 	 * status transitions.
 	 *
 	 * Requires runner and snapshot to be set at construction.
@@ -236,8 +231,8 @@ export class Agent {
 
 		let cwd: string | undefined;
 		try {
-			// Provider-first: a registered workspace provider supplies the cwd and
-			// owns teardown; otherwise fall back to the legacy worktree collaborator.
+			// A registered workspace provider supplies the child's cwd and owns its
+			// teardown; with no provider the child runs in the parent cwd.
 			const provider = this._getWorkspaceProvider?.();
 			if (provider) {
 				this._workspace = await provider.prepare({
@@ -247,9 +242,6 @@ export class Agent {
 					invocation: this.invocation,
 				});
 				cwd = this._workspace?.cwd;
-			} else {
-				this.worktree?.setup();
-				cwd = this.worktree?.path;
 			}
 		} catch (err) {
 			this.markError(err);
@@ -463,7 +455,7 @@ export class Agent {
 		this._detachFn = undefined;
 	}
 
-	/** Complete a run: release listeners, worktree cleanup, status transition, execution update, notify observer. */
+	/** Complete a run: release listeners, dispose the workspace, status transition, execution update, notify observer. */
 	completeRun(result: RunResult): void {
 		this.releaseListeners();
 
@@ -476,11 +468,6 @@ export class Agent {
 					: "completed";
 			const disposeResult = this._workspace.dispose({ status: finalStatus, description: this.description });
 			if (disposeResult?.resultAddendum) finalResult += disposeResult.resultAddendum;
-		} else {
-			const wtResult = this.worktree?.cleanup(this.description);
-			if (wtResult?.hasChanges && wtResult.branch) {
-				finalResult += `\n\n---\nChanges saved to branch \`${wtResult.branch}\`. Merge with: \`git merge ${wtResult.branch}\``;
-			}
 		}
 
 		if (result.aborted) this.markAborted(finalResult);
@@ -495,14 +482,13 @@ export class Agent {
 		this.observer?.onRunFinished?.(this);
 	}
 
-	/** Fail a run: mark error, release listeners, best-effort worktree cleanup, notify observer. */
+	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer. */
 	failRun(err: unknown): void {
 		this.markError(err);
 		this.releaseListeners();
 
 		try {
 			if (this._workspace) this._workspace.dispose({ status: "error", description: this.description });
-			else this.worktree?.cleanup(this.description);
 		} catch (cleanupErr) { debugLog("workspace dispose on agent error", cleanupErr); }
 
 		this.observer?.onRunFinished?.(this);
