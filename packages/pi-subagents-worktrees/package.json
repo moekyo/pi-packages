@@ -57,7 +57,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@earendil-works/pi-coding-agent": "0.75.4",
     "@gotgenes/pi-subagents": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
