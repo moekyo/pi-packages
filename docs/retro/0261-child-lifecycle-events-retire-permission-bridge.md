@@ -41,3 +41,30 @@ Resolved the issue's "blocking investigation" by reading the SDK event bus imple
 - **Test-migration churn flagged.**
   Adding `lifecycle` to `RunnerDeps` forces updating 18 inline `{ io, exec, registry }` call sites.
   Isolated into a standalone `test:` commit (introduce `createRunnerDeps` factory) before the interface change, to keep the `feat` commit reviewable and pay down churn for #264/#265.
+
+## Stage: Implementation — TDD (2026-05-28T17:10:00Z)
+
+### Session summary
+
+Executed all 5 planned TDD cycles plus a green-baseline cleanup: added the `child-lifecycle` publisher, centralized runner-deps construction, emitted the four `subagents:child:*` events from `runAgent` while deleting `permission-bridge.ts`, and subscribed in `@gotgenes/pi-permission-system` via `subscribeSubagentLifecycle`.
+Test counts: pi-subagents 1047 → 1049 (+6 `child-lifecycle`, −5 `permission-bridge`, +1 net in the runner block); pi-permission-system 1497 → 1504 (+7 `subagent-lifecycle-events`).
+Full suite (3065 tests), `check`, `lint`, and `fallow dead-code` all green.
+
+### Observations
+
+- **Pre-existing baseline failure.**
+  `pnpm run lint` failed at the start on 4 unused MD053 link references (`#256`–`#259`) in `pi-subagents` `architecture.md`, unrelated to this change.
+  Fixed as a separate `docs:` cleanup commit before starting TDD cycles.
+- **`createRunnerDeps` already existed.**
+  The plan assumed 18 inline `{ io, exec, registry }` sites; in practice `concrete-agent-runner.test.ts` already used the factory, so only `agent-runner.test.ts` (14) and `agent-runner-extension-tools.test.ts` (4) needed migration.
+  Extended the factory with `io` / `exec` / `lifecycle` overrides; typed the `io` override as the unannotated `createRunnerIO()` shape so `deps.io.<mock>` methods survive.
+- **Synchronous-dispatch invariant encoded.**
+  The real-bus test (`subagent-lifecycle-events.test.ts`, "populates the registry synchronously — before emit() returns") asserts the registry is updated the instant `emit()` returns, guarding the pre-`bindExtensions` ordering against a future `await` creeping into the handler.
+- **ESLint pre-commit auto-fix.**
+  The Step 4 commit was rewritten by the eslint hook to convert relative test imports to the `#src/` alias; re-staged and committed.
+- **No deviations from the plan's design.**
+  All Module-Level Changes landed as specified; architecture and integration docs updated in Step 5.
+- **Pre-completion reviewer: WARN.**
+  One non-blocking finding — the `package-pi-permission-system` skill's "Upcoming: event-based subagent integration" section was stale (the integration is now delivered).
+  Addressed in a follow-up `docs:` commit (`6893301a`) updating it to the delivered state plus the synchronous-handler constraint and the #267 deferral note.
+  All deterministic checks (`check`, `lint`, `test`, `fallow`), acceptance criteria, conventional commits, code design, test artifacts, and Mermaid diagrams passed.
