@@ -55,8 +55,6 @@ export interface AgentConfig extends AgentIdentity, AgentPromptConfig {
   runInBackground?: boolean;
   /** Default for spawn: no extension tools. undefined = caller decides. */
   isolated?: boolean;
-  /** Isolation mode — "worktree" runs the agent in a temporary git worktree */
-  isolation?: IsolationMode;
   /** true = this is an embedded default agent (informational) */
   isDefault?: boolean;
   /** false = agent is hidden from the registry */
@@ -73,7 +71,6 @@ export interface AgentInvocation {
   isolated?: boolean;
   inheritContext?: boolean;
   runInBackground?: boolean;
-  isolation?: IsolationMode;
 }
 
 /**

@@ -151,17 +151,6 @@ describe("resolveSpawnConfig — invocation fields", () => {
     expect(result.execution.isolated).toBe(true);
   });
 
-  it("sets isolation from params", () => {
-    const result = resolveSpawnConfig(
-      { subagent_type: "general-purpose", prompt: "test", description: "d", isolation: "worktree" },
-      testRegistry,
-      makeModelInfo(),
-      defaultSettings,
-    );
-    if ("error" in result) return;
-    expect(result.execution.isolation).toBe("worktree");
-  });
-
   it("builds agentInvocation snapshot", () => {
     const result = resolveSpawnConfig(
       { subagent_type: "general-purpose", prompt: "test", description: "d", thinking: "high" },

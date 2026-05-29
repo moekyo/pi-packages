@@ -179,7 +179,7 @@ Guidelines:
 - Use model to specify a different model (as "provider/modelId", or fuzzy e.g. "haiku", "sonnet").
 - Use thinking to control extended thinking level.
 - Use inherit_context if the agent needs the parent conversation history.
-- Use isolation: "worktree" to run the agent in an isolated git worktree (safe parallel file modifications).`,
+`,
 			parameters: Type.Object({
 				prompt: Type.String({
 					description: "The task for the agent to perform.",
@@ -229,12 +229,6 @@ Guidelines:
 					Type.Boolean({
 						description:
 							"If true, fork parent conversation into the agent. Default: false (fresh context).",
-					}),
-				),
-				isolation: Type.Optional(
-					Type.Literal("worktree", {
-						description:
-							'Set to "worktree" to run the agent in a temporary git worktree (isolated copy of the repo). Changes are saved to a branch on completion.',
 					}),
 				),
 			}),

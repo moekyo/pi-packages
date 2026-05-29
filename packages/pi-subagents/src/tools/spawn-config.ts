@@ -12,7 +12,7 @@ import type { AgentTypeRegistry } from "#src/config/agent-types";
 import { resolveAgentInvocationConfig } from "#src/config/invocation-config";
 import { normalizeMaxTurns } from "#src/lifecycle/agent-runner";
 import { resolveInvocationModel } from "#src/session/model-resolver";
-import type { AgentInvocation, IsolationMode, SubagentType, ThinkingLevel } from "#src/types";
+import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import {
   type AgentDetails,
   buildInvocationTags,
@@ -44,7 +44,6 @@ export interface SpawnExecution {
   inheritContext: boolean;
   runInBackground: boolean;
   isolated: boolean;
-  isolation: IsolationMode | undefined;
   agentInvocation: AgentInvocation;
 }
 
@@ -104,7 +103,6 @@ export function resolveSpawnConfig(
   const inheritContext = resolvedConfig.inheritContext;
   const runInBackground = resolvedConfig.runInBackground;
   const isolated = resolvedConfig.isolated;
-  const isolation = resolvedConfig.isolation;
 
   // Compute display model name (only shown when different from parent)
   const parentModelId = modelInfo.parentModel?.id;
@@ -125,7 +123,6 @@ export function resolveSpawnConfig(
     isolated,
     inheritContext,
     runInBackground,
-    isolation,
   };
 
   const modeLabel = getPromptModeLabel(subagentType, registry);
@@ -151,7 +148,6 @@ export function resolveSpawnConfig(
       inheritContext,
       runInBackground,
       isolated,
-      isolation,
       agentInvocation,
     },
     presentation: { modelName, agentTags, detailBase },

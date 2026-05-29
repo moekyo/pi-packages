@@ -52,7 +52,6 @@ export function spawnBackground(
       inheritContext: execution.inheritContext,
       thinkingLevel: execution.thinking,
       isBackground: true,
-      isolation: execution.isolation,
       invocation: execution.agentInvocation,
       observer: {
         onSessionCreated: (_agent, session) => {

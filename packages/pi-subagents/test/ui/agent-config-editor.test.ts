@@ -406,7 +406,6 @@ describe("buildEjectContent", () => {
       inheritContext: true,
       runInBackground: true,
       isolated: true,
-      isolation: "worktree",
     };
     const content = buildEjectContent(cfg);
     expect(content).toContain("display_name: My Agent");
@@ -417,7 +416,6 @@ describe("buildEjectContent", () => {
     expect(content).toContain("inherit_context: true");
     expect(content).toContain("run_in_background: true");
     expect(content).toContain("isolated: true");
-    expect(content).toContain("isolation: worktree");
   });
 
   it("emits 'extensions: false' when extensions is false", () => {

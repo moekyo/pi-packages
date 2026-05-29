@@ -54,7 +54,6 @@ export function buildEjectContent(cfg: AgentConfig): string {
   if (cfg.inheritContext) fmFields.push("inherit_context: true");
   if (cfg.runInBackground) fmFields.push("run_in_background: true");
   if (cfg.isolated) fmFields.push("isolated: true");
-  if (cfg.isolation) fmFields.push(`isolation: ${cfg.isolation}`);
   return `---\n${fmFields.join("\n")}\n---\n\n${cfg.systemPrompt}\n`;
 }
 

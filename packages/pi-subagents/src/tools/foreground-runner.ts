@@ -105,7 +105,6 @@ export async function runForeground(
         isolated: execution.isolated,
         inheritContext: execution.inheritContext,
         thinkingLevel: execution.thinking,
-        isolation: execution.isolation,
         invocation: execution.agentInvocation,
         signal,
         parentSession: params.parentSession,

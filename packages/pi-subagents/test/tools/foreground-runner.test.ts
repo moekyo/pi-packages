@@ -23,7 +23,6 @@ function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawn
 			inheritContext: false,
 			runInBackground: false,
 			isolated: false,
-			isolation: undefined,
 			agentInvocation: {
 				modelName: undefined,
 				thinking: undefined,
@@ -31,7 +30,6 @@ function makeConfig(overrides: Partial<ResolvedSpawnConfig> = {}): ResolvedSpawn
 				isolated: false,
 				inheritContext: false,
 				runInBackground: false,
-				isolation: undefined,
 			},
 		},
 		presentation: {

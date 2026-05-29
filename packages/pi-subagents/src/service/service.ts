@@ -53,7 +53,6 @@ export interface SpawnOptions {
   inheritContext?: boolean;
   foreground?: boolean;
   bypassQueue?: boolean;
-  isolation?: "worktree";
 }
 
 /** The public service contract for cross-extension subagent access. */

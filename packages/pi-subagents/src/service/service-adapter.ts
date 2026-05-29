@@ -69,7 +69,6 @@ export class SubagentsServiceAdapter implements SubagentsService {
       isolated: options?.isolated,
       inheritContext: options?.inheritContext,
       bypassQueue: options?.bypassQueue,
-      isolation: options?.isolation,
       isBackground,
     });
   }
