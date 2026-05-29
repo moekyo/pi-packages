@@ -56,9 +56,9 @@ flowchart TB
         AgentManager["AgentManager<br/>(spawn, abort, collection)"]
         ConcurrencyQueue["ConcurrencyQueue<br/>(scheduling, drain)"]
         AgentRunner["agent-runner<br/>(session, turns, results)"]
-        Agent["Agent<br/>(status, behavior: abort/steer/worktree/run lifecycle)"]
+        Agent["Agent<br/>(status, behavior: abort/steer/run lifecycle)"]
         ParentSnapshot["ParentSnapshot<br/>(frozen parent state)"]
-        Worktree["worktree<br/>(git isolation)"]
+        Workspace["workspace<br/>(provider seam: child cwd + teardown)"]
     end
 
     subgraph observation["Observation domain"]
@@ -112,7 +112,6 @@ classDiagram
         +toolUses: number
         +lifetimeUsage: LifetimeUsage
         +execution?: ExecutionState
-        +worktree?: WorktreeIsolation
         +notification?: NotificationState
         +markRunning()
         +markCompleted()
@@ -270,14 +269,12 @@ src/
 ├── lifecycle/                      agent execution and state tracking
 │   ├── agent-manager.ts            collection manager + observer wiring
 │   ├── agent-runner.ts             session creation, turn loop, tool filtering
-│   ├── agent.ts                    owns full execution lifecycle (run, abort, steer, worktree)
+│   ├── agent.ts                    owns full execution lifecycle (run, abort, steer, workspace)
 │   ├── concurrency-queue.ts        background agent scheduling with configurable concurrency limit
 │   ├── parent-snapshot.ts          immutable spawn-time parent state
 │   ├── execution-state.ts          session/output phase state
 │   ├── child-lifecycle.ts          child-execution lifecycle event publisher
 │   ├── workspace.ts                workspace provider seam (generative extension surface)
-│   ├── worktree.ts                 git worktree isolation
-│   ├── worktree-isolation.ts       worktree lifecycle collaborator
 │   └── usage.ts                    token usage tracking
 │
 ├── observation/                    progress tracking and notification
@@ -357,14 +354,14 @@ They declare this package as an optional peer dependency and use dynamic import 
   Reactive consumers subscribe: `@gotgenes/pi-permission-system` registers each child session on `session-created` and unregisters it on `disposed`.
   This replaced the former outbound `permission-bridge` (#261, ADR 0002) — the core no longer looks up a named consumer.
 - `workspace` — the single generative seam (#262, ADR 0002): a registered `WorkspaceProvider` supplies a child's cwd plus bracketed `dispose()` at run-start.
-  With no provider, children run in the parent cwd (default unchanged); the git worktree strategy moves behind this seam in #263.
+  With no provider, children run in the parent cwd (default unchanged); the git worktree strategy lives behind this seam in `@gotgenes/pi-subagents-worktrees` (#263, the seam's first consumer).
 - `session-config` — pure configuration assembler (extracted from `agent-runner`).
 - `SubagentRuntime` — session-scoped state bag with methods.
 - `ParentSnapshot` — immutable snapshot of parent session state, captured once at spawn time.
 - `record-observer` — session-event observer that updates record statistics without callback threading.
 - Agent type registry — default agents, custom `.md` file loading.
 - Prompt assembly, context extraction, skills, environment.
-- Worktree isolation — moving to `@gotgenes/pi-subagents-worktrees` via the workspace provider seam in Phase 16 (ADR 0002).
+- Worktree isolation — evicted to `@gotgenes/pi-subagents-worktrees` via the workspace provider seam in Phase 16 (#263, ADR 0002); `git` no longer appears in the core.
 - Token usage tracking.
 - Session directory derivation and persisted `SessionManager` for subagent transcripts.
 - Settings persistence.
@@ -418,7 +415,7 @@ Key types:
 
 - `SubagentsService` — `spawn`, `getRecord`, `listAgents`, `abort`, `steer`, `waitForAll`, `hasRunning`.
 - `SubagentRecord` — serializable agent snapshot (no live session objects).
-- `SpawnOptions` — `description`, `model`, `maxTurns`, `thinkingLevel`, `isolated`, `inheritContext`, `foreground`, `bypassQueue`, `isolation`.
+- `SpawnOptions` — `description`, `model`, `maxTurns`, `thinkingLevel`, `isolated`, `inheritContext`, `foreground`, `bypassQueue`.
 - `SUBAGENT_EVENTS` — channel constants for `pi.events` subscriptions.
 
 ### Accessor pattern
@@ -501,7 +498,7 @@ Latent extensibility is the deliverable; a vacant hook is not.
 - **Extension filtering** (`extensions: string[]` allowlist) — tool visibility is pi-permission-system's job.
 - **Worktree isolation** (`worktree.ts`, `worktree-isolation.ts`, `GitWorktreeManager`, the `isolation: "worktree"` spawn mode) — environment policy, not core.
   Git worktrees are one *strategy* for choosing the child's working directory; containers, throwaway tmpdirs, and remote sandboxes are others.
-  These move to `@gotgenes/pi-subagents-worktrees`, the first consumer of the workspace provider seam.
+  Evicted to `@gotgenes/pi-subagents-worktrees` (#263), the first consumer of the workspace provider seam.
 - **Extension lifecycle control** (`extensions: false`, `isolated`, `noSkills`) — deny-at-use (the in-child permission layer blocking disallowed tool calls) covers what `isolated` pretended to do for tools.
   Prevent-load (refusing to bind an extension because of load-time side effects, cost, or true sandboxing) is genuinely generative and is left as a *latent* (un-built) provider seam, added only if a real consumer needs it.
 
@@ -608,7 +605,6 @@ interface SpawnExecution {
   inheritContext: boolean;
   runInBackground: boolean;
   isolated: boolean;
-  isolation: IsolationMode | undefined;
   agentInvocation: AgentInvocation;
 }
 
@@ -765,8 +761,8 @@ Migrate `@gotgenes/pi-permission-system` to subscribe to `session-created`/`disp
 #### Step 2: Define the `WorkspaceProvider` seam — [#262] ✅ Delivered
 
 Added the `WorkspaceProvider` / `Workspace` interfaces (`src/lifecycle/workspace.ts`) and `SubagentsService.registerWorkspaceProvider` (single provider, throws on duplicate, returns an unregister disposer).
-Only `WorkspaceProvider` is named-re-exported from `service.ts`; `Workspace` and the context types resolve via inference when a consumer assigns to `WorkspaceProvider` (the worktrees package adds named re-exports in #263 when it imports them by name).
-At run-start `Agent.run()` consults the registered provider (provider-first precedence) for the child's cwd and a disposal handle; with no provider it falls back to the legacy worktree collaborator, and with neither the child runs in the parent's cwd.
+Only `WorkspaceProvider` is named-re-exported from `service.ts`; `Workspace` and the context types resolve via inference when a consumer assigns to `WorkspaceProvider` (named re-exports of the collaborator types are tracked in #272).
+At run-start `Agent.run()` consults the registered provider for the child's cwd and a disposal handle; with no provider the child runs in the parent's cwd (the legacy worktree-collaborator fallback was removed when worktrees left the core in #263).
 On completion the core calls `Workspace.dispose({ status, description })` and appends the returned `resultAddendum` verbatim — the provider owns the wording.
 
 - The seam is additive and non-breaking: the existing `isolation: "worktree"` path is untouched (its eviction is Step 3).
@@ -774,13 +770,15 @@ On completion the core calls `Workspace.dispose({ status, description })` and ap
   Within #262 the seam is exercised only by test fakes; do not cut a release containing the seam without `@gotgenes/pi-subagents-worktrees`.
 - Outcome: a single generative seam; the core no longer knows what an "isolation strategy" is.
 
-#### Step 3: Extract worktrees to `@gotgenes/pi-subagents-worktrees` — [#263]
+#### Step 3: Extract worktrees to `@gotgenes/pi-subagents-worktrees` — [#263] ✅ Delivered
 
 New package implementing `WorkspaceProvider`: prepares a git worktree at run-start (born complete), tears it down after (saving the branch), and owns the "changes saved to branch" result.
-Remove `worktree.ts`, `worktree-isolation.ts`, `GitWorktreeManager`, and the `isolation: "worktree"` mode from the core; drop `isolation` from the spawn API and `SubagentsService`.
+Worktree isolation is opt-in per agent type via the package's own `worktreeAgents` config; creation failure for an opted-in agent throws (strict, no silent fallback).
+Removed `worktree.ts`, `worktree-isolation.ts`, `GitWorktreeManager`, and the `isolation: "worktree"` mode from the core; dropped `isolation` from the spawn API and `SubagentsService`, and `worktreeResult` from `SubagentRecord`.
 
 - Supersedes #256.
-  New package registered in `release-please-config.json`; peer-depends on `@gotgenes/pi-subagents`.
+  New package registered in `release-please-config.json` and `.pi/settings.json` (after pi-subagents); consumes the published `@gotgenes/pi-subagents` from the registry (`linkWorkspacePackages: false`), since `exports.types` resolves to the shipped declaration bundle.
+  Only `WorkspaceProvider` is importable by name from 11.6.0; the collaborator types are recovered via inference until #272 adds named re-exports.
 - Outcome: git leaves the core; worktree users install one package, everyone else pays nothing.
 
 #### Step 4: Remove `isolated` / `extensions: false` / `noSkills` — [#264]
