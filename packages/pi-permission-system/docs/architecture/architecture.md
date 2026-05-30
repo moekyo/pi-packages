@@ -414,8 +414,8 @@ This requires two detections:
 
 `isSubagentExecutionContext()` checks three sources in priority order:
 
-1. **Explicit registry** — in-process subagent extensions register sessions via `PermissionsService.registerSubagentSession()` before calling `bindExtensions()`.
-   The `SubagentSessionRegistry` (keyed by session directory path) is checked first.
+1. **Explicit registry** — `@gotgenes/pi-subagents` emits `subagents:child:session-created` before `bindExtensions()`; the permission system's subscriber writes the entry into `SubagentSessionRegistry` synchronously.
+   The registry (keyed by session directory path) is checked first.
 2. **Env vars** (`SUBAGENT_ENV_HINT_KEYS`) — returns `true` when any key is set to a non-empty, non-whitespace value.
    Used by process-based subagent extensions.
 3. **Filesystem path** — session-directory path-based fallback (child session dir is nested under `subagentSessionsDir`).
@@ -434,10 +434,9 @@ Adding a new env var candidate when an extension adopts the convention is a one-
 
 ### In-process case (resolved)
 
-In-process subagent extensions (e.g. `@gotgenes/pi-subagents`, tintinweb/pi-subagents) call `createAgentSession()` directly — no child process is spawned and no env vars are ever set.
-This is now handled by the `SubagentSessionRegistry` API on `PermissionsService`.
-The extension registers the child session before `bindExtensions()` and unregisters it in a `finally` block after the session completes.
-See `src/subagent-registry.ts` and the [cross-extension API docs](../cross-extension-api.md#registersubagentsession--unregistersubagentsession) for details.
+In-process subagent extensions (e.g. `@gotgenes/pi-subagents`) call `createAgentSession()` directly — no child process is spawned and no env vars are ever set.
+`@gotgenes/pi-subagents` publishes `subagents:child:session-created` (before `bindExtensions()`) and `subagents:child:disposed` (in the run's `finally`); `src/subagent-lifecycle-events.ts` subscribes and writes/removes the entry in `SubagentSessionRegistry` synchronously.
+See `src/subagent-registry.ts` and [Subagent Integration](../subagent-integration.md) for details.
 
 ### External convention guide
 
@@ -454,14 +453,12 @@ Pi's extension loader creates a fresh jiti instance per extension with `moduleCa
 
 The extension factory publishes a `PermissionsService` object via `publishPermissionsService()` during startup.
 Other extensions retrieve it with `getPermissionsService()` from `import("@gotgenes/pi-permission-system")`.
-The `package.json` `exports` field points to `src/service.ts`, which contains the interface, the accessor functions, the `Symbol.for()` key, and the `SubagentSessionInfo` type — no extension machinery.
+The `package.json` `exports` field points to `src/service.ts`, which contains the interface, the accessor functions, and the `Symbol.for()` key — no extension machinery.
 
-The `PermissionsService` interface exposes four methods:
+The `PermissionsService` interface exposes two methods:
 
 - `checkPermission(surface, value?, agentName?)` — full policy query.
 - `getToolPermission(toolName, agentName?)` — tool-level permission state (`allow`/`deny`/`ask`) for pre-filtering.
-- `registerSubagentSession(sessionKey, info)` — register an in-process subagent session for detection and forwarding.
-- `unregisterSubagentSession(sessionKey)` — remove a registered session.
 
 The event-bus RPC (`permissions:rpc:check`) remains as a zero-dependency fallback for consumers who do not want to add an optional peer dep.
 It is deprecated in favor of the service accessor.

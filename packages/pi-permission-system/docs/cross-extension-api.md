@@ -52,21 +52,6 @@ interface PermissionsService {
 
   /** Query tool-level permission state for pre-filtering before session creation. */
   getToolPermission(toolName: string, agentName?: string): PermissionState;
-
-  /**
-   * Register an in-process subagent session.
-   * Call before bindExtensions(); always pair with unregisterSubagentSession() in a finally block.
-   * sessionKey should be the session directory path (unique per session).
-   */
-  registerSubagentSession(sessionKey: string, info: SubagentSessionInfo): void;
-
-  /** Remove a previously registered in-process subagent session. Safe to call if never registered. */
-  unregisterSubagentSession(sessionKey: string): void;
-}
-
-interface SubagentSessionInfo {
-  agentName: string;
-  parentSessionId?: string; // needed for ask-state forwarding
 }
 ```
 
@@ -91,28 +76,11 @@ const denied = tools.filter(
 );
 ```
 
-#### `registerSubagentSession` / `unregisterSubagentSession`
+#### Subagent session registration
 
-In-process subagent extensions call these to signal child session identity before binding extensions.
-This enables `isSubagentExecutionContext()` to detect the child and `ask`-state forwarding to resolve the parent session ID — both of which previously relied on env vars that are never set for in-process children.
-
-```typescript
-const sessionDir = ctx.sessionManager.getSessionDir();
-const svc = getPermissionsService();
-svc?.registerSubagentSession(sessionDir, {
-  agentName: "Explore",
-  parentSessionId: parentCtx.sessionManager.getSessionId(),
-});
-try {
-  await session.bindExtensions({});
-  // ... run the child session
-} finally {
-  svc?.unregisterSubagentSession(sessionDir);
-}
-```
-
-The `sessionKey` is typically the session directory path, which is unique per concurrent session.
-Registration is process-scoped; entries persist until explicitly removed.
+In-process subagent registration is event-driven.
+`@gotgenes/pi-subagents` emits `subagents:child:session-created` before `bindExtensions()` and `subagents:child:disposed` in the run's `finally`; the permission system subscribes automatically — no service call from the spawner is required.
+See [Subagent Integration](subagent-integration.md) for details.
 
 ### Reload Safety
 

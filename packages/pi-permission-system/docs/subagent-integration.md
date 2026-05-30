@@ -16,8 +16,6 @@ The integration enables:
 No configuration is required — the integration is automatic when both extensions are installed.
 When `@gotgenes/pi-permission-system` is not installed, `@gotgenes/pi-subagents` emits its lifecycle events with no subscriber — a harmless no-op.
 
-The `registerSubagentSession` / `unregisterSubagentSession` service methods documented in [Service Accessor](cross-extension-api.md#registersubagentsession--unregistersubagentsession) remain available for other (e.g. out-of-process) callers; `@gotgenes/pi-subagents` no longer uses them, and their removal is tracked in #267.
-
 ## Permission Forwarding
 
 When a delegated or routed subagent runs without direct UI access, `ask` permissions can still be enforced by forwarding the confirmation request through Pi session directories.
@@ -25,7 +23,7 @@ The main interactive session polls for forwarded requests, shows the confirmatio
 
 This keeps `ask` policies usable even when the original permission check happens inside a non-UI execution context.
 
-For in-process child sessions, detection and forwarding use the explicit registration API described above.
+For in-process child sessions, detection and forwarding use the event-driven registration described above.
 The [Prompt Forwarding RPC](cross-extension-api.md#prompt-forwarding-rpc) remains available as an alternative for extensions that cannot use the service accessor.
 
 ---
@@ -62,7 +60,7 @@ Process-based subagent extensions (nicobailon, HazAT) spawn child processes but 
 Without that env var, `ask` permissions in child processes are auto-denied.
 See [guides/permission-frontmatter-for-subagent-extensions.md](guides/permission-frontmatter-for-subagent-extensions.md) for the convention that subagent extension authors should follow.
 
-The upstream `tintinweb/pi-subagents` (which `@gotgenes/pi-subagents` forks) does not call `registerSubagentSession()`, so it lacks deterministic child detection and `ask`-state forwarding.
+The upstream `tintinweb/pi-subagents` (which `@gotgenes/pi-subagents` forks) does not publish the `subagents:child:session-created` lifecycle event, so it lacks deterministic child detection and `ask`-state forwarding.
 
 ### Interaction Rules
 
