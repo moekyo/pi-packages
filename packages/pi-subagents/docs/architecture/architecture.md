@@ -123,8 +123,12 @@ classDiagram
         +run()
         +resume(prompt, signal)
         +abort(): boolean
-        +queueSteer(message)
-        +flushPendingSteers()
+        +steer(message): Promise<boolean>
+        +isSessionReady(): boolean
+        +getConversation(): string | undefined
+        +getContextPercent(): number | null
+        +subscribeToUpdates(fn): unsub | undefined
+        +messages: readonly unknown[]
         +completeRun(result)
         +failRun(err)
         +disposeSession()
@@ -330,7 +334,7 @@ Record statistics (tool uses, token usage, compaction counts) are updated by `re
 UI streaming (active tools, response text, turn counts) is handled by `ui/ui-observer.ts`, which subscribes to the same session events independently.
 Neither observer wraps or forwards the other — both subscribe directly to the session.
 
-The widget reads agent state by polling a shared `Map<string, AgentActivityTracker>` on `SubagentRuntime` every 80 ms. The conversation viewer subscribes directly to `AgentSession` objects.
+The widget reads agent state by polling a shared `Map<string, AgentActivityTracker>` on `SubagentRuntime` every 80 ms. The conversation viewer subscribes to session events via `Agent.subscribeToUpdates()` and reads messages via `Agent.messages` — no direct `AgentSession` reference (#277).
 
 ## Cross-extension architecture
 
