@@ -39,8 +39,6 @@ export interface AgentPromptConfig {
 /** Unified agent configuration — used for both default and user-defined agents. */
 export interface AgentConfig extends AgentIdentity, AgentPromptConfig {
   builtinToolNames?: string[];
-  /** true = inherit all, string[] = only listed, false = none */
-  skills: true | string[] | false;
   model?: string;
   thinking?: ThinkingLevel;
   maxTurns?: number;

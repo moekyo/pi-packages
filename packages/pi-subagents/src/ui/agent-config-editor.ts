@@ -47,9 +47,6 @@ export function buildEjectContent(cfg: AgentConfig): string {
   if (cfg.thinking) fmFields.push(`thinking: ${cfg.thinking}`);
   if (cfg.maxTurns) fmFields.push(`max_turns: ${cfg.maxTurns}`);
   fmFields.push(`prompt_mode: ${cfg.promptMode}`);
-  if (cfg.skills === false) fmFields.push("skills: false");
-  else if (Array.isArray(cfg.skills))
-    fmFields.push(`skills: ${cfg.skills.join(", ")}`);
   if (cfg.inheritContext) fmFields.push("inherit_context: true");
   if (cfg.runInBackground) fmFields.push("run_in_background: true");
   return `---\n${fmFields.join("\n")}\n---\n\n${cfg.systemPrompt}\n`;

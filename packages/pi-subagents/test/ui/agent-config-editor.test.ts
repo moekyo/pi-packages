@@ -376,7 +376,6 @@ describe("buildEjectContent", () => {
     description: "Does something useful",
     systemPrompt: "You are a useful agent.",
     promptMode: "replace",
-    skills: true,
   };
 
   it("produces minimal frontmatter for a config with no optional fields", () => {
@@ -413,20 +412,5 @@ describe("buildEjectContent", () => {
     expect(content).toContain("max_turns: 10");
     expect(content).toContain("inherit_context: true");
     expect(content).toContain("run_in_background: true");
-  });
-
-  it("emits 'skills: false' when skills is false", () => {
-    const cfg: AgentConfig = { ...minimalConfig, skills: false };
-    expect(buildEjectContent(cfg)).toContain("skills: false");
-  });
-
-  it("emits 'skills: <list>' when skills is an array", () => {
-    const cfg: AgentConfig = { ...minimalConfig, skills: ["code-design"] };
-    expect(buildEjectContent(cfg)).toContain("skills: code-design");
-  });
-
-  it("does not emit the skills field when it is true", () => {
-    const content = buildEjectContent(minimalConfig);
-    expect(content).not.toContain("skills:");
   });
 });

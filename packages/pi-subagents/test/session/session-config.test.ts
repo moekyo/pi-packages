@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { AssemblerIO } from "#src/session/session-config";
-import type { PreloadedSkill } from "#src/session/skill-loader";
 import type { AgentConfig } from "#src/types";
 
 const mockResolveAgentConfig = vi.fn((): AgentConfig => ({
   name: "Explore",
   description: "Fast codebase exploration agent",
   builtinToolNames: ["read"],
-  skills: false,
   systemPrompt: "You are Explore.",
   promptMode: "replace",
 }));
@@ -16,7 +14,6 @@ const mockGetToolNamesForType = vi.fn((): string[] => ["read"]);
 const mockBuildAgentPrompt: Mock<AssemblerIO["buildAgentPrompt"]> = vi.fn(
   () => "assembled system prompt",
 );
-const mockPreloadSkills = vi.fn((): PreloadedSkill[] => []);
 
 /** Mock registry injected into assembleSessionConfig instead of module-level free functions. */
 const mockAgentLookup: AgentConfigLookup = {
@@ -41,7 +38,6 @@ const ctx = {
 
 /** IO stubs injected into assembleSessionConfig in place of module-level imports. */
 const mockIO = {
-  preloadSkills: mockPreloadSkills,
   buildAgentPrompt: mockBuildAgentPrompt,
 };
 
@@ -49,7 +45,6 @@ beforeEach(() => {
   mockResolveAgentConfig.mockClear();
   mockGetToolNamesForType.mockClear();
   mockBuildAgentPrompt.mockClear();
-  mockPreloadSkills.mockClear();
   mockRegistry.find.mockReset();
   mockRegistry.getAvailable.mockClear();
 });
@@ -61,10 +56,8 @@ describe("assembleSessionConfig — default agent shape", () => {
     expect(result.effectiveCwd).toBe("/tmp");
     expect(result.systemPrompt).toBe("assembled system prompt");
     expect(result.toolNames).toEqual(["read"]);
-    expect(result.noSkills).toBe(true);
     expect(result.model).toBeUndefined();
     expect(result.thinkingLevel).toBeUndefined();
-    expect(result.extras).toEqual({});
   });
 
   it("uses options.cwd as effectiveCwd when provided", () => {
@@ -102,7 +95,6 @@ describe("assembleSessionConfig — model resolution", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       model: "anthropic/claude-haiku-4",
@@ -125,7 +117,6 @@ describe("assembleSessionConfig — model resolution", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       model: "anthropic/claude-opus-4",
@@ -146,7 +137,6 @@ describe("assembleSessionConfig — model resolution", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       model: "anthropic/unknown-model",
@@ -172,7 +162,6 @@ describe("assembleSessionConfig — model resolution", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       model: "anthropic/claude-opus-4",
@@ -198,7 +187,6 @@ describe("assembleSessionConfig — model resolution", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       model: "claude-opus-4",   // no provider/ prefix
@@ -232,75 +220,6 @@ describe("assembleSessionConfig — model resolution", () => {
   });
 });
 
-describe("assembleSessionConfig — skill preloading", () => {
-  it("skips preloading when skills is false", () => {
-    // default mock has skills: false
-    assembleSessionConfig("Explore", ctx, {}, mockEnv, mockAgentLookup, mockIO);
-
-    expect(mockPreloadSkills).not.toHaveBeenCalled();
-    expect(assembleSessionConfig("Explore", ctx, {}, mockEnv, mockAgentLookup, mockIO).extras).toEqual({});
-  });
-
-  it("skips preloading when skills is true (resource loader handles it)", () => {
-    mockResolveAgentConfig.mockReturnValueOnce({
-      name: "general-purpose",
-      description: "General",
-      skills: true as const,
-      systemPrompt: "",
-      promptMode: "append" as const,
-    });
-
-    const result = assembleSessionConfig("general-purpose", ctx, {}, mockEnv, mockAgentLookup, mockIO);
-
-    expect(mockPreloadSkills).not.toHaveBeenCalled();
-    expect(result.noSkills).toBe(false);
-    expect(result.extras.skillBlocks).toBeUndefined();
-  });
-
-  it("preloads listed skills and sets extras.skillBlocks", () => {
-    const skillList = ["code-style", "testing"];
-    mockResolveAgentConfig.mockReturnValueOnce({
-      name: "Explore",
-      description: "test",
-      builtinToolNames: ["read"],
-      skills: skillList,
-      systemPrompt: "prompt",
-      promptMode: "replace" as const,
-    });
-    mockPreloadSkills.mockReturnValueOnce([
-      { name: "code-style", content: "# Code Style" },
-      { name: "testing", content: "# Testing" },
-    ]);
-
-    const result = assembleSessionConfig("Explore", ctx, {}, mockEnv, mockAgentLookup, mockIO);
-
-    expect(result.extras.skillBlocks).toEqual([
-      { name: "code-style", content: "# Code Style" },
-      { name: "testing", content: "# Testing" },
-    ]);
-    expect(result.noSkills).toBe(true);
-  });
-
-  it("sets noSkills:true but leaves extras.skillBlocks undefined when preloadSkills returns empty", () => {
-    const skillList = ["nonexistent-skill"];
-    mockResolveAgentConfig.mockReturnValueOnce({
-      name: "Explore",
-      description: "test",
-      builtinToolNames: ["read"],
-      skills: skillList,
-      systemPrompt: "prompt",
-      promptMode: "replace" as const,
-    });
-    mockPreloadSkills.mockReturnValueOnce([]);
-
-    const result = assembleSessionConfig("Explore", ctx, {}, mockEnv, mockAgentLookup, mockIO);
-
-    expect(result.noSkills).toBe(true);
-    expect(result.extras.skillBlocks).toBeUndefined();
-  });
-
-});
-
 describe("assembleSessionConfig — unknown type fallback", () => {
   it("passes resolved config directly to buildAgentPrompt", () => {
     // resolveAgentConfig handles the fallback internally —
@@ -308,7 +227,6 @@ describe("assembleSessionConfig — unknown type fallback", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "general-purpose",
       description: "General-purpose",
-      skills: true as const,
       systemPrompt: "",
       promptMode: "append" as const,
     });
@@ -334,7 +252,6 @@ describe("assembleSessionConfig — thinking level", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       thinking: "low" as const,
@@ -356,7 +273,6 @@ describe("assembleSessionConfig — thinking level", () => {
     mockResolveAgentConfig.mockReturnValueOnce({
       name: "Explore",
       description: "test",
-      skills: false as const,
       systemPrompt: "prompt",
       promptMode: "replace" as const,
       thinking: "medium" as const,

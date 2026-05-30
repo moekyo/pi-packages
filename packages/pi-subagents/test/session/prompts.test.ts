@@ -76,7 +76,6 @@ describe("buildAgentPrompt", () => {
       name: "appender",
       description: "Appender",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "Extra custom instructions here.",
       promptMode: "append",
       inheritContext: false,
@@ -97,7 +96,6 @@ describe("buildAgentPrompt", () => {
       name: "appender",
       description: "Appender",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "Extra custom instructions here.",
       promptMode: "append",
       inheritContext: false,
@@ -114,7 +112,6 @@ describe("buildAgentPrompt", () => {
       name: "clone",
       description: "Clone",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "",
       promptMode: "append",
       inheritContext: false,
@@ -133,7 +130,6 @@ describe("buildAgentPrompt", () => {
       name: "custom",
       description: "Custom",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "You are a specialized agent.",
       promptMode: "replace",
       inheritContext: false,
@@ -150,7 +146,6 @@ describe("buildAgentPrompt", () => {
       name: "standalone",
       description: "Standalone",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "You are a standalone agent.",
       promptMode: "replace",
       inheritContext: false,
@@ -185,7 +180,6 @@ describe("buildAgentPrompt", () => {
       name: "no-parent",
       description: "No parent",
       builtinToolNames: [],
-      skills: true,
       systemPrompt: "Extra stuff.",
       promptMode: "append",
       inheritContext: false,
@@ -199,52 +193,6 @@ describe("buildAgentPrompt", () => {
     expect(prompt).toContain("Extra stuff.");
   });
 
-  it("injects preloaded skill blocks", () => {
-    const config: AgentConfig = {
-      name: "skill-agent",
-      description: "Skill Agent",
-      builtinToolNames: [],
-      skills: true,
-      systemPrompt: "You are a skill agent.",
-      promptMode: "replace",
-      inheritContext: false,
-      runInBackground: false,
-    };
-    const extras = {
-      skillBlocks: [
-        { name: "api-conventions", content: "Use REST endpoints." },
-        { name: "error-handling", content: "Handle errors gracefully." },
-      ],
-    };
-    const prompt = buildAgentPrompt(
-      config,
-      "/workspace",
-      env,
-      undefined,
-      extras,
-    );
-    expect(prompt).toContain("Preloaded Skill: api-conventions");
-    expect(prompt).toContain("Use REST endpoints.");
-    expect(prompt).toContain("Preloaded Skill: error-handling");
-    expect(prompt).toContain("Handle errors gracefully.");
-  });
-
-  it("no extras means no extra sections", () => {
-    const config: AgentConfig = {
-      name: "plain",
-      description: "Plain",
-      builtinToolNames: [],
-      skills: true,
-      systemPrompt: "Plain agent.",
-      promptMode: "replace",
-      inheritContext: false,
-      runInBackground: false,
-    };
-    const prompt = buildAgentPrompt(config, "/workspace", env);
-    expect(prompt).not.toContain("Agent Memory");
-    expect(prompt).not.toContain("Preloaded Skill");
-  });
-
   // Patch 3 (RepOne #443): inject <active_agent name="..."/> tag so downstream
   // extensions (e.g. @gotgenes/pi-permission-system) can resolve per-agent
   // policy by parsing the child's system prompt.
@@ -254,7 +202,6 @@ describe("buildAgentPrompt", () => {
         name: "Explore",
         description: "Explore",
         builtinToolNames: [],
-        skills: true,
         systemPrompt: "You are an explorer.",
         promptMode: "replace",
         inheritContext: false,
@@ -271,7 +218,6 @@ describe("buildAgentPrompt", () => {
         name: "general-purpose",
         description: "Twin",
         builtinToolNames: [],
-        skills: true,
         systemPrompt: "",
         promptMode: "append",
         inheritContext: false,
@@ -296,7 +242,6 @@ describe("buildAgentPrompt", () => {
         name: "my-custom-agent",
         description: "Custom",
         builtinToolNames: [],
-        skills: true,
         systemPrompt: "You are custom.",
         promptMode: "replace",
         inheritContext: false,
@@ -311,7 +256,6 @@ describe("buildAgentPrompt", () => {
         name: "agent-a",
         description: "Replace",
         builtinToolNames: [],
-        skills: true,
         systemPrompt: "Replace agent.",
         promptMode: "replace",
         inheritContext: false,
@@ -328,7 +272,6 @@ describe("buildAgentPrompt", () => {
         name: "agent-b",
         description: "Append",
         builtinToolNames: [],
-        skills: true,
         systemPrompt: "",
         promptMode: "append",
         inheritContext: false,

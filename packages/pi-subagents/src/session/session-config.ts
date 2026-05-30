@@ -12,8 +12,6 @@
 
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { EnvInfo } from "#src/session/env";
-import type { PromptExtras } from "#src/session/prompts";
-import type { PreloadedSkill } from "#src/session/skill-loader";
 import type { AgentPromptConfig, SubagentType, ThinkingLevel } from "#src/types";
 
 // ── Public interfaces ────────────────────────────────────────────────────────
@@ -21,19 +19,17 @@ import type { AgentPromptConfig, SubagentType, ThinkingLevel } from "#src/types"
 /**
  * IO collaborators injected into `assembleSessionConfig`.
  *
- * Bundling the four IO-touching (or promptly testable) functions into a single
+ * Bundling the IO-touching (or promptly testable) function into a single
  * interface keeps the assembler free of direct module imports and makes it
  * trivially testable without `vi.mock()` — callers inject real implementations
  * at the edge (`agent-runner.ts`) or stubs in tests.
  */
 export interface AssemblerIO {
-  preloadSkills: (skills: string[], cwd: string) => PreloadedSkill[];
   buildAgentPrompt: (
     config: AgentPromptConfig,
     cwd: string,
     env: EnvInfo,
     parentPrompt?: string,
-    extras?: PromptExtras,
   ) => string;
 }
 
@@ -93,10 +89,6 @@ export interface SessionConfig {
   model: unknown;
   /** Resolved thinking level (undefined → inherit from session). */
   thinkingLevel: ThinkingLevel | undefined;
-  /** Whether to skip skill loading in the resource loader (`noSkills` flag). */
-  noSkills: boolean;
-  /** Prompt extras (memory block, preloaded skill blocks) — for transparency. */
-  extras: PromptExtras;
   /** Per-agent configured max turns (from agentConfig.maxTurns). */
   agentMaxTurns: number | undefined;
 }
@@ -163,19 +155,6 @@ export function assembleSessionConfig(
 
   const effectiveCwd = options.cwd ?? ctx.cwd;
 
-  const skills = agentConfig.skills;
-
-  // Build prompt extras (memory, preloaded skills)
-  const extras: PromptExtras = {};
-
-  // Skill preloading: when skills is string[], preload their content into the prompt
-  if (Array.isArray(skills)) {
-    const loaded = io.preloadSkills(skills, effectiveCwd);
-    if (loaded.length > 0) {
-      extras.skillBlocks = loaded;
-    }
-  }
-
   const toolNames = registry.getToolNamesForType(type);
 
   // Build system prompt from the resolved agent config
@@ -184,12 +163,7 @@ export function assembleSessionConfig(
     effectiveCwd,
     env,
     ctx.parentSystemPrompt,
-    extras,
   );
-
-  // noSkills: when we've already preloaded skills into the prompt, or skills = false,
-  // tell the resource loader not to load them again.
-  const noSkills = skills === false || Array.isArray(skills);
 
   // Model resolution: explicit option > config model string > parent model
   const model =
@@ -208,8 +182,6 @@ export function assembleSessionConfig(
     toolNames,
     model,
     thinkingLevel,
-    noSkills,
-    extras,
     agentMaxTurns,
   };
 }

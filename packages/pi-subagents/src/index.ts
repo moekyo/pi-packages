@@ -38,7 +38,6 @@ import { detectEnv } from "#src/session/env";
 import { resolveModel } from "#src/session/model-resolver";
 import { buildAgentPrompt } from "#src/session/prompts";
 import { deriveSubagentSessionDir } from "#src/session/session-dir";
-import { preloadSkills } from "#src/session/skill-loader";
 import { SettingsManager } from "#src/settings";
 import { AgentTool } from "#src/tools/agent-tool";
 import { GetResultTool } from "#src/tools/get-result-tool";
@@ -143,7 +142,6 @@ export default function (pi: ExtensionAPI) {
       createSettingsManager: (cwd, dir) => SdkSettingsManager.create(cwd, dir),
       createSession: (opts) => createAgentSession(opts as any),
       assemblerIO: {
-        preloadSkills,
         buildAgentPrompt,
       },
     },

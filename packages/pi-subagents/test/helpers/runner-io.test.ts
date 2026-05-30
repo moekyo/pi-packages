@@ -18,16 +18,14 @@ describe("createRunnerIO", () => {
 		expect(typeof io.createSession).toBe("function");
 	});
 
-	it("assemblerIO has preloadSkills and buildAgentPrompt only", () => {
+	it("assemblerIO has buildAgentPrompt only", () => {
 		const io = createRunnerIO();
-		expect(typeof io.assemblerIO.preloadSkills).toBe("function");
 		expect(typeof io.assemblerIO.buildAgentPrompt).toBe("function");
-		expect(Object.keys(io.assemblerIO)).toEqual(["preloadSkills", "buildAgentPrompt"]);
+		expect(Object.keys(io.assemblerIO)).toEqual(["buildAgentPrompt"]);
 	});
 
 	it("assemblerIO defaults return sensible stub values", () => {
 		const io = createRunnerIO();
-		expect(io.assemblerIO.preloadSkills([], "/cwd")).toEqual([]);
 		expect(io.assemblerIO.buildAgentPrompt).toBeDefined();
 	});
 
@@ -69,7 +67,6 @@ describe("createAgentLookup", () => {
 		const config = lookup.resolveAgentConfig("Explore");
 		expect(config.name).toBe("Explore");
 		expect(config.promptMode).toBe("replace");
-		expect(config.skills).toBe(false);
 	});
 
 	it("default config builtinToolNames includes 'read'", () => {

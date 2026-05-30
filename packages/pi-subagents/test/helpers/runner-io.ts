@@ -1,7 +1,6 @@
 import { vi } from "vitest";
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { ChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
-import type { PreloadedSkill } from "#src/session/skill-loader";
 import type { AgentConfig, ShellExec } from "#src/types";
 
 /** Default AgentConfig returned by createAgentLookup. Matches the Explore stub used in runner tests. */
@@ -9,7 +8,6 @@ const DEFAULT_AGENT_CONFIG: AgentConfig = {
 	name: "Explore",
 	description: "Explore",
 	builtinToolNames: ["read"],
-	skills: false,
 	systemPrompt: "You are Explore.",
 	promptMode: "replace",
 	inheritContext: false,
@@ -22,7 +20,7 @@ const DEFAULT_AGENT_CONFIG: AgentConfig = {
  * Return type is deliberately unannotated so vi.fn() stubs retain their
  * Mock<...> methods (mockResolvedValue, mock.calls, etc.).
  *
- * The assemblerIO sub-object only includes the two methods that exist on the
+ * The assemblerIO sub-object only includes the method that exists on the
  * production AssemblerIO interface. The stale buildMemoryBlock and
  * buildReadOnlyMemoryBlock stubs from older test files are intentionally omitted.
  *
@@ -43,7 +41,6 @@ export function createRunnerIO() {
 		createSettingsManager: vi.fn().mockReturnValue({}),
 		createSession: vi.fn(),
 		assemblerIO: {
-			preloadSkills: vi.fn((_skills: string[], _cwd: string): PreloadedSkill[] => []),
 			buildAgentPrompt: vi.fn((..._args: unknown[]): string => "system prompt"),
 		},
 	};

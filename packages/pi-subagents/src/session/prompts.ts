@@ -5,12 +5,6 @@
 import type { EnvInfo } from "#src/session/env";
 import type { AgentPromptConfig } from "#src/types";
 
-/** Extra sections to inject into the system prompt (skills, etc.). */
-export interface PromptExtras {
-  /** Preloaded skill contents to inject. */
-  skillBlocks?: { name: string; content: string }[];
-}
-
 /**
  * Build the system prompt for an agent from its config.
  *
@@ -25,14 +19,12 @@ export interface PromptExtras {
  * inherited content so the stable prefix is cacheable by the LLM's KV cache.
  *
  * @param parentSystemPrompt  The parent agent's effective system prompt (for append mode).
- * @param extras  Optional extra sections to inject (memory, preloaded skills).
  */
 export function buildAgentPrompt(
   config: AgentPromptConfig,
   cwd: string,
   env: EnvInfo,
   parentSystemPrompt?: string,
-  extras?: PromptExtras,
 ): string {
   const activeAgentTag = `<active_agent name="${config.name}"/>\n\n`;
 
@@ -40,18 +32,6 @@ export function buildAgentPrompt(
 Working directory: ${cwd}
 ${env.isGitRepo ? `Git repository: yes\nBranch: ${env.branch}` : "Not a git repository"}
 Platform: ${env.platform}`;
-
-  // Build optional extras suffix
-  const extraSections: string[] = [];
-  if (extras?.skillBlocks?.length) {
-    for (const skill of extras.skillBlocks) {
-      extraSections.push(
-        `\n# Preloaded Skill: ${skill.name}\n${skill.content}`,
-      );
-    }
-  }
-  const extrasSuffix =
-    extraSections.length > 0 ? "\n\n" + extraSections.join("\n") : "";
 
   if (config.promptMode === "append") {
     const identity = parentSystemPrompt ?? genericBase;
@@ -85,8 +65,7 @@ You are operating as a sub-agent invoked to handle a specific task.
       "\n\n" +
       activeAgentTag +
       envBlock +
-      customSection +
-      extrasSuffix
+      customSection
     );
   }
 
@@ -97,7 +76,7 @@ You have been invoked to handle a specific task autonomously.
 ${envBlock}`;
 
   return (
-    activeAgentTag + replaceHeader + "\n\n" + config.systemPrompt + extrasSuffix
+    activeAgentTag + replaceHeader + "\n\n" + config.systemPrompt
   );
 }
 

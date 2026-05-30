@@ -74,7 +74,6 @@ Just a prompt.`);
     expect(agent.name).toBe("minimal");
     expect(agent.description).toBe("minimal"); // defaults to filename
     expect(agent.builtinToolNames).toEqual(BUILTIN_TOOL_NAMES); // all tools
-    expect(agent.skills).toBe(true); // inherit all
     expect(agent.model).toBeUndefined();
     expect(agent.thinking).toBeUndefined();
     expect(agent.maxTurns).toBeUndefined();
@@ -105,30 +104,6 @@ No tools.`);
 
     const result = loadCustomAgents(tmpDir);
     expect(result.get("notool")!.builtinToolNames).toEqual([]);
-  });
-
-  it("handles skills: false → no skills", () => {
-    writeAgent("noskills", `---
-skills: false
----
-
-No skills.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("noskills")!;
-    expect(agent.skills).toBe(false);
-  });
-
-  it("parses a skills csv allowlist into an array", () => {
-    writeAgent("partial", `---
-skills: planning, review
----
-
-Partial access.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("partial")!;
-    expect(agent.skills).toEqual(["planning", "review"]);
   });
 
   it("passes through unknown tool names (not filtered)", () => {
@@ -259,42 +234,6 @@ tools: read
 
     const result = loadCustomAgents(tmpDir);
     expect(result.get("nobody")!.systemPrompt).toBe("");
-  });
-
-  it("supports inherit_skills as alternative to skills", () => {
-    writeAgent("altkey", `---
-inherit_skills: false
----
-
-Alt keys.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("altkey")!;
-    expect(agent.skills).toBe(false);
-  });
-
-  it("skills: none → false", () => {
-    writeAgent("skillnone", `---
-skills: none
----
-
-None.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("skillnone")!;
-    expect(agent.skills).toBe(false);
-  });
-
-  it("skills: true → true (inherit all)", () => {
-    writeAgent("skilltrue", `---
-skills: true
----
-
-All.`);
-
-    const result = loadCustomAgents(tmpDir);
-    const agent = result.get("skilltrue")!;
-    expect(agent.skills).toBe(true);
   });
 
   it("handles enabled: false frontmatter", () => {

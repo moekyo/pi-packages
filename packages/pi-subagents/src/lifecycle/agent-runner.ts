@@ -55,7 +55,6 @@ export interface SessionManagerLike {
 export interface ResourceLoaderOptions {
   cwd: string;
   agentDir: string;
-  noSkills?: boolean;
   noPromptTemplates?: boolean;
   noThemes?: boolean;
   noContextFiles?: boolean;
@@ -300,7 +299,6 @@ export async function runAgent(
   const loader = deps.io.createResourceLoader({
     cwd: cfg.effectiveCwd,
     agentDir,
-    noSkills: cfg.noSkills,
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
