@@ -1,4 +1,3 @@
-import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { TUI } from "@earendil-works/pi-tui";
 import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
@@ -6,6 +5,7 @@ import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { ConversationViewer } from "#src/ui/conversation-viewer";
 import { createTestAgent } from "./helpers/make-agent";
+import { createMockSession, createSubagentSessionStub, toSubagentSession } from "./helpers/mock-session";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 
@@ -16,15 +16,6 @@ function mockTui(rows = 40, columns = 80) {
     terminal: { rows, columns },
     requestRender: vi.fn(),
   } as unknown as TUI;
-}
-
-function mockSession(messages: unknown[] = []) {
-  return {
-    messages,
-    subscribe: vi.fn(() => vi.fn()),
-    dispose: vi.fn(),
-    getSessionStats: () => ({ tokens: { input: 0, output: 0, cacheWrite: 0 } }),
-  } as unknown as AgentSession;
 }
 
 function ansiTheme() {
@@ -52,10 +43,13 @@ type TestViewerOptions = {
 /** Factory for ConversationViewer with sensible defaults. Pass overrides as needed. */
 function createTestViewer(options: TestViewerOptions = {}): ConversationViewer {
   const { width = 80, messages = [], activity, wrapText = wrapTextWithAnsi } = options;
+  const mockSess = createMockSession();
+  mockSess.messages.push(...messages);
+  const record = createTestAgent({ status: "running" });
+  record.subagentSession = toSubagentSession(createSubagentSessionStub(mockSess));
   return new ConversationViewer({
     tui: mockTui(30, width),
-    session: mockSession(messages),
-    record: createTestAgent({ status: "running" }),
+    record,
     activity,
     theme: ansiTheme(),
     done: vi.fn(),

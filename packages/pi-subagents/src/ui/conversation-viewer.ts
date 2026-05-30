@@ -5,10 +5,9 @@
  * Subscribes to session events for real-time streaming updates.
  */
 
-import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { type Component, matchesKey, type TUI, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { AgentConfigLookup } from "#src/config/agent-types";
-import { getLifetimeTotal, getSessionContextPercent } from "#src/lifecycle/usage";
+import { getLifetimeTotal } from "#src/lifecycle/usage";
 import type { Agent } from "#src/types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { buildInvocationTags, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "#src/ui/display";
@@ -24,7 +23,6 @@ export const VIEWPORT_HEIGHT_PCT = 70;
 
 export interface ConversationViewerOptions {
   tui: TUI;
-  session: AgentSession;
   record: Agent;
   activity: AgentActivityTracker | undefined;
   theme: Theme;
@@ -41,7 +39,6 @@ export class ConversationViewer implements Component {
   private closed = false;
 
   private tui: TUI;
-  private session: AgentSession;
   private record: Agent;
   private activity: AgentActivityTracker | undefined;
   private theme: Theme;
@@ -51,7 +48,6 @@ export class ConversationViewer implements Component {
 
   constructor({
     tui,
-    session,
     record,
     activity,
     theme,
@@ -60,14 +56,13 @@ export class ConversationViewer implements Component {
     wrapText,
   }: ConversationViewerOptions) {
     this.tui = tui;
-    this.session = session;
     this.record = record;
     this.activity = activity;
     this.theme = theme;
     this.done = done;
     this.registry = registry;
     this.wrapText = wrapText;
-    this.unsubscribe = session.subscribe(() => {
+    this.unsubscribe = record.subscribeToUpdates(() => {
       if (this.closed) return;
       this.tui.requestRender();
     });
@@ -142,7 +137,7 @@ export class ConversationViewer implements Component {
     if (toolUses > 0) headerParts.unshift(`${toolUses} tool${toolUses === 1 ? "" : "s"}`);
     const tokens = getLifetimeTotal(this.record.lifetimeUsage);
     if (tokens > 0) {
-      const percent = getSessionContextPercent(this.record.session);
+      const percent = this.record.getContextPercent();
       headerParts.push(formatSessionTokens(tokens, percent, th, this.record.compactionCount));
     }
 
@@ -220,7 +215,7 @@ export class ConversationViewer implements Component {
 
     const th = this.theme;
     const ctx = { theme: th, wrapText: this.wrapText };
-    const messages = this.session.messages;
+    const messages = this.record.messages;
 
     if (messages.length === 0) {
       return [th.fg("dim", "(waiting for first message...)")];
@@ -229,7 +224,7 @@ export class ConversationViewer implements Component {
     const lines: string[] = [];
     let needsSeparator = false;
     for (const msg of messages) {
-      const formatted = formatMessage(msg as unknown as { role: string; [key: string]: unknown }, width, ctx);
+      const formatted = formatMessage(msg as { role: string; [key: string]: unknown }, width, ctx);
       if (!formatted) continue;
       if (needsSeparator) lines.push(th.fg("dim", "───"));
       lines.push(...formatted);

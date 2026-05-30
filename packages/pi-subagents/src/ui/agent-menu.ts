@@ -252,8 +252,7 @@ export class AgentsMenuHandler {
   }
 
   private async viewAgentConversation(ui: MenuUI, record: Agent): Promise<void> {
-    const session = record.session;
-    if (!session) {
+    if (!record.isSessionReady()) {
       ui.notify(
         `Agent is ${record.status === "queued" ? "queued" : "expired"} — no session available.`,
         "info",
@@ -270,7 +269,6 @@ export class AgentsMenuHandler {
       (tui: any, theme: any, _keybindings: any, done: any) => {
         return new ConversationViewer({
           tui,
-          session,
           record,
           activity,
           theme,
