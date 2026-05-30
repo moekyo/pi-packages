@@ -575,6 +575,22 @@ The prior clone group between `agent-runner.ts` and `message-formatters.ts` was 
 The 20-line clone group between `agent-config-editor.ts` and `agent-creation-wizard.ts` was resolved in #217 — extracted into `ui/agent-file-writer.ts` (`writeAgentFile`).
 One 11-line internal clone group remains within `agent-config-editor.ts` (lines 135–145 / 173–183).
 
+### Session encapsulation debt (Law of Demeter) — [#277]
+
+Discovered while planning [#265].
+Consumers reach the raw SDK `AgentSession` through the `Agent.session` getter (`this.execution?.session`) and operate on it directly, instead of telling the owning agent what they want.
+These are Law of Demeter / Tell-Don't-Ask reach-throughs; the fix is intent-revealing methods on the owning object (`Subagent` / `SubagentSession`, introduced by [#265]).
+
+| Reach-through                         | Sites                                               | Missing method                                   |
+| ------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| Steer (buffer-or-deliver, duplicated) | `service-adapter.ts` (~L93), `steer-tool.ts` (~L43) | `Subagent.steer(message)`                        |
+| Conversation viewing                  | `get-result-tool.ts:84`, `agent-menu.ts:255`        | `Subagent.getConversation()`                     |
+| Session-readiness guard               | `agent-tool.ts:111`, `agent-manager.ts:203`         | `Subagent.isSessionReady()`                      |
+| Session disposal                      | `agent-manager.ts:235,309`                          | `SubagentSession.dispose()` — resolved by [#265] |
+
+[#265] introduces `SubagentSession` and routes the run / resume / dispose path (and steering during a run) through it; the consumer-facing reach-throughs above are deferred to [#277].
+The steer buffer-or-deliver decision is duplicated across two call sites — two callers performing the same reach-through plus the same decision is the signal for the missing method.
+
 ### Proposed bag decompositions
 
 #### ResolvedSpawnConfig (15 fields → 3 value objects)
@@ -915,3 +931,4 @@ The upstream test suite is run periodically as a regression canary for the agent
 [#263]: https://github.com/gotgenes/pi-packages/issues/263
 [#264]: https://github.com/gotgenes/pi-packages/issues/264
 [#265]: https://github.com/gotgenes/pi-packages/issues/265
+[#277]: https://github.com/gotgenes/pi-packages/issues/277
