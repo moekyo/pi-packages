@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getAgentConversation } from "#src/lifecycle/agent-runner";
+import { getAgentConversation } from "#src/session/conversation";
 import { createMockSession, toAgentSession } from "#test/helpers/mock-session";
 
 describe("getAgentConversation", () => {
