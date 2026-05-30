@@ -8,7 +8,7 @@ export interface SubagentsSettings {
   maxConcurrent?: number;
   /**
    * 0 = unlimited — the extension's single source of truth for that convention:
-   * `normalizeMaxTurns()` in agent-runner.ts treats 0 → `undefined`, and the
+   * `normalizeMaxTurns()` in turn-limits.ts treats 0 → `undefined`, and the
    * `/agents` → Settings input prompt explicitly says "0 = unlimited".
    */
   defaultMaxTurns?: number;

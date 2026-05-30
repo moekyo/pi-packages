@@ -11,6 +11,7 @@ import {
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { ChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { normalizeMaxTurns } from "#src/lifecycle/turn-limits";
 import { extractAssistantContent } from "#src/session/content-items";
 import { extractText } from "#src/session/context";
 import type { EnvInfo } from "#src/session/env";
@@ -30,12 +31,6 @@ const EXCLUDED_TOOL_NAMES = ["subagent", "get_subagent_result", "steer_subagent"
  */
 function filterActiveTools(activeTools: string[]): string[] {
   return activeTools.filter((t) => !EXCLUDED_TOOL_NAMES.includes(t));
-}
-
-/** Normalize max turns. undefined or 0 = unlimited, otherwise minimum 1. */
-export function normalizeMaxTurns(n: number | undefined): number | undefined {
-  if (n == null || n === 0) return undefined;
-  return Math.max(1, n);
 }
 
 // ── IO boundary ───────────────────────────────────────────────────────────────

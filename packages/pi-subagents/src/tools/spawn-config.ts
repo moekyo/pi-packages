@@ -10,7 +10,7 @@
 import type { Model } from "@earendil-works/pi-ai";
 import type { AgentTypeRegistry } from "#src/config/agent-types";
 import { resolveAgentInvocationConfig } from "#src/config/invocation-config";
-import { normalizeMaxTurns } from "#src/lifecycle/agent-runner";
+import { normalizeMaxTurns } from "#src/lifecycle/turn-limits";
 import { resolveInvocationModel } from "#src/session/model-resolver";
 import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import {

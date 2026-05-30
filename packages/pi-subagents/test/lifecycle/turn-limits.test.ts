@@ -1,16 +1,15 @@
 /**
- * agent-runner-settings.test.ts
+ * turn-limits.test.ts
  *
- * Tests for normalizeMaxTurns — the pure function that remains in agent-runner.ts
- * after the module-scope mutable state (defaultMaxTurns, graceTurns) was removed
- * in favour of SubagentRuntime fields threaded via RunOptions (issue #69).
+ * Tests for normalizeMaxTurns — the pure turn-limit helper extracted from
+ * agent-runner.ts into its own focused home (issue #265).
  *
- * The setter/getter behaviour (clamping, unlimited-marker) is now exercised by:
+ * The setter/getter behaviour (clamping, unlimited-marker) is also exercised by:
  *   - test/runtime.test.ts — instance isolation and defaults
- *   - test/agent-runner.test.ts — RunOptions.defaultMaxTurns / graceTurns integration
+ *   - test/lifecycle/subagent-session.test.ts — turn-loop limit integration
  */
 import { describe, expect, it } from "vitest";
-import { normalizeMaxTurns } from "#src/lifecycle/agent-runner";
+import { normalizeMaxTurns } from "#src/lifecycle/turn-limits";
 
 describe("normalizeMaxTurns", () => {
   it("treats undefined as unlimited", () => {
