@@ -579,7 +579,7 @@ Filtered to what blocks or complicates #266:
 
 ### Steps
 
-1. **Extract `ToolPreviewFormatter` class from `tool-input-preview.ts`**
+1. **Extract `ToolPreviewFormatter` class from `tool-input-preview.ts`** (#282)
    - Create a new class that accepts `{ toolInputPreviewMaxLength: number; toolTextSummaryMaxLength: number }` in its constructor
    - Move `formatToolInputForPrompt`, `formatJsonInputForPrompt`, `formatSearchInputForPrompt`, and `sanitizeInlineText` (the config-dependent functions) onto the class as methods
    - Keep pure utility functions (`truncateInlineText`, `countTextLines`, `formatCount`, `getPromptPath`, `serializeToolInputPreview`) as standalone exports — they have no config dependency
@@ -591,7 +591,7 @@ Filtered to what blocks or complicates #266:
    - Outcome: formatter is a single injectable object; #266 passes config by constructing the formatter with user-configured limits
    - Commit: `refactor: extract ToolPreviewFormatter class from tool-input-preview`
 
-2. **Thread `ToolPreviewFormatter` through the gate descriptor chain**
+2. **Thread `ToolPreviewFormatter` through the gate descriptor chain** (#282)
    - `describeToolGate(tcc, check, formatter)` — accepts the formatter
    - `formatAskPrompt(result, agentName, input, formatter)` — accepts the formatter
    - `PermissionGateHandler` constructs the formatter from config and passes it to gate descriptors
@@ -599,7 +599,7 @@ Filtered to what blocks or complicates #266:
    - Outcome: config reaches formatting with one parameter instead of threading two numbers through 5 layers
    - Commit: `refactor: thread ToolPreviewFormatter through gate descriptor chain`
 
-3. **Add numeric config normalization to `extension-config.ts`**
+3. **Add numeric config normalization to `extension-config.ts`** (#266)
    - Add a `normalizeOptionalPositiveInt(raw, defaultValue, maxValue)` helper
    - Add `toolInputPreviewMaxLength` and `toolTextSummaryMaxLength` to `PermissionSystemExtensionConfig` as optional fields
    - Update `normalizePermissionSystemConfig` to parse them
@@ -608,7 +608,7 @@ Filtered to what blocks or complicates #266:
    - Outcome: config system can handle numeric fields; #266 config additions are mechanical
    - Commit: `feat: add toolInputPreviewMaxLength and toolTextSummaryMaxLength config fields (#266)`
 
-4. **Wire config to `ToolPreviewFormatter` construction**
+4. **Wire config to `ToolPreviewFormatter` construction** (#266)
    - In `index.ts` or `PermissionGateHandler`, construct `ToolPreviewFormatter` using config values (with fallback to defaults)
    - On config refresh, reconstruct the formatter
    - Category: C (config → collaborator wiring)
