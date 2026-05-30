@@ -89,7 +89,8 @@ If confirmed, commit with:
 
 ```bash
 git add packages/$1/docs/architecture/architecture.md
-git commit -m "docs(pi-subagents): propose Phase N improvement roadmap"
+git commit -m "docs($1): propose Phase N improvement roadmap"
+git push
 ```
 
 Then call `set_session_name` with `$1 — Phase N Planning` and stop.

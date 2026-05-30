@@ -23,6 +23,8 @@ Load this skill when writing or editing markdown files.
 - Use compact table style with no cell padding — markdownlint's MD060 enforces consistent column style and is not auto-fixable.
   Example: `| Header | Header |` / `| --- | --- |` / `| cell | cell |` — spaces inside pipes, no padding variation.
 - Separate adjacent blockquotes with an HTML comment (`<!-- -->`) to satisfy markdownlint's MD028.
+- In long-lived docs (`docs/architecture/`, `docs/plans/`), reference GitHub issues with reference-style links — `[#42]` in the body, `[#42]: https://github.com/gotgenes/pi-packages/issues/42` at the end of the file.
+  Bare `#42` auto-links on GitHub but not in other renderers.
 
 ## Documentation frontmatter
 
