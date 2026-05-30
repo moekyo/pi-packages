@@ -26,3 +26,23 @@ Produced a four-cycle TDD plan (`isolated` → `extensions` → `skills`/`noSkil
 - Sequencing note surfaced to the user: some `isolated`-threading removed here (`RunOptions.isolated`, `Agent.run()` plumbing) is structure that Step 5 (#265, dissolve the runner) will delete anyway — small, unavoidable, and #265 depends on this step, so no reordering benefit.
 - Helper-file churn accepted: `test/helpers/runner-io.ts` is touched in all three removal cycles (one field per cycle); ordering is fixed (`isolated` → `extensions` → `skills`) so no cycle leaves a dangling reference.
 - Doc updates identified: `docs/architecture/architecture.md` (Mermaid session subgraph, directory tree, `SpawnOptions`/`RunOptions` field lists, roadmap status) and the `package-pi-subagents` SKILL.md session-domain row (8 → 6 modules).
+
+## Stage: Implementation — TDD (2026-05-30T00:38:00Z)
+
+### Session summary
+
+Executed all four plan cycles (`isolated` → `extensions` + unconditional guard → `skills`/`noSkills`/preload → docs) as three `feat!:` commits plus one `docs:` commit.
+The extension-lifecycle-control axis and the `skills` curation axis are gone; children always inherit the parent's extensions and full skill system, and the recursion guard is unconditional.
+Test count went 1016 → 951 (−65): deleted `skill-loader.test.ts` and `safe-fs.test.ts`, plus removed isolated/extensions/skills/preload-specific cases; `check`, `lint`, `fallow dead-code`, and `verify:public-types` all green.
+
+### Observations
+
+- The plan's cycle split held up cleanly.
+  The only interleaving friction was `test/config/custom-agents.test.ts`, where `extensions` and `skills` assertions shared the same `it` blocks.
+  Handled it by retitling the shared tests to skills-only in cycle 2 (keeping skills compiling/passing), then deleting them in cycle 3 — no dangling references between commits.
+- BSD `sed` (macOS) does not support `\|` alternation in basic regex; the standalone-fixture-line deletions needed `sed -E`.
+  Worth remembering for future bulk fixture removals.
+- Two in-scope judgment calls beyond the literal plan: (1) kept the generic tag-rendering test in `result-renderer.test.ts` by swapping the example tag `"isolated"` → `"inherit context"` rather than deleting coverage; (2) removed the now-unused `vi` import from `custom-agents.test.ts` after dropping the extensions-deprecation-warning test.
+- The `spawn-config.test.ts` `agentInvocation` snapshot carried a stale `isolation: undefined` leftover (from the #263 worktree eviction) that `toEqual` had been silently ignoring; removed it alongside `isolated: false` for a clean exact-match assertion.
+- `verify:public-types` confirmed the breaking `SpawnOptions.isolated` removal type-checks against an external consumer; no lockfile changes; `dist/` correctly gitignored after the type-bundle build.
+- Pre-completion reviewer: **PASS** — both acceptance criteria code-verified, all deterministic checks green, 6 Mermaid diagrams render, docs accurate, zero dead code.
