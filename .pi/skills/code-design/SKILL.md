@@ -34,6 +34,7 @@ Source files should read like a newspaper article: high-level intent at the top,
 
 **Stepdown rule:** Each function should be followed by the helpers it calls, at the next level of abstraction — caller first, then the helpers it depends on.
 Related functions that collaborate on the same data should be grouped together.
+When extracting a helper during a refactor, place it _below_ the function that calls it, not above — function declarations hoist, so "define before use" is unnecessary and inverts the stepdown order.
 
 **Helpers stay in the file:** Private helper functions remain in the same file as the code that uses them.
 When private helpers accumulate to the point where they warrant their own tests, extract them into a new module with its own public API.
