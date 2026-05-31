@@ -590,19 +590,18 @@ Filtered to what blocks or complicates [#266]:
    - `permission-prompts.test.ts` `vi.mock` removed — formatter is injected directly
    - Outcome: config reaches formatting with one parameter instead of threading through 5 layers
 
-3. **Add numeric config normalization to `extension-config.ts`** ([#266])
-   - Add a `normalizeOptionalPositiveInt(raw, defaultValue, maxValue)` helper
-   - Add `toolInputPreviewMaxLength` and `toolTextSummaryMaxLength` to `PermissionSystemExtensionConfig` as optional fields
-   - Update `normalizePermissionSystemConfig` to parse them
-   - Update `permissions.schema.json` and `config.example.json`
-   - Category: C (missing abstraction)
-   - Outcome: config system can handle numeric fields; [#266] config additions are mechanical
+3. ✅ **Add numeric config normalization to `extension-config.ts`** ([#266])
+   - Added `normalizeOptionalPositiveInt` helper (exported; validates positive integer)
+   - Added `toolInputPreviewMaxLength` and `toolTextSummaryMaxLength` as optional fields to `PermissionSystemExtensionConfig`
+   - Updated `normalizePermissionSystemConfig` to parse both fields (omit when invalid/absent)
+   - Updated `permissions.schema.json` (`type: "integer"`, `minimum: 1`) and `config.example.json`
+   - Outcome: config system handles numeric fields; fallback to 200/80 constants when fields are absent
    - Commit: `feat: add toolInputPreviewMaxLength and toolTextSummaryMaxLength config fields (#266)`
 
-4. **Wire config to `ToolPreviewFormatter` construction** ([#266])
-   - In `index.ts` or `PermissionGateHandler`, construct `ToolPreviewFormatter` using config values (with fallback to defaults)
-   - On config refresh, reconstruct the formatter
-   - Category: C (config → collaborator wiring)
+4. ✅ **Wire config to `ToolPreviewFormatter` construction** ([#266])
+   - Added `resolveToolPreviewLimits(config)` to `tool-preview-formatter.ts` (narrow `Pick` param; applies `??` fallbacks to the three formatter options)
+   - `PermissionGateHandler.handleToolCall` now constructs the formatter with `resolveToolPreviewLimits(this.session.config)`
+   - `session.config` is read fresh on every tool call — config reloads take effect automatically
    - Outcome: user-configured limits take effect at runtime; [#266] is complete
    - Commit: `feat: use configured preview limits in permission prompts (#266)`
 

@@ -42,6 +42,8 @@ Scalar fields (`debugLog`, `permissionReviewLog`, `yoloMode`) use simple replace
   "debugLog": false,
   "permissionReviewLog": true,
   "yoloMode": false,
+  "toolInputPreviewMaxLength": 400,
+  "toolTextSummaryMaxLength": 120,
   "piInfrastructureReadPaths": [],
 
   // Flat permission policy
@@ -74,6 +76,8 @@ Scalar fields (`debugLog`, `permissionReviewLog`, `yoloMode`) use simple replace
 | `debugLog`                  | `false` | Enables verbose diagnostic logging to `logs/pi-permission-system-debug.jsonl`                                                                        |
 | `permissionReviewLog`       | `true`  | Enables the permission request/denial review log at `logs/pi-permission-system-permission-review.jsonl`                                              |
 | `yoloMode`                  | `false` | Auto-approves `ask` results instead of prompting when yolo mode is enabled                                                                           |
+| `toolInputPreviewMaxLength` | `200`   | Max characters of inline JSON shown in permission prompts for tool inputs. Omit to use the default. Set to a large value to disable truncation.      |
+| `toolTextSummaryMaxLength`  | `80`    | Max characters of inline pattern/path summaries (grep patterns, find globs, ls paths) in permission prompts. Omit to use the default.                |
 | `piInfrastructureReadPaths` | `[]`    | Extra directories to auto-allow for reads, bypassing the `external_directory` gate. Supports `~`/`$HOME` expansion and wildcard patterns (`*`, `?`). |
 
 Both logs write to `~/.pi/agent/extensions/pi-permission-system/logs/`.
