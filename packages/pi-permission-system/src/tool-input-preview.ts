@@ -1,6 +1,5 @@
 import { getNonEmptyString, toRecord } from "./common";
 import { safeJsonStringify } from "./logging";
-import type { PermissionCheckResult } from "./types";
 
 export const TOOL_INPUT_PREVIEW_MAX_LENGTH = 200;
 export const TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH = 1000;
@@ -8,14 +7,6 @@ export const TOOL_TEXT_SUMMARY_MAX_LENGTH = 80;
 
 export function truncateInlineText(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
-}
-
-export function sanitizeInlineText(
-  value: string,
-  maxLength = TOOL_TEXT_SUMMARY_MAX_LENGTH,
-): string {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized ? truncateInlineText(normalized, maxLength) : "empty text";
 }
 
 export function countTextLines(value: string): number {
@@ -95,30 +86,6 @@ export function formatReadInputForPrompt(
   return parts.length > 0 ? `for ${parts.join(", ")}` : "";
 }
 
-export function formatSearchInputForPrompt(
-  toolName: string,
-  input: Record<string, unknown>,
-): string {
-  const parts: string[] = [];
-  const path = getPromptPath(input);
-  const pattern = getNonEmptyString(input.pattern);
-  const glob = getNonEmptyString(input.glob);
-
-  if (pattern) {
-    parts.push(`pattern '${sanitizeInlineText(pattern)}'`);
-  }
-  if (glob) {
-    parts.push(`glob '${sanitizeInlineText(glob)}'`);
-  }
-  if (path) {
-    parts.push(`path '${path}'`);
-  } else if (toolName === "find" || toolName === "grep" || toolName === "ls") {
-    parts.push("current working directory");
-  }
-
-  return parts.length > 0 ? `for ${parts.join(", ")}` : "";
-}
-
 export function serializeToolInputPreview(input: unknown): string {
   const serialized = safeJsonStringify(input);
   if (!serialized || serialized === "{}" || serialized === "null") {
@@ -126,87 +93,4 @@ export function serializeToolInputPreview(input: unknown): string {
   }
 
   return serialized.replace(/\s+/g, " ").trim();
-}
-
-export function formatJsonInputForPrompt(input: unknown): string {
-  const inline = serializeToolInputPreview(input);
-  return inline
-    ? `with input ${truncateInlineText(inline, TOOL_INPUT_PREVIEW_MAX_LENGTH)}`
-    : "";
-}
-
-export function formatToolInputForPrompt(
-  toolName: string,
-  input: unknown,
-): string {
-  const inputRecord = toRecord(input);
-
-  switch (toolName) {
-    case "edit":
-      return formatEditInputForPrompt(inputRecord);
-    case "write":
-      return formatWriteInputForPrompt(inputRecord);
-    case "read":
-      return formatReadInputForPrompt(inputRecord);
-    case "find":
-    case "grep":
-    case "ls":
-      return formatSearchInputForPrompt(toolName, inputRecord);
-    default:
-      return formatJsonInputForPrompt(input);
-  }
-}
-
-export function formatGenericToolInputForLog(
-  input: unknown,
-): string | undefined {
-  const inline = serializeToolInputPreview(input);
-  return inline
-    ? `input ${truncateInlineText(inline, TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH)}`
-    : undefined;
-}
-
-export function getToolInputPreviewForLog(
-  result: PermissionCheckResult,
-  input: unknown,
-  pathBearingTools: ReadonlySet<string>,
-): string | undefined {
-  if (
-    result.toolName === "bash" ||
-    result.toolName === "mcp" ||
-    result.source === "mcp"
-  ) {
-    return undefined;
-  }
-
-  if (pathBearingTools.has(result.toolName)) {
-    const inputPreview = formatToolInputForPrompt(result.toolName, input);
-    return inputPreview
-      ? truncateInlineText(inputPreview, TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH)
-      : undefined;
-  }
-
-  return formatGenericToolInputForLog(input);
-}
-
-export function getPermissionLogContext(
-  result: PermissionCheckResult,
-  input: unknown,
-  pathBearingTools: ReadonlySet<string>,
-): {
-  command?: string;
-  target?: string;
-  toolInputPreview?: string;
-  origin?: string;
-} {
-  return {
-    command: result.command,
-    target: result.target,
-    toolInputPreview: getToolInputPreviewForLog(
-      result,
-      input,
-      pathBearingTools,
-    ),
-    origin: result.origin,
-  };
 }

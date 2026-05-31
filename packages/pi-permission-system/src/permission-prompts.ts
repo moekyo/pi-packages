@@ -1,5 +1,5 @@
 import type { SkillPromptEntry } from "./skill-prompt-sanitizer";
-import { formatToolInputForPrompt } from "./tool-input-preview";
+import type { ToolPreviewFormatter } from "./tool-preview-formatter";
 import type { PermissionCheckResult } from "./types";
 
 // NOTE: formatDenyReason, formatUserDeniedReason, and
@@ -31,6 +31,7 @@ export function formatAskPrompt(
   result: PermissionCheckResult,
   agentName?: string,
   input?: unknown,
+  formatter?: ToolPreviewFormatter,
 ): string {
   const subject = agentName ? `Agent '${agentName}'` : "Current agent";
 
@@ -51,7 +52,9 @@ export function formatAskPrompt(
   const patternInfo = result.matchedPattern
     ? ` (matched '${result.matchedPattern}')`
     : "";
-  const inputPreview = formatToolInputForPrompt(result.toolName, input);
+  const inputPreview = formatter
+    ? formatter.formatToolInputForPrompt(result.toolName, input)
+    : "";
   const inputSuffix = inputPreview ? ` ${inputPreview}` : "";
   return `${subject} requested tool '${result.toolName}'${patternInfo}${inputSuffix}. Allow this call?`;
 }

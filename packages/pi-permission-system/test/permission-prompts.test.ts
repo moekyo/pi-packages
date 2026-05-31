@@ -1,9 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-
-// Mock tool-input-preview collaborator before importing the module under test.
-vi.mock("../src/tool-input-preview.js", () => ({
-  formatToolInputForPrompt: vi.fn(() => "mocked preview"),
-}));
+import { describe, expect, test } from "vitest";
 
 import {
   formatAskPrompt,
@@ -13,18 +8,21 @@ import {
   formatUnknownToolReason,
 } from "#src/permission-prompts";
 import type { SkillPromptEntry } from "#src/skill-prompt-sanitizer";
-import { formatToolInputForPrompt } from "#src/tool-input-preview";
+import {
+  TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
+  TOOL_INPUT_PREVIEW_MAX_LENGTH,
+  TOOL_TEXT_SUMMARY_MAX_LENGTH,
+} from "#src/tool-input-preview";
+import { ToolPreviewFormatter } from "#src/tool-preview-formatter";
 import type { PermissionCheckResult } from "#src/types";
 
-const mockedFormatToolInput = vi.mocked(formatToolInputForPrompt);
-
-beforeEach(() => {
-  mockedFormatToolInput.mockReset();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+function makeFormatter(): ToolPreviewFormatter {
+  return new ToolPreviewFormatter({
+    toolInputPreviewMaxLength: TOOL_INPUT_PREVIEW_MAX_LENGTH,
+    toolTextSummaryMaxLength: TOOL_TEXT_SUMMARY_MAX_LENGTH,
+    toolInputLogPreviewMaxLength: TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
+  });
+}
 
 function toolResult(
   toolName: string,
@@ -104,66 +102,96 @@ describe("formatUnknownToolReason", () => {
 
 describe("formatAskPrompt", () => {
   test("uses 'Current agent' when no agent name given", () => {
-    const result = formatAskPrompt(toolResult("read"), undefined, {
-      path: "/src",
-    });
+    const result = formatAskPrompt(
+      toolResult("read"),
+      undefined,
+      { path: "/src" },
+      makeFormatter(),
+    );
     expect(result).toContain("Current agent");
   });
 
   test("uses agent name when provided", () => {
-    const result = formatAskPrompt(toolResult("read"), "my-agent", {
-      path: "/src",
-    });
+    const result = formatAskPrompt(
+      toolResult("read"),
+      "my-agent",
+      { path: "/src" },
+      makeFormatter(),
+    );
     expect(result).toContain("Agent 'my-agent'");
   });
 
-  test("formats bash prompt with command and no tool-input-preview call", () => {
+  test("formats bash prompt with command and does not use formatter", () => {
     const result = formatAskPrompt(
       toolResult("bash", { command: "git status" }),
+      undefined,
+      undefined,
+      makeFormatter(),
     );
     expect(result).toContain("git status");
     expect(result).toContain("Allow this command?");
-    expect(mockedFormatToolInput).not.toHaveBeenCalled();
   });
 
   test("formats bash prompt with matched pattern", () => {
     const result = formatAskPrompt(
       toolResult("bash", { command: "git push", matchedPattern: "git *" }),
+      undefined,
+      undefined,
+      makeFormatter(),
     );
     expect(result).toContain("matched 'git *'");
   });
 
   test("formats MCP prompt with target", () => {
-    const result = formatAskPrompt(mcpResult("server:query"));
+    const result = formatAskPrompt(
+      mcpResult("server:query"),
+      undefined,
+      undefined,
+      makeFormatter(),
+    );
     expect(result).toContain("server:query");
     expect(result).toContain("Allow this call?");
-    expect(mockedFormatToolInput).not.toHaveBeenCalled();
   });
 
   test("formats MCP prompt with matched pattern", () => {
     const result = formatAskPrompt(
       mcpResult("server:query", { matchedPattern: "server:*" }),
+      undefined,
+      undefined,
+      makeFormatter(),
     );
     expect(result).toContain("matched 'server:*'");
   });
 
-  test("calls formatToolInputForPrompt for non-bash non-mcp tools", () => {
-    mockedFormatToolInput.mockReturnValue("for '/src/foo.ts'");
-    const result = formatAskPrompt(toolResult("read"), undefined, {
-      path: "/src/foo.ts",
-    });
-    expect(mockedFormatToolInput).toHaveBeenCalledWith("read", {
-      path: "/src/foo.ts",
-    });
-    expect(result).toContain("for '/src/foo.ts'");
+  test("includes real input preview for non-bash non-mcp tools", () => {
+    const result = formatAskPrompt(
+      toolResult("read"),
+      undefined,
+      { path: "/src/foo.ts" },
+      makeFormatter(),
+    );
+    expect(result).toContain("path '/src/foo.ts'");
     expect(result).toContain("Allow this call?");
   });
 
-  test("omits input suffix when formatToolInputForPrompt returns empty string", () => {
-    mockedFormatToolInput.mockReturnValue("");
-    const result = formatAskPrompt(toolResult("task"));
+  test("omits input suffix when formatter returns empty string for input", () => {
+    const result = formatAskPrompt(
+      toolResult("task"),
+      undefined,
+      {},
+      makeFormatter(),
+    );
     expect(result).toContain("task");
     expect(result).not.toContain("undefined");
+  });
+
+  test("omits input suffix when no formatter provided", () => {
+    const result = formatAskPrompt(toolResult("task"), undefined, {
+      path: "/src",
+    });
+    expect(result).toContain("task");
+    expect(result).not.toContain("undefined");
+    expect(result).toContain("Allow this call?");
   });
 });
 

@@ -2,9 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { describeToolGate } from "#src/handlers/gates/tool";
 import type { ToolCallContext } from "#src/handlers/gates/types";
+import {
+  TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
+  TOOL_INPUT_PREVIEW_MAX_LENGTH,
+  TOOL_TEXT_SUMMARY_MAX_LENGTH,
+} from "#src/tool-input-preview";
+import { ToolPreviewFormatter } from "#src/tool-preview-formatter";
 import type { PermissionCheckResult } from "#src/types";
 
 // ── helpers ────────────────────────────────────────────────────────────────
+
+function makeFormatter(): ToolPreviewFormatter {
+  return new ToolPreviewFormatter({
+    toolInputPreviewMaxLength: TOOL_INPUT_PREVIEW_MAX_LENGTH,
+    toolTextSummaryMaxLength: TOOL_TEXT_SUMMARY_MAX_LENGTH,
+    toolInputLogPreviewMaxLength: TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
+  });
+}
 
 function makeTcc(overrides: Partial<ToolCallContext> = {}): ToolCallContext {
   return {
@@ -38,6 +52,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "read" }),
       makeCheckResult("ask"),
+      makeFormatter(),
     );
     expect(desc.surface).toBe("read");
     expect(desc.decision.surface).toBe("read");
@@ -47,6 +62,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "write" }),
       makeCheckResult("ask"),
+      makeFormatter(),
     );
     expect(desc.decision.value).toBe("write");
   });
@@ -59,6 +75,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "bash", input: { command: "git status" } }),
       check,
+      makeFormatter(),
     );
     expect(desc.surface).toBe("bash");
     expect(desc.decision.surface).toBe("bash");
@@ -73,6 +90,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "mcp", input: { tool: "server:tool" } }),
       check,
+      makeFormatter(),
     );
     expect(desc.surface).toBe("mcp");
     expect(desc.decision.surface).toBe("mcp");
@@ -81,7 +99,7 @@ describe("describeToolGate", () => {
 
   it("populates denialContext with kind 'tool' and check result", () => {
     const check = makeCheckResult("deny", { toolName: "read" });
-    const desc = describeToolGate(makeTcc(), check);
+    const desc = describeToolGate(makeTcc(), check, makeFormatter());
     expect(desc.denialContext).toEqual({
       kind: "tool",
       check,
@@ -92,7 +110,11 @@ describe("describeToolGate", () => {
 
   it("populates denialContext with agent name when provided", () => {
     const check = makeCheckResult("ask", { toolName: "read" });
-    const desc = describeToolGate(makeTcc({ agentName: "my-agent" }), check);
+    const desc = describeToolGate(
+      makeTcc({ agentName: "my-agent" }),
+      check,
+      makeFormatter(),
+    );
     expect(desc.denialContext.agentName).toBe("my-agent");
   });
 
@@ -101,6 +123,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "bash", input: { command: "ls" } }),
       check,
+      makeFormatter(),
     );
     expect(desc.denialContext).toMatchObject({
       kind: "tool",
@@ -116,6 +139,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "bash", input: { command: "git status" } }),
       check,
+      makeFormatter(),
     );
     expect(desc.sessionApproval).toBeDefined();
     expect(desc.sessionApproval!).toHaveProperty("surface", "bash");
@@ -127,6 +151,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "read", agentName: "my-agent", toolCallId: "tc-42" }),
       check,
+      makeFormatter(),
     );
     expect(desc.promptDetails).toMatchObject({
       source: "tool_call",
@@ -143,6 +168,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "bash", input: { command: "ls" } }),
       check,
+      makeFormatter(),
     );
     expect(desc.logContext).toMatchObject({
       source: "tool_call",
@@ -155,6 +181,7 @@ describe("describeToolGate", () => {
     const desc = describeToolGate(
       makeTcc({ toolName: "edit", input: { path: "/a.ts" } }),
       makeCheckResult("ask", { toolName: "edit" }),
+      makeFormatter(),
     );
     expect(desc.surface).toBe("edit");
     expect(desc.input).toEqual({ path: "/a.ts" });

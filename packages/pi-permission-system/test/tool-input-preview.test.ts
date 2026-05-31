@@ -10,22 +10,15 @@ import {
   countTextLines,
   formatCount,
   formatEditInputForPrompt,
-  formatGenericToolInputForLog,
   formatReadInputForPrompt,
-  formatSearchInputForPrompt,
-  formatToolInputForPrompt,
   formatWriteInputForPrompt,
-  getPermissionLogContext,
   getPromptPath,
-  getToolInputPreviewForLog,
-  sanitizeInlineText,
   serializeToolInputPreview,
   TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
   TOOL_INPUT_PREVIEW_MAX_LENGTH,
   TOOL_TEXT_SUMMARY_MAX_LENGTH,
   truncateInlineText,
 } from "#src/tool-input-preview";
-import type { PermissionCheckResult } from "#src/types";
 
 const mockedStringify = vi.mocked(safeJsonStringify);
 
@@ -70,29 +63,6 @@ describe("truncateInlineText", () => {
   test("truncates long text and appends ellipsis", () => {
     const result = truncateInlineText("abcdef", 3);
     expect(result).toBe("abc…");
-  });
-});
-
-describe("sanitizeInlineText", () => {
-  test("collapses whitespace and trims", () => {
-    expect(sanitizeInlineText("  hello   world  ")).toBe("hello world");
-  });
-
-  test("returns 'empty text' for blank string", () => {
-    expect(sanitizeInlineText("")).toBe("empty text");
-    expect(sanitizeInlineText("   ")).toBe("empty text");
-  });
-
-  test("truncates to default TOOL_TEXT_SUMMARY_MAX_LENGTH", () => {
-    const long = "x".repeat(100);
-    const result = sanitizeInlineText(long);
-    expect(result.length).toBeLessThanOrEqual(TOOL_TEXT_SUMMARY_MAX_LENGTH + 1); // +1 for ellipsis char
-    expect(result).toContain("…");
-  });
-
-  test("respects custom maxLength", () => {
-    const result = sanitizeInlineText("hello world", 5);
-    expect(result).toBe("hello…");
   });
 });
 
@@ -239,33 +209,6 @@ describe("formatReadInputForPrompt", () => {
   });
 });
 
-describe("formatSearchInputForPrompt", () => {
-  test("includes pattern and path", () => {
-    const result = formatSearchInputForPrompt("grep", {
-      pattern: "TODO",
-      path: "/src",
-    });
-    expect(result).toContain("pattern 'TODO'");
-    expect(result).toContain("path '/src'");
-  });
-
-  test("includes glob when present", () => {
-    const result = formatSearchInputForPrompt("find", { glob: "*.ts" });
-    expect(result).toContain("glob '*.ts'");
-  });
-
-  test("uses 'current working directory' for find/grep/ls without path", () => {
-    for (const toolName of ["find", "grep", "ls"]) {
-      const result = formatSearchInputForPrompt(toolName, {});
-      expect(result).toContain("current working directory");
-    }
-  });
-
-  test("returns empty string for other tools with no input", () => {
-    expect(formatSearchInputForPrompt("other", {})).toBe("");
-  });
-});
-
 describe("serializeToolInputPreview", () => {
   test("delegates serialization to safeJsonStringify", () => {
     mockedStringify.mockReturnValue('{"key":"value"}');
@@ -293,192 +236,5 @@ describe("serializeToolInputPreview", () => {
     mockedStringify.mockReturnValue('{\n  "key":  "val"\n}');
     const result = serializeToolInputPreview({});
     expect(result).toBe('{ "key": "val" }');
-  });
-});
-
-describe("formatToolInputForPrompt", () => {
-  test("dispatches 'edit' to formatEditInputForPrompt", () => {
-    mockedStringify.mockReturnValue(undefined);
-    const result = formatToolInputForPrompt("edit", {
-      path: "/foo.ts",
-      edits: [],
-    });
-    expect(result).toContain("for '/foo.ts'");
-  });
-
-  test("dispatches 'write' to formatWriteInputForPrompt", () => {
-    const result = formatToolInputForPrompt("write", {
-      path: "/out.ts",
-      content: "hi",
-    });
-    expect(result).toContain("for '/out.ts'");
-  });
-
-  test("dispatches 'read' to formatReadInputForPrompt", () => {
-    const result = formatToolInputForPrompt("read", { path: "/src/x.ts" });
-    expect(result).toContain("path '/src/x.ts'");
-  });
-
-  test("dispatches 'find'/'grep'/'ls' to formatSearchInputForPrompt", () => {
-    for (const tool of ["find", "grep", "ls"]) {
-      const result = formatToolInputForPrompt(tool, {});
-      expect(result).toContain("current working directory");
-    }
-  });
-
-  test("falls back to JSON preview for unknown tools", () => {
-    mockedStringify.mockReturnValue('{"x":1}');
-    const result = formatToolInputForPrompt("unknown", { x: 1 });
-    expect(result).toContain('{"x":1}');
-  });
-});
-
-describe("formatGenericToolInputForLog", () => {
-  test("returns undefined when serialization yields empty string", () => {
-    mockedStringify.mockReturnValue(undefined);
-    expect(formatGenericToolInputForLog({})).toBeUndefined();
-  });
-
-  test("returns prefixed input preview", () => {
-    mockedStringify.mockReturnValue('{"k":"v"}');
-    expect(formatGenericToolInputForLog({ k: "v" })).toBe('input {"k":"v"}');
-  });
-
-  test("truncates to TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH", () => {
-    const longJson = `{"k":"${"x".repeat(2000)}"}`;
-    mockedStringify.mockReturnValue(longJson);
-    const result = formatGenericToolInputForLog({});
-    expect(result).toBeDefined();
-    // result is "input " + truncated, so total > TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH by "input ".length
-    const preview = result!.slice("input ".length);
-    expect(preview.length).toBeLessThanOrEqual(
-      TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH + 1,
-    );
-  });
-});
-
-describe("getToolInputPreviewForLog", () => {
-  const pathBearingTools = new Set(["read", "write", "edit"]);
-
-  test("returns undefined for bash tool", () => {
-    const result: PermissionCheckResult = {
-      toolName: "bash",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    expect(
-      getToolInputPreviewForLog(result, { command: "ls" }, pathBearingTools),
-    ).toBeUndefined();
-  });
-
-  test("returns undefined for mcp tool", () => {
-    const result: PermissionCheckResult = {
-      toolName: "mcp",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    expect(
-      getToolInputPreviewForLog(result, {}, pathBearingTools),
-    ).toBeUndefined();
-  });
-
-  test("returns undefined for mcp source", () => {
-    const result: PermissionCheckResult = {
-      toolName: "some-server:some-tool",
-      state: "allow",
-      source: "mcp",
-      origin: "builtin",
-    };
-    expect(
-      getToolInputPreviewForLog(result, {}, pathBearingTools),
-    ).toBeUndefined();
-  });
-
-  test("returns path-based preview for path-bearing tools", () => {
-    const result: PermissionCheckResult = {
-      toolName: "read",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    const preview = getToolInputPreviewForLog(
-      result,
-      { path: "/src/foo.ts" },
-      pathBearingTools,
-    );
-    expect(preview).toContain("/src/foo.ts");
-  });
-
-  test("returns generic JSON preview for non-path-bearing tools", () => {
-    mockedStringify.mockReturnValue('{"n":1}');
-    const result: PermissionCheckResult = {
-      toolName: "task",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    const preview = getToolInputPreviewForLog(
-      result,
-      { n: 1 },
-      pathBearingTools,
-    );
-    expect(preview).toContain('{"n":1}');
-  });
-});
-
-describe("getPermissionLogContext", () => {
-  const pathBearingTools = new Set(["read", "write", "edit"]);
-
-  test("returns command, target, and toolInputPreview", () => {
-    const result: PermissionCheckResult = {
-      toolName: "bash",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-      command: "ls -la",
-    };
-    const ctx = getPermissionLogContext(result, {}, pathBearingTools);
-    expect(ctx.command).toBe("ls -la");
-    expect(ctx.target).toBeUndefined();
-    expect(ctx.toolInputPreview).toBeUndefined();
-  });
-
-  test("includes toolInputPreview for non-bash path-bearing tools", () => {
-    const result: PermissionCheckResult = {
-      toolName: "read",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    const ctx = getPermissionLogContext(
-      result,
-      { path: "/foo.ts" },
-      pathBearingTools,
-    );
-    expect(ctx.toolInputPreview).toContain("/foo.ts");
-  });
-
-  test("includes origin from check result when present", () => {
-    const result: PermissionCheckResult = {
-      toolName: "read",
-      state: "allow",
-      source: "tool",
-      origin: "project",
-    };
-    const ctx = getPermissionLogContext(result, {}, pathBearingTools);
-    expect(ctx.origin).toBe("project");
-  });
-
-  test("origin is 'builtin' when check result has builtin origin", () => {
-    const result: PermissionCheckResult = {
-      toolName: "read",
-      state: "allow",
-      source: "tool",
-      origin: "builtin",
-    };
-    const ctx = getPermissionLogContext(result, {}, pathBearingTools);
-    expect(ctx.origin).toBe("builtin");
   });
 });

@@ -1,7 +1,7 @@
 import { getPathBearingToolPath, PATH_BEARING_TOOLS } from "#src/path-utils";
 import { suggestSessionPattern } from "#src/pattern-suggest";
 import { formatAskPrompt } from "#src/permission-prompts";
-import { getPermissionLogContext } from "#src/tool-input-preview";
+import type { ToolPreviewFormatter } from "#src/tool-preview-formatter";
 import type { PermissionCheckResult } from "#src/types";
 import type { GateDescriptor } from "./descriptor";
 import { deriveDecisionValue } from "./helpers";
@@ -31,8 +31,9 @@ function deriveSuggestionValue(
 export function describeToolGate(
   tcc: ToolCallContext,
   check: PermissionCheckResult,
+  formatter: ToolPreviewFormatter,
 ): GateDescriptor {
-  const permissionLogContext = getPermissionLogContext(
+  const permissionLogContext = formatter.getPermissionLogContext(
     check,
     tcc.input,
     PATH_BEARING_TOOLS,
@@ -48,6 +49,7 @@ export function describeToolGate(
     check,
     tcc.agentName ?? undefined,
     tcc.input,
+    formatter,
   );
 
   return {
