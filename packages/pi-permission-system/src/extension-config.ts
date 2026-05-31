@@ -12,6 +12,10 @@ export interface PermissionSystemExtensionConfig {
   yoloMode: boolean;
   /** Additional directories to auto-allow for reads as Pi infrastructure. */
   piInfrastructureReadPaths?: string[];
+  /** Max length of the inline-JSON input preview shown in permission prompts. Defaults to 200. */
+  toolInputPreviewMaxLength?: number;
+  /** Max length of inline pattern/path summaries (grep/find/ls) in permission prompts. Defaults to 80. */
+  toolTextSummaryMaxLength?: number;
 }
 
 export const DEFAULT_EXTENSION_CONFIG: PermissionSystemExtensionConfig = {
@@ -42,6 +46,13 @@ export function detectMisplacedPermissionKeys(
   return Object.keys(raw).filter((key) => PERMISSION_POLICY_KEYS.has(key));
 }
 
+/** Returns `raw` if it is a positive integer; otherwise `undefined`. */
+export function normalizeOptionalPositiveInt(raw: unknown): number | undefined {
+  return typeof raw === "number" && Number.isInteger(raw) && raw > 0
+    ? raw
+    : undefined;
+}
+
 export function normalizePermissionSystemConfig(
   raw: unknown,
 ): PermissionSystemExtensionConfig {
@@ -59,6 +70,18 @@ export function normalizePermissionSystemConfig(
   };
   if (piInfrastructureReadPaths !== undefined) {
     result.piInfrastructureReadPaths = piInfrastructureReadPaths;
+  }
+  const toolInputPreviewMaxLength = normalizeOptionalPositiveInt(
+    record.toolInputPreviewMaxLength,
+  );
+  if (toolInputPreviewMaxLength !== undefined) {
+    result.toolInputPreviewMaxLength = toolInputPreviewMaxLength;
+  }
+  const toolTextSummaryMaxLength = normalizeOptionalPositiveInt(
+    record.toolTextSummaryMaxLength,
+  );
+  if (toolTextSummaryMaxLength !== undefined) {
+    result.toolTextSummaryMaxLength = toolTextSummaryMaxLength;
   }
   return result;
 }
