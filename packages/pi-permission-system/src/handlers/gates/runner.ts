@@ -7,7 +7,7 @@ import type { PermissionPromptDecision } from "#src/permission-dialog";
 import { applyPermissionGate } from "#src/permission-gate";
 import type { PermissionCheckResult } from "#src/types";
 import type { GateDescriptor, GateRunnerDeps } from "./descriptor";
-import { deriveResolution } from "./helpers";
+import { buildDecisionEvent, deriveResolution } from "./helpers";
 import type { GateOutcome } from "./types";
 
 /**
@@ -56,16 +56,15 @@ export async function runGateCheck(
       resolution: "session_approved",
       sessionApprovalPattern: check.matchedPattern,
     });
-    deps.emitDecision({
-      surface: descriptor.decision.surface,
-      value: descriptor.decision.value,
-      result: "allow",
-      resolution: "session_approved",
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
-      origin: check.origin ?? null,
-      agentName: agentName ?? null,
-      matchedPattern: check.matchedPattern ?? null,
-    });
+    deps.emitDecision(
+      buildDecisionEvent(
+        descriptor.decision,
+        check,
+        agentName,
+        "allow",
+        "session_approved",
+      ),
+    );
     return { action: "allow" };
   }
 
@@ -104,22 +103,21 @@ export async function runGateCheck(
     gateResult.action === "allow" && gateResult.sessionApproval !== undefined;
 
   // 5. Emit decision event
-  deps.emitDecision({
-    surface: descriptor.decision.surface,
-    value: descriptor.decision.value,
-    result: gateResult.action === "allow" ? "allow" : "deny",
-    resolution: deriveResolution(
-      check.state,
-      gateResult.action,
-      hasSessionApproval,
-      canConfirm,
-      autoApproved,
+  deps.emitDecision(
+    buildDecisionEvent(
+      descriptor.decision,
+      check,
+      agentName,
+      gateResult.action === "allow" ? "allow" : "deny",
+      deriveResolution(
+        check.state,
+        gateResult.action,
+        hasSessionApproval,
+        canConfirm,
+        autoApproved,
+      ),
     ),
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
-    origin: check.origin ?? null,
-    agentName: agentName ?? null,
-    matchedPattern: check.matchedPattern ?? null,
-  });
+  );
 
   // 6. Record session approval — tell the store; it owns the per-pattern loop
   if (

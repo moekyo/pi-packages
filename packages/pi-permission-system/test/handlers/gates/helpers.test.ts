@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDecisionEvent,
   deriveDecisionValue,
   deriveResolution,
 } from "#src/handlers/gates/helpers";
+import type { PermissionCheckResult } from "#src/types";
 
 describe("deriveDecisionValue", () => {
   it("returns command for bash", () => {
@@ -80,5 +82,84 @@ describe("deriveResolution", () => {
     expect(deriveResolution("ask", "block", false, false)).toBe(
       "confirmation_unavailable",
     );
+  });
+});
+
+describe("buildDecisionEvent", () => {
+  function makeCheck(
+    overrides: Partial<PermissionCheckResult> = {},
+  ): PermissionCheckResult {
+    return {
+      state: "allow",
+      toolName: "read",
+      source: "tool",
+      origin: "builtin",
+      matchedPattern: "*",
+      ...overrides,
+    };
+  }
+
+  it("builds a decision event with all fields populated", () => {
+    const event = buildDecisionEvent(
+      { surface: "read", value: "read" },
+      makeCheck({ origin: "global", matchedPattern: "read" }),
+      "test-agent",
+      "allow",
+      "policy_allow",
+    );
+    expect(event).toEqual({
+      surface: "read",
+      value: "read",
+      result: "allow",
+      resolution: "policy_allow",
+      origin: "global",
+      agentName: "test-agent",
+      matchedPattern: "read",
+    });
+  });
+
+  it("normalises undefined origin to null", () => {
+    const event = buildDecisionEvent(
+      { surface: "bash", value: "git status" },
+      makeCheck({ origin: undefined }),
+      null,
+      "allow",
+      "user_approved",
+    );
+    expect(event.origin).toBeNull();
+  });
+
+  it("normalises null agentName to null", () => {
+    const event = buildDecisionEvent(
+      { surface: "read", value: "read" },
+      makeCheck(),
+      null,
+      "deny",
+      "policy_deny",
+    );
+    expect(event.agentName).toBeNull();
+  });
+
+  it("normalises undefined matchedPattern to null", () => {
+    const event = buildDecisionEvent(
+      { surface: "read", value: "read" },
+      makeCheck({ matchedPattern: undefined }),
+      null,
+      "deny",
+      "policy_deny",
+    );
+    expect(event.matchedPattern).toBeNull();
+  });
+
+  it("passes result and resolution through", () => {
+    const event = buildDecisionEvent(
+      { surface: "bash", value: "rm -rf /" },
+      makeCheck(),
+      null,
+      "deny",
+      "user_denied",
+    );
+    expect(event.result).toBe("deny");
+    expect(event.resolution).toBe("user_denied");
   });
 });

@@ -1,4 +1,7 @@
-import type { PermissionDecisionResolution } from "#src/permission-events";
+import type {
+  PermissionDecisionEvent,
+  PermissionDecisionResolution,
+} from "#src/permission-events";
 import type { PermissionCheckResult } from "#src/types";
 
 /**
@@ -15,6 +18,32 @@ export function deriveDecisionValue(
   if (toolName === "mcp") return check.target ?? toolName;
   if (path) return path;
   return toolName;
+}
+
+/**
+ * Build a `PermissionDecisionEvent` from the gate's inputs.
+ *
+ * Centralises the `origin / agentName / matchedPattern ?? null` normalization
+ * that is otherwise duplicated across the session-hit path and the gate-result
+ * path in `runGateCheck`.
+ */
+export function buildDecisionEvent(
+  decision: { surface: string; value: string },
+  check: Pick<PermissionCheckResult, "origin" | "matchedPattern">,
+  agentName: string | null,
+  result: "allow" | "deny",
+  resolution: PermissionDecisionResolution,
+): PermissionDecisionEvent {
+  return {
+    surface: decision.surface,
+    value: decision.value,
+    result,
+    resolution,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- ?? null normalises undefined to null for the log record
+    origin: check.origin ?? null,
+    agentName: agentName ?? null,
+    matchedPattern: check.matchedPattern ?? null,
+  };
 }
 
 /**
