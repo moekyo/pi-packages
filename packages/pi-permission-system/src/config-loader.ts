@@ -31,6 +31,38 @@ export interface UnifiedConfigLoadResult {
   issues: string[];
 }
 
+export function stripJsonComments(input: string): string {
+  let output = "";
+  let i = 0;
+  while (i < input.length) {
+    const char = input[i];
+    const next = input[i + 1] ?? "";
+
+    if (char === "/" && next === "/") {
+      const seg = consumeLineComment(input, i);
+      output += seg.output;
+      i = seg.nextIndex;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const seg = consumeBlockComment(input, i);
+      output += seg.output;
+      i = seg.nextIndex;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      const seg = consumeString(input, i);
+      output += seg.output;
+      i = seg.nextIndex;
+      continue;
+    }
+
+    output += char;
+    i++;
+  }
+  return output;
+}
+
 /** A consumed run of source: the text to emit and the index to resume scanning. */
 interface ScanSegment {
   output: string;
@@ -76,38 +108,6 @@ function consumeString(input: string, start: number): ScanSegment {
     if (char === quote) break;
   }
   return { output, nextIndex: i };
-}
-
-export function stripJsonComments(input: string): string {
-  let output = "";
-  let i = 0;
-  while (i < input.length) {
-    const char = input[i];
-    const next = input[i + 1] ?? "";
-
-    if (char === "/" && next === "/") {
-      const seg = consumeLineComment(input, i);
-      output += seg.output;
-      i = seg.nextIndex;
-      continue;
-    }
-    if (char === "/" && next === "*") {
-      const seg = consumeBlockComment(input, i);
-      output += seg.output;
-      i = seg.nextIndex;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      const seg = consumeString(input, i);
-      output += seg.output;
-      i = seg.nextIndex;
-      continue;
-    }
-
-    output += char;
-    i++;
-  }
-  return output;
 }
 
 function normalizeOptionalBoolean(value: unknown): boolean | undefined {
