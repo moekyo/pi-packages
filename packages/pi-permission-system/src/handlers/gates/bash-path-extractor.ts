@@ -242,6 +242,47 @@ function extractCommandName(node: TSNode): string | undefined {
 }
 
 /**
+ * Describes what the walker should do when it encounters a flag word inside
+ * a pattern-first command.  Using a discriminated union lets the `switch` in
+ * `collectPatternCommandTokens` narrow `nextArgAction` without a non-null
+ * assertion (which would trigger the Biome/ESLint assertion conflict).
+ */
+type PatternCommandFlagDirective =
+  | { kind: "end-of-flags" }
+  | { kind: "regular-flag" }
+  | {
+      kind: "consume-arg";
+      nextArgAction: "skip" | "extract";
+      setsExplicitScript: boolean;
+    };
+
+/**
+ * Classify a flag word from a pattern-first command into a directive that
+ * tells the walker how to handle the flag and its following argument.
+ */
+function classifyPatternCommandFlag(
+  text: string,
+  config: PatternCommandConfig,
+): PatternCommandFlagDirective {
+  if (text === "--") return { kind: "end-of-flags" };
+  if (config.argConsumingFlags.has(text)) {
+    return {
+      kind: "consume-arg",
+      nextArgAction: "skip",
+      setsExplicitScript: text === "-e" || text === "-f",
+    };
+  }
+  if (config.fileConsumingFlags.has(text)) {
+    return {
+      kind: "consume-arg",
+      nextArgAction: "extract",
+      setsExplicitScript: true,
+    };
+  }
+  return { kind: "regular-flag" };
+}
+
+/**
  * Collect path-candidate tokens from a command known to have
  * pattern/script arguments in leading positional slots.
  *
@@ -258,14 +299,14 @@ function extractCommandName(node: TSNode): string | undefined {
  */
 function collectPatternCommandTokens(
   node: TSNode,
-  tokens: string[],
   config: PatternCommandConfig,
-): void {
+): string[] {
   const patternPositionals = config.patternPositionals ?? 1;
   let hasExplicitScript = false;
   let positionalsSeen = 0;
   let nextArgAction: "skip" | "extract" | null = null;
   let pastEndOfFlags = false;
+  const tokens: string[] = [];
 
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
@@ -278,7 +319,7 @@ function collectPatternCommandTokens(
     // Only process argument-like nodes; recurse into others
     // (e.g. command_substitution) for nested commands.
     if (!ARG_NODE_TYPES.has(child.type)) {
-      collectPathCandidateTokens(child, tokens);
+      tokens.push(...collectPathCandidateTokens(child));
       continue;
     }
 
@@ -302,23 +343,18 @@ function collectPatternCommandTokens(
       text.startsWith("-") &&
       text.length > 1
     ) {
-      if (text === "--") {
-        pastEndOfFlags = true;
-        continue;
+      const directive = classifyPatternCommandFlag(text, config);
+      switch (directive.kind) {
+        case "end-of-flags":
+          pastEndOfFlags = true;
+          break;
+        case "consume-arg":
+          nextArgAction = directive.nextArgAction;
+          if (directive.setsExplicitScript) hasExplicitScript = true;
+          break;
+        case "regular-flag":
+          break;
       }
-      if (config.argConsumingFlags.has(text)) {
-        nextArgAction = "skip";
-        if (text === "-e" || text === "-f") {
-          hasExplicitScript = true;
-        }
-        continue;
-      }
-      if (config.fileConsumingFlags.has(text)) {
-        nextArgAction = "extract";
-        hasExplicitScript = true;
-        continue;
-      }
-      // Regular flag — skip it.
       continue;
     }
 
@@ -331,6 +367,77 @@ function collectPatternCommandTokens(
     // File argument — collect as path candidate.
     tokens.push(text);
   }
+
+  return tokens;
+}
+
+/**
+ * Collect all argument tokens from a generic (non-pattern-first) command node,
+ * skipping the command name and variable assignments.
+ */
+function collectGenericCommandTokens(node: TSNode): string[] {
+  const tokens: string[] = [];
+  let seenCommandName = false;
+
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i);
+    if (!child) continue;
+
+    if (child.type === "command_name") {
+      seenCommandName = true;
+      continue;
+    }
+    // Skip variable_assignment nodes (FOO=/bar)
+    if (child.type === "variable_assignment") continue;
+
+    // If there was no explicit command_name node, the first word-like
+    // child is the command name itself — skip it.
+    if (!seenCommandName && ARG_NODE_TYPES.has(child.type)) {
+      seenCommandName = true;
+      continue;
+    }
+
+    // Argument nodes: resolve their text and collect.
+    if (ARG_NODE_TYPES.has(child.type)) {
+      tokens.push(resolveNodeText(child));
+      continue;
+    }
+
+    // Recurse into other children (e.g. command_substitution nested in args)
+    tokens.push(...collectPathCandidateTokens(child));
+  }
+
+  return tokens;
+}
+
+/**
+ * Collect redirect-destination tokens from a `file_redirect` node.
+ */
+function collectRedirectTokens(node: TSNode): string[] {
+  const tokens: string[] = [];
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i);
+    if (!child) continue;
+    if (ARG_NODE_TYPES.has(child.type)) {
+      tokens.push(resolveNodeText(child));
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Select the collection strategy for a `command` node: pattern-first
+ * commands use `collectPatternCommandTokens`; all others use
+ * `collectGenericCommandTokens`.
+ */
+function collectCommandTokens(node: TSNode): string[] {
+  const commandName = extractCommandName(node);
+  const config = commandName
+    ? PATTERN_FIRST_COMMANDS.get(commandName)
+    : undefined;
+  return config
+    ? collectPatternCommandTokens(node, config)
+    : collectGenericCommandTokens(node);
 }
 
 /**
@@ -344,76 +451,17 @@ function collectPatternCommandTokens(
  * as path candidates. For all other commands, collects all
  * arguments generically.
  */
-function collectPathCandidateTokens(node: TSNode, tokens: string[]): void {
-  if (SKIP_SUBTREE_TYPES.has(node.type)) return;
+function collectPathCandidateTokens(node: TSNode): string[] {
+  if (SKIP_SUBTREE_TYPES.has(node.type)) return [];
+  if (node.type === "command") return collectCommandTokens(node);
+  if (node.type === "file_redirect") return collectRedirectTokens(node);
 
-  // Extract arguments from `command` nodes.
-  if (node.type === "command") {
-    const commandName = extractCommandName(node);
-    const patternConfig = commandName
-      ? PATTERN_FIRST_COMMANDS.get(commandName)
-      : undefined;
-
-    if (patternConfig) {
-      collectPatternCommandTokens(node, tokens, patternConfig);
-      return;
-    }
-
-    // Generic extraction: collect all arguments (skip command name).
-    let seenCommandName = false;
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i);
-      if (!child) continue;
-
-      if (child.type === "command_name") {
-        seenCommandName = true;
-        continue;
-      }
-      // Skip variable_assignment nodes (FOO=/bar)
-      if (child.type === "variable_assignment") continue;
-
-      // If there was no explicit command_name node, the first word-like
-      // child is the command name itself — skip it.
-      if (!seenCommandName && ARG_NODE_TYPES.has(child.type)) {
-        seenCommandName = true;
-        continue;
-      }
-
-      // Argument nodes: resolve their text and collect.
-      if (ARG_NODE_TYPES.has(child.type)) {
-        tokens.push(resolveNodeText(child));
-        continue;
-      }
-
-      // Recurse into other children (e.g. command_substitution nested in args)
-      collectPathCandidateTokens(child, tokens);
-    }
-    return;
-  }
-
-  // Extract redirect destinations from `file_redirect` nodes.
-  if (node.type === "file_redirect") {
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i);
-      if (!child) continue;
-      if (
-        child.type === "word" ||
-        child.type === "concatenation" ||
-        child.type === "string" ||
-        child.type === "raw_string"
-      ) {
-        tokens.push(resolveNodeText(child));
-      }
-    }
-    return;
-  }
-
-  // For all other node types, recurse into children.
+  const tokens: string[] = [];
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (!child) continue;
-    collectPathCandidateTokens(child, tokens);
+    if (child) tokens.push(...collectPathCandidateTokens(child));
   }
+  return tokens;
 }
 
 // Token classification is delegated to bash-token-classification.ts,
@@ -514,10 +562,10 @@ export async function extractExternalPathsFromBashCommand(
   if (!tree) return [];
 
   let cdTarget: string | undefined;
-  const tokens: string[] = [];
+  let tokens: string[] = [];
   try {
     cdTarget = extractLeadingCdTarget(tree.rootNode);
-    collectPathCandidateTokens(tree.rootNode, tokens);
+    tokens = collectPathCandidateTokens(tree.rootNode);
   } finally {
     tree.delete();
   }
@@ -565,9 +613,9 @@ export async function extractTokensForPathRules(
   const tree = parser.parse(command);
   if (!tree) return [];
 
-  const tokens: string[] = [];
+  let tokens: string[] = [];
   try {
-    collectPathCandidateTokens(tree.rootNode, tokens);
+    tokens = collectPathCandidateTokens(tree.rootNode);
   } finally {
     tree.delete();
   }
