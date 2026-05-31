@@ -6,14 +6,14 @@ import {
 	type GetResultToolManager,
 	type GetResultToolNotifications,
 } from "#src/tools/get-result-tool";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import { createTestAgent } from "#test/helpers/make-agent";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 
-function makeManager(records: Map<string, Agent> = new Map()): GetResultToolManager {
+function makeManager(records: Map<string, Subagent> = new Map()): GetResultToolManager {
 	return { getRecord: (id: string) => records.get(id) };
 }
 

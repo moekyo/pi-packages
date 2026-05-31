@@ -1,15 +1,15 @@
-import { Agent, type AgentInit } from "#src/lifecycle/agent";
+import { Subagent, type SubagentInit } from "#src/lifecycle/subagent";
 
-export function createTestAgent(overrides: Partial<AgentInit> & {
+export function createTestAgent(overrides: Partial<SubagentInit> & {
 	/** Legacy shorthand: set toolUses via incrementToolUses(). */
 	toolUses?: number;
 	/** Legacy shorthand: set lifetimeUsage via addUsage(). */
 	lifetimeUsage?: { input: number; output: number; cacheWrite: number };
 	/** Legacy shorthand: set compactionCount via incrementCompactions(). */
 	compactionCount?: number;
-} = {}): Agent {
+} = {}): Subagent {
 	const { toolUses, lifetimeUsage, compactionCount, ...init } = overrides;
-	const record = new Agent({
+	const record = new Subagent({
 		id: "agent-1",
 		type: "general-purpose",
 		description: "Test task",

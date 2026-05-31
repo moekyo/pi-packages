@@ -11,7 +11,7 @@
  * synchronously at run-start. The core has no knowledge of git or worktrees.
  */
 
-import type { SubagentStatus } from "#src/lifecycle/agent";
+import type { SubagentStatus } from "#src/lifecycle/subagent";
 import type { AgentInvocation, SubagentType } from "#src/types";
 
 /** Context the core hands a provider when a child run starts. */

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { Agent, type AgentLifecycleObserver } from "#src/lifecycle/agent";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import { Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-session";
 import type { Workspace, WorkspaceProvider } from "#src/lifecycle/workspace";
+import type { CompactionInfo } from "#src/types";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
@@ -20,9 +21,9 @@ function defaultFactory(): SessionFactory {
 	return createFactory().factory;
 }
 
-describe("Agent — constructor", () => {
+describe("Subagent — constructor", () => {
 	it("sets required fields from init", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "abc-123",
 			type: "Explore",
 			description: "Find stale TODOs",
@@ -33,7 +34,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("defaults status to 'queued'", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -42,7 +43,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("defaults numeric counters to zero", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -53,7 +54,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("passes through optional transition fields", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -71,7 +72,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("passes through optional identity fields", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -86,7 +87,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("leaves optional fields undefined when not provided", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -100,7 +101,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("always creates its own AbortController", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -110,7 +111,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("creates NotificationState when parentSession.toolCallId is provided", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -121,7 +122,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("does not create NotificationState when toolCallId is absent", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -131,7 +132,7 @@ describe("Agent — constructor", () => {
 	});
 
 	it("does not create NotificationState when parentSession is absent", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -140,9 +141,9 @@ describe("Agent — constructor", () => {
 	});
 });
 
-describe("Agent — markRunning", () => {
+describe("Subagent — markRunning", () => {
 	it("sets status to 'running' and updates startedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -155,9 +156,9 @@ describe("Agent — markRunning", () => {
 	});
 });
 
-describe("Agent — markCompleted", () => {
+describe("Subagent — markCompleted", () => {
 	it("sets status, result, and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -170,7 +171,7 @@ describe("Agent — markCompleted", () => {
 	});
 
 	it("defaults completedAt to Date.now() when not provided", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -184,7 +185,7 @@ describe("Agent — markCompleted", () => {
 	});
 
 	it("preserves existing completedAt (??= semantics)", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -196,7 +197,7 @@ describe("Agent — markCompleted", () => {
 	});
 
 	it("preserves status when already stopped, but still sets result and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -211,9 +212,9 @@ describe("Agent — markCompleted", () => {
 	});
 });
 
-describe("Agent — markAborted", () => {
+describe("Subagent — markAborted", () => {
 	it("sets status to 'aborted' with result and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -226,7 +227,7 @@ describe("Agent — markAborted", () => {
 	});
 
 	it("preserves status when already stopped, but still sets result", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -240,9 +241,9 @@ describe("Agent — markAborted", () => {
 	});
 });
 
-describe("Agent — markSteered", () => {
+describe("Subagent — markSteered", () => {
 	it("sets status to 'steered' with result and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -255,7 +256,7 @@ describe("Agent — markSteered", () => {
 	});
 
 	it("preserves status when already stopped, but still sets result", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -269,9 +270,9 @@ describe("Agent — markSteered", () => {
 	});
 });
 
-describe("Agent — markError", () => {
+describe("Subagent — markError", () => {
 	it("sets status to 'error' and formats Error objects to .message", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -284,7 +285,7 @@ describe("Agent — markError", () => {
 	});
 
 	it("formats non-Error values with String()", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -295,7 +296,7 @@ describe("Agent — markError", () => {
 	});
 
 	it("preserves status when already stopped, but still sets error and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -309,7 +310,7 @@ describe("Agent — markError", () => {
 	});
 
 	it("preserves existing completedAt (??= semantics)", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -321,9 +322,9 @@ describe("Agent — markError", () => {
 	});
 });
 
-describe("Agent — markStopped", () => {
+describe("Subagent — markStopped", () => {
 	it("sets status to 'stopped' and completedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -335,7 +336,7 @@ describe("Agent — markStopped", () => {
 	});
 
 	it("defaults completedAt to Date.now() when not provided", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -349,7 +350,7 @@ describe("Agent — markStopped", () => {
 	});
 
 	it("overwrites any previous status — no guard", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -360,9 +361,9 @@ describe("Agent — markStopped", () => {
 	});
 });
 
-describe("Agent — incrementToolUses", () => {
+describe("Subagent — incrementToolUses", () => {
 	it("starts at 0 and increments by 1 each call", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(record.toolUses).toBe(0);
 		record.incrementToolUses();
 		expect(record.toolUses).toBe(1);
@@ -371,9 +372,9 @@ describe("Agent — incrementToolUses", () => {
 	});
 });
 
-describe("Agent — addUsage", () => {
+describe("Subagent — addUsage", () => {
 	it("accumulates usage deltas into lifetimeUsage", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(record.lifetimeUsage).toEqual({ input: 0, output: 0, cacheWrite: 0 });
 		record.addUsage({ input: 100, output: 50, cacheWrite: 10 });
 		expect(record.lifetimeUsage).toEqual({ input: 100, output: 50, cacheWrite: 10 });
@@ -382,9 +383,9 @@ describe("Agent — addUsage", () => {
 	});
 });
 
-describe("Agent — incrementCompactions", () => {
+describe("Subagent — incrementCompactions", () => {
 	it("starts at 0 and increments by 1 each call", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(record.compactionCount).toBe(0);
 		record.incrementCompactions();
 		expect(record.compactionCount).toBe(1);
@@ -393,9 +394,9 @@ describe("Agent — incrementCompactions", () => {
 	});
 });
 
-describe("Agent — resetForResume", () => {
+describe("Subagent — resetForResume", () => {
 	it("sets status to 'running' and new startedAt", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -408,7 +409,7 @@ describe("Agent — resetForResume", () => {
 	});
 
 	it("clears completedAt, result, and error", () => {
-		const record = new Agent({
+		const record = new Subagent({
 			id: "1",
 			type: "general-purpose",
 			description: "test",
@@ -427,33 +428,33 @@ describe("Agent — resetForResume", () => {
 describe("convenience getters", () => {
 	describe("outputFile", () => {
 		it("returns undefined when subagentSession is not set", () => {
-			const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(record.outputFile).toBeUndefined();
 		});
 
 		it("returns outputFile from subagentSession when set", () => {
-			const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/path/to/session.jsonl"));
 			expect(record.outputFile).toBe("/path/to/session.jsonl");
 		});
 
 		it("returns undefined when subagentSession is set but outputFile is undefined", () => {
-			const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession()));
 			expect(record.outputFile).toBeUndefined();
 		});
 	});
 });
 
-describe("Agent — session-encapsulation methods", () => {
+describe("Subagent — session-encapsulation methods", () => {
 	describe("isSessionReady", () => {
 		it("returns false when no subagentSession", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(agent.isSessionReady()).toBe(false);
 		});
 
 		it("returns true when subagentSession is set", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			agent.subagentSession = toSubagentSession(createSubagentSessionStub());
 			expect(agent.isSessionReady()).toBe(true);
 		});
@@ -461,14 +462,14 @@ describe("Agent — session-encapsulation methods", () => {
 
 	describe("steer", () => {
 		it("buffers message and returns false when session not ready", async () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const delivered = await agent.steer("hello");
 			expect(delivered).toBe(false);
 			expect(agent.pendingSteerCount).toBe(1);
 		});
 
 		it("delivers message to session and returns true when session is ready", async () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const stub = createSubagentSessionStub();
 			agent.subagentSession = toSubagentSession(stub);
 			const delivered = await agent.steer("go faster");
@@ -480,12 +481,12 @@ describe("Agent — session-encapsulation methods", () => {
 
 	describe("getConversation", () => {
 		it("returns undefined when no session", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(agent.getConversation()).toBeUndefined();
 		});
 
 		it("delegates to SubagentSession.getConversation when session is ready", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const stub = createSubagentSessionStub();
 			stub.getConversation.mockReturnValue("[User]: hi");
 			agent.subagentSession = toSubagentSession(stub);
@@ -495,12 +496,12 @@ describe("Agent — session-encapsulation methods", () => {
 
 	describe("getContextPercent", () => {
 		it("returns null when no session", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(agent.getContextPercent()).toBeNull();
 		});
 
 		it("delegates to SubagentSession.getContextPercent when session is ready", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const stub = createSubagentSessionStub();
 			stub.getContextPercent.mockReturnValue(55);
 			agent.subagentSession = toSubagentSession(stub);
@@ -510,12 +511,12 @@ describe("Agent — session-encapsulation methods", () => {
 
 	describe("subscribeToUpdates", () => {
 		it("returns undefined when no session", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(agent.subscribeToUpdates(vi.fn())).toBeUndefined();
 		});
 
 		it("delegates to SubagentSession.subscribe when session is ready", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const stub = createSubagentSessionStub();
 			agent.subagentSession = toSubagentSession(stub);
 			const fn = vi.fn();
@@ -527,12 +528,12 @@ describe("Agent — session-encapsulation methods", () => {
 
 	describe("messages", () => {
 		it("returns empty array when no session", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			expect(agent.messages).toEqual([]);
 		});
 
 		it("delegates to SubagentSession.messages when session is ready", () => {
-			const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+			const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 			const session = createMockSession();
 			session.messages.push({ role: "user", content: "hi" });
 			const stub = createSubagentSessionStub(session);
@@ -542,50 +543,50 @@ describe("Agent — session-encapsulation methods", () => {
 	});
 });
 
-describe("Agent — steer buffer", () => {
+describe("Subagent — steer buffer", () => {
 	it("starts with an empty steer buffer", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(record.pendingSteerCount).toBe(0);
 	});
 });
 
-describe("Agent — abort", () => {
+describe("Subagent — abort", () => {
 	it("returns false and does nothing when not running", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "queued" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "queued" });
 		expect(record.abort()).toBe(false);
 		expect(record.status).toBe("queued");
 	});
 
 	it("fires the AbortController, marks stopped, and returns true when running", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "running" });
 		expect(record.abort()).toBe(true);
 		expect(record.abortController.signal.aborted).toBe(true);
 		expect(record.status).toBe("stopped");
 	});
 
 	it("marks stopped and returns true even without an AbortController", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "running" });
 		expect(record.abort()).toBe(true);
 		expect(record.status).toBe("stopped");
 	});
 
 	it("returns false when already stopped", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "stopped" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "stopped" });
 		expect(record.abort()).toBe(false);
 	});
 
 	it("returns false when completed", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "completed" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "completed" });
 		expect(record.abort()).toBe(false);
 	});
 });
 
 
 
-/** Create an Agent for completeRun / failRun tests. */
-function createCompletionAgent(overrides?: { observer?: AgentLifecycleObserver }) {
+/** Create a Subagent for completeRun / failRun tests. */
+function createCompletionAgent(overrides?: { observer?: SubagentLifecycleObserver }) {
 	return {
-		record: new Agent({ id: "1", type: "general-purpose", description: "test", status: "running", observer: overrides?.observer }),
+		record: new Subagent({ id: "1", type: "general-purpose", description: "test", status: "running", observer: overrides?.observer }),
 	};
 }
 
@@ -598,7 +599,7 @@ function createTurnLoopResult(overrides?: Partial<TurnLoopResult>): TurnLoopResu
 	};
 }
 
-describe("Agent — completeRun", () => {
+describe("Subagent — completeRun", () => {
 	it("transitions to completed for a normal result", () => {
 		const { record } = createCompletionAgent();
 		record.completeRun(createTurnLoopResult());
@@ -635,7 +636,7 @@ describe("Agent — completeRun", () => {
 	});
 });
 
-describe("Agent — failRun", () => {
+describe("Subagent — failRun", () => {
 	it("transitions to error state", () => {
 		const { record } = createCompletionAgent();
 		record.failRun(new Error("boom"));
@@ -660,9 +661,9 @@ describe("Agent — failRun", () => {
 	});
 });
 
-describe("Agent — disposeSession", () => {
+describe("Subagent — disposeSession", () => {
 	it("disposes the wrapped SubagentSession", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		const stub = createSubagentSessionStub();
 		record.subagentSession = toSubagentSession(stub);
 		record.disposeSession();
@@ -670,14 +671,14 @@ describe("Agent — disposeSession", () => {
 	});
 
 	it("is a no-op when no session was created", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(() => record.disposeSession()).not.toThrow();
 	});
 });
 
-describe("Agent — wireSignal", () => {
+describe("Subagent — wireSignal", () => {
 	it("calls onAbort when the signal fires", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		const controller = new AbortController();
 		const onAbort = vi.fn();
 		record.wireSignal(controller.signal, onAbort);
@@ -686,12 +687,12 @@ describe("Agent — wireSignal", () => {
 	});
 
 	it("does nothing when signal is undefined", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		expect(() => record.wireSignal(undefined, vi.fn())).not.toThrow();
 	});
 
 	it("releaseListeners detaches the signal listener", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		const controller = new AbortController();
 		const onAbort = vi.fn();
 		record.wireSignal(controller.signal, onAbort);
@@ -701,9 +702,9 @@ describe("Agent — wireSignal", () => {
 	});
 });
 
-describe("Agent — attachObserver / releaseListeners", () => {
+describe("Subagent — attachObserver / releaseListeners", () => {
 	it("stores unsub and calls it on releaseListeners", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		const unsub = vi.fn();
 		record.attachObserver(unsub);
 		record.releaseListeners();
@@ -711,7 +712,7 @@ describe("Agent — attachObserver / releaseListeners", () => {
 	});
 
 	it("is idempotent — second release does not call unsub again", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		const unsub = vi.fn();
 		record.attachObserver(unsub);
 		record.releaseListeners();
@@ -720,9 +721,9 @@ describe("Agent — attachObserver / releaseListeners", () => {
 	});
 });
 
-describe("Agent — resetForResume releases listeners", () => {
+describe("Subagent — resetForResume releases listeners", () => {
 	it("releases listeners on reset", () => {
-		const record = new Agent({ id: "1", type: "general-purpose", description: "test", status: "running" });
+		const record = new Subagent({ id: "1", type: "general-purpose", description: "test", status: "running" });
 		const unsub = vi.fn();
 		record.attachObserver(unsub);
 		record.markCompleted("done");
@@ -736,7 +737,7 @@ describe("Agent — resetForResume releases listeners", () => {
 /** Create a complete Agent ready for run(). */
 function createRunnableAgent(overrides?: {
 	createSubagentSession?: SessionFactory;
-	observer?: AgentLifecycleObserver;
+	observer?: SubagentLifecycleObserver;
 	getRunConfig?: () => { defaultMaxTurns: number | undefined; graceTurns: number };
 	parentSession?: { toolCallId?: string; parentSessionFile?: string; parentSessionId?: string };
 	signal?: AbortSignal;
@@ -746,7 +747,7 @@ function createRunnableAgent(overrides?: {
 	const createSubagentSession = overrides?.createSubagentSession ?? defaultFactory();
 	const observer = overrides?.observer ?? {};
 	const provider = overrides?.workspaceProvider;
-	return new Agent({
+	return new Subagent({
 		id: "run-1",
 		type: "general-purpose",
 		description: "run test",
@@ -772,7 +773,7 @@ function makeWorkspaceProvider(workspace: Workspace | undefined): WorkspaceProvi
 	return { prepare: vi.fn(async () => workspace) };
 }
 
-describe("Agent.run() — happy path", () => {
+describe("Subagent.run() — happy path", () => {
 	it("transitions through running → completed", async () => {
 		const agent = createRunnableAgent();
 		await agent.run();
@@ -782,7 +783,7 @@ describe("Agent.run() — happy path", () => {
 
 	it("fires observer callbacks in order: onStarted → onSessionCreated → onRunFinished", async () => {
 		const callOrder: string[] = [];
-		const observer: AgentLifecycleObserver = {
+		const observer: SubagentLifecycleObserver = {
 			onStarted: () => callOrder.push("started"),
 			onSessionCreated: () => callOrder.push("sessionCreated"),
 			onRunFinished: () => callOrder.push("runFinished"),
@@ -808,7 +809,7 @@ describe("Agent.run() — happy path", () => {
 	});
 });
 
-describe("Agent.run() — workspace provider", () => {
+describe("Subagent.run() — workspace provider", () => {
 	it("prepares the workspace and threads its cwd into the factory params", async () => {
 		const { factory } = createFactory();
 		const provider = makeWorkspaceProvider(makeWorkspace("/ws/dir"));
@@ -870,7 +871,7 @@ describe("Agent.run() — workspace provider", () => {
 	});
 });
 
-describe("Agent.run() — error handling", () => {
+describe("Subagent.run() — error handling", () => {
 	it("transitions to error when the turn loop throws", async () => {
 		const { factory, stub } = createFactory();
 		stub.runTurnLoop.mockRejectedValue(new Error("turn loop exploded"));
@@ -889,12 +890,12 @@ describe("Agent.run() — error handling", () => {
 	});
 
 	it("throws when the session factory is missing", async () => {
-		const agent = new Agent({ id: "1", type: "general-purpose", description: "test", snapshot: STUB_SNAPSHOT, prompt: "go" });
+		const agent = new Subagent({ id: "1", type: "general-purpose", description: "test", snapshot: STUB_SNAPSHOT, prompt: "go" });
 		await expect(agent.run()).rejects.toThrow(/missing session factory/);
 	});
 });
 
-describe("Agent.run() — abort signal forwarding", () => {
+describe("Subagent.run() — abort signal forwarding", () => {
 	it("wires parent signal so aborting it stops the agent", async () => {
 		const parentController = new AbortController();
 		const { factory, stub } = createFactory();
@@ -908,7 +909,7 @@ describe("Agent.run() — abort signal forwarding", () => {
 	});
 });
 
-describe("Agent.run() — RunConfig threading", () => {
+describe("Subagent.run() — RunConfig threading", () => {
 	it("passes defaultMaxTurns and graceTurns to runTurnLoop", async () => {
 		const { factory, stub } = createFactory();
 		const agent = createRunnableAgent({ createSubagentSession: factory, getRunConfig: () => ({ defaultMaxTurns: 10, graceTurns: 3 }) });
@@ -923,13 +924,13 @@ describe("Agent.run() — RunConfig threading", () => {
 
 /** Create an Agent with a SubagentSession already attached, ready for resume(). */
 function createResumableAgent(overrides?: {
-	observer?: AgentLifecycleObserver;
+	observer?: SubagentLifecycleObserver;
 	session?: ReturnType<typeof createMockSession>;
 	stub?: ReturnType<typeof createSubagentSessionStub>;
 }) {
 	const session = overrides?.session ?? createMockSession();
 	const stub = overrides?.stub ?? createSubagentSessionStub(session);
-	const agent = new Agent({
+	const agent = new Subagent({
 		id: "resume-1",
 		type: "general-purpose",
 		description: "resume test",
@@ -941,7 +942,7 @@ function createResumableAgent(overrides?: {
 	return { agent, session, stub };
 }
 
-describe("Agent.resume() — happy path", () => {
+describe("Subagent.resume() — happy path", () => {
 	it("transitions to completed and sets result from the resume response", async () => {
 		const { agent } = createResumableAgent();
 		await agent.resume("continue");
@@ -965,7 +966,7 @@ describe("Agent.resume() — happy path", () => {
 	});
 });
 
-describe("Agent.resume() — observer lifecycle", () => {
+describe("Subagent.resume() — observer lifecycle", () => {
 	it("accumulates usage and compactions from session events during resume", async () => {
 		const session = createMockSession();
 		const stub = createSubagentSessionStub(session);
@@ -983,8 +984,8 @@ describe("Agent.resume() — observer lifecycle", () => {
 	it("forwards compaction events through observer.onCompacted", async () => {
 		const session = createMockSession();
 		const seen: Array<{ reason: string; tokensBefore: number }> = [];
-		const observer: AgentLifecycleObserver = {
-			onCompacted: (_agent, info) => seen.push({ reason: info.reason, tokensBefore: info.tokensBefore }),
+		const observer: SubagentLifecycleObserver = {
+			onCompacted: (_agent: Subagent, info: CompactionInfo) => seen.push({ reason: info.reason, tokensBefore: info.tokensBefore }),
 		};
 		const stub = createSubagentSessionStub(session);
 		stub.resumeTurnLoop.mockImplementation(async () => {
@@ -1006,7 +1007,7 @@ describe("Agent.resume() — observer lifecycle", () => {
 	});
 });
 
-describe("Agent.resume() — error handling", () => {
+describe("Subagent.resume() — error handling", () => {
 	it("transitions to error without throwing when resumeTurnLoop rejects", async () => {
 		const stub = createSubagentSessionStub();
 		stub.resumeTurnLoop.mockRejectedValue(new Error("resume exploded"));
@@ -1027,7 +1028,7 @@ describe("Agent.resume() — error handling", () => {
 	});
 
 	it("throws when no session exists", async () => {
-		const agent = new Agent({ id: "1", type: "general-purpose", description: "test" });
+		const agent = new Subagent({ id: "1", type: "general-purpose", description: "test" });
 		await expect(agent.resume("more")).rejects.toThrow(/missing session/);
 	});
 });

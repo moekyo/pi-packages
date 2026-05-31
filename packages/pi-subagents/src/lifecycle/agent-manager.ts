@@ -9,10 +9,10 @@
 import { randomUUID } from "node:crypto";
 import type { Model } from "@earendil-works/pi-ai";
 import { debugLog } from "#src/debug";
-import { Agent, type AgentLifecycleObserver } from "#src/lifecycle/agent";
 import type { ConcurrencyQueue } from "#src/lifecycle/concurrency-queue";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 
@@ -21,11 +21,11 @@ import type { AgentInvocation, CompactionInfo, ParentSessionInfo, SubagentType, 
 
 /** Observer interface for agent lifecycle notifications. */
 export interface AgentManagerObserver {
-  onAgentStarted(record: Agent): void;
-  onAgentCompleted(record: Agent): void;
-  onAgentCompacted(record: Agent, info: CompactionInfo): void;
+  onAgentStarted(record: Subagent): void;
+  onAgentCompleted(record: Subagent): void;
+  onAgentCompacted(record: Subagent, info: CompactionInfo): void;
   /** Fires synchronously after a background agent record is created (before run). */
-  onAgentCreated(record: Agent): void;
+  onAgentCreated(record: Subagent): void;
 }
 
 export interface AgentManagerOptions {
@@ -56,14 +56,14 @@ export interface AgentSpawnConfig {
   invocation?: AgentInvocation;
   /** Parent abort signal - when aborted, the subagent is also stopped. */
   signal?: AbortSignal;
-  /** Per-agent lifecycle observer — replaces onSessionCreated callback. */
-  observer?: AgentLifecycleObserver;
+  /** Per-subagent lifecycle observer — replaces onSessionCreated callback. */
+  observer?: SubagentLifecycleObserver;
   /** Parent session identity - grouped fields that travel together from the tool boundary. */
   parentSession?: ParentSessionInfo;
 }
 
 export class AgentManager {
-  private agents = new Map<string, Agent>();
+  private agents = new Map<string, Subagent>();
   private cleanupInterval: ReturnType<typeof setInterval>;
   private readonly observer?: AgentManagerObserver;
   private readonly createSubagentSession: (params: CreateSubagentSessionParams) => Promise<SubagentSession>;
@@ -106,7 +106,7 @@ export class AgentManager {
   }
 
   /** Compose a per-agent lifecycle observer from manager and spawn-config concerns. */
-  private buildObserver(options: AgentSpawnConfig): AgentLifecycleObserver {
+  private buildObserver(options: AgentSpawnConfig): SubagentLifecycleObserver {
     return {
       onStarted: (agent) => {
         if (options.isBackground) this.queue.markStarted();
@@ -138,7 +138,7 @@ export class AgentManager {
     options: AgentSpawnConfig,
   ): string {
     const id = randomUUID().slice(0, 17);
-    const record = new Agent({
+    const record = new Subagent({
       id,
       type,
       description: options.description,
@@ -185,7 +185,7 @@ export class AgentManager {
     type: SubagentType,
     prompt: string,
     options: Omit<AgentSpawnConfig, "isBackground">,
-  ): Promise<Agent> {
+  ): Promise<Subagent> {
     const id = this.spawn(snapshot, type, prompt, { ...options, isBackground: false });
     const record = this.agents.get(id)!;
     await record.promise;
@@ -194,24 +194,24 @@ export class AgentManager {
 
   /**
    * Resume an existing agent session with a new prompt.
-   * Delegates to Agent.resume(), which owns the observer subscription lifecycle.
+   * Delegates to Subagent.resume(), which owns the observer subscription lifecycle.
    */
   async resume(
     id: string,
     prompt: string,
     signal?: AbortSignal,
-  ): Promise<Agent | undefined> {
+  ): Promise<Subagent | undefined> {
     const agent = this.agents.get(id);
     if (!agent?.isSessionReady()) return undefined;
     await agent.resume(prompt, signal);
     return agent;
   }
 
-  getRecord(id: string): Agent | undefined {
+  getRecord(id: string): Subagent | undefined {
     return this.agents.get(id);
   }
 
-  listAgents(): Agent[] {
+  listAgents(): Subagent[] {
     return [...this.agents.values()].sort(
       (a, b) => b.startedAt - a.startedAt,
     );
@@ -232,7 +232,7 @@ export class AgentManager {
   }
 
   /** Dispose a record's session and remove it from the map. */
-  private removeRecord(id: string, record: Agent): void {
+  private removeRecord(id: string, record: Subagent): void {
     record.disposeSession();
     this.agents.delete(id);
   }

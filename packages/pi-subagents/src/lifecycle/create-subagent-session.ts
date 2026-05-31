@@ -5,7 +5,7 @@
  * `runAgent()` did up front: detect the environment, assemble the session config,
  * create the SDK session, publish `spawning`/`session-created`, bind extensions,
  * and apply the recursion guard. It returns a fully usable `SubagentSession` —
- * `Agent` then only coordinates (turn loop, steer, dispose).
+ * `Subagent` then only coordinates (turn loop, steer, dispose).
  *
  * The factory takes a resolved `cwd` value, never the WorkspaceProvider: `cwd`
  * is a value the factory consumes directly (detectEnv, assembleSessionConfig,

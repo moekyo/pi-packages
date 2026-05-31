@@ -1,6 +1,6 @@
 import { debugLog } from "#src/debug";
 import { getLifetimeTotal } from "#src/lifecycle/usage";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 
 /** Details attached to custom notification messages for visual rendering. */
@@ -42,7 +42,7 @@ export function getStatusLabel(status: string, error?: string): string {
 }
 
 /** Format a structured task notification matching Claude Code's <task-notification> XML. */
-export function formatTaskNotification(record: Agent, resultMaxLen: number): string {
+export function formatTaskNotification(record: Subagent, resultMaxLen: number): string {
   const status = getStatusLabel(record.status, record.error);
   const durationMs = record.completedAt ? record.completedAt - record.startedAt : 0;
   const totalTokens = getLifetimeTotal(record.lifetimeUsage);
@@ -64,7 +64,7 @@ export function formatTaskNotification(record: Agent, resultMaxLen: number): str
     toolCallId ? `<tool-use-id>${escapeXml(toolCallId)}</tool-use-id>` : null,
     outputFile ? `<output-file>${escapeXml(outputFile)}</output-file>` : null,
     `<status>${escapeXml(status)}</status>`,
-    `<summary>Agent "${escapeXml(record.description)}" ${record.status}</summary>`,
+    `<summary>Subagent "${escapeXml(record.description)}" ${record.status}</summary>`,
     `<result>${escapeXml(resultPreview)}</result>`,
     `<usage><total_tokens>${totalTokens}</total_tokens><tool_uses>${record.toolUses}</tool_uses>${ctxXml}${compactXml}<duration_ms>${durationMs}</duration_ms></usage>`,
     "</task-notification>",
@@ -75,7 +75,7 @@ export function formatTaskNotification(record: Agent, resultMaxLen: number): str
 
 /** Build notification details for the custom message renderer. */
 export function buildNotificationDetails(
-  record: Agent,
+  record: Subagent,
   resultMaxLen: number,
   activity?: AgentActivityTracker,
 ): NotificationDetails {
@@ -100,8 +100,8 @@ export function buildNotificationDetails(
   };
 }
 
-/** Build event data for lifecycle events from an Agent. */
-export function buildEventData(record: Agent) {
+/** Build event data for lifecycle events from a Subagent. */
+export function buildEventData(record: Subagent) {
   const durationMs = record.completedAt ? record.completedAt - record.startedAt : Date.now() - record.startedAt;
   const u = record.lifetimeUsage;
   const total = getLifetimeTotal(u);
@@ -126,7 +126,7 @@ export function buildEventData(record: Agent) {
 
 export interface NotificationSystem {
   cancelNudge: (key: string) => void;
-  sendCompletion: (record: Agent) => void;
+  sendCompletion: (record: Subagent) => void;
   cleanupCompleted: (id: string) => void;
   dispose: () => void;
 }
@@ -154,7 +154,7 @@ export class NotificationManager implements NotificationSystem {
     }
   }
 
-  sendCompletion(record: Agent): void {
+  sendCompletion(record: Subagent): void {
     this.agentActivity.delete(record.id);
     this.markFinished(record.id);
     this.scheduleNudge(record.id, () => this.emitIndividualNudge(record));
@@ -187,7 +187,7 @@ export class NotificationManager implements NotificationSystem {
     );
   }
 
-  private emitIndividualNudge(record: Agent): void {
+  private emitIndividualNudge(record: Subagent): void {
     if (record.notification?.resultConsumed) return;
 
     const notification = formatTaskNotification(record, 500);

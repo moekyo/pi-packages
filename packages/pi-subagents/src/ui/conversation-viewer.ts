@@ -8,7 +8,7 @@
 import { type Component, matchesKey, type TUI, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import { getLifetimeTotal } from "#src/lifecycle/usage";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import type { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { buildInvocationTags, formatDuration, formatSessionTokens, getDisplayName, getPromptModeLabel, type Theme } from "#src/ui/display";
 import { formatMessage, formatStreamingIndicator } from "#src/ui/message-formatters";
@@ -23,7 +23,7 @@ export const VIEWPORT_HEIGHT_PCT = 70;
 
 export interface ConversationViewerOptions {
   tui: TUI;
-  record: Agent;
+  record: Subagent;
   activity: AgentActivityTracker | undefined;
   theme: Theme;
   done: (result: undefined) => void;
@@ -39,7 +39,7 @@ export class ConversationViewer implements Component {
   private closed = false;
 
   private tui: TUI;
-  private record: Agent;
+  private record: Subagent;
   private activity: AgentActivityTracker | undefined;
   private theme: Theme;
   private done: (result: undefined) => void;

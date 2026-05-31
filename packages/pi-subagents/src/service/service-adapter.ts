@@ -9,13 +9,13 @@ import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { SpawnOptions, SubagentRecord, SubagentsService } from "#src/service/service";
 import type { ModelRegistry } from "#src/session/model-resolver";
-import type { Agent, SessionContext } from "#src/types";
+import type { SessionContext, Subagent } from "#src/types";
 
 /** Narrow interface for the AgentManager — avoids coupling to the concrete class. */
 export interface AgentManagerLike {
   spawn(snapshot: ParentSnapshot, type: string, prompt: string, options: unknown): string;
-  getRecord(id: string): Agent | undefined;
-  listAgents(): Agent[];
+  getRecord(id: string): Subagent | undefined;
+  listAgents(): Subagent[];
   abort(id: string): boolean;
   waitForAll(): Promise<void>;
   hasRunning(): boolean;
@@ -108,10 +108,10 @@ export class SubagentsServiceAdapter implements SubagentsService {
 }
 
 /**
- * Convert an internal Agent to a serializable SubagentRecord.
+ * Convert an internal Subagent to a serializable SubagentRecord.
  * Uses an explicit allowlist — new fields must be opted in.
  */
-export function toSubagentRecord(record: Agent): SubagentRecord {
+export function toSubagentRecord(record: Subagent): SubagentRecord {
   const out: SubagentRecord = {
     id: record.id,
     type: record.type,

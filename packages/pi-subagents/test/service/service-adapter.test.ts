@@ -5,7 +5,7 @@ import { NotificationState } from "#src/observation/notification-state";
 import type { SubagentsService } from "#src/service/service";
 import type { AgentManagerLike, ServiceRuntimeLike } from "#src/service/service-adapter";
 import { SubagentsServiceAdapter, toSubagentRecord } from "#src/service/service-adapter";
-import type { Agent, SessionContext } from "#src/types";
+import type { SessionContext, Subagent } from "#src/types";
 import { createTestAgent } from "#test/helpers/make-agent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
@@ -154,7 +154,7 @@ describe("SubagentsServiceAdapter — getRecord and listAgents", () => {
     lifetimeUsage: { input: 5, output: 10, cacheWrite: 0 },
   });
 
-  function createMockManager(records: Agent[]) {
+  function createMockManager(records: Subagent[]) {
     return {
       spawn: vi.fn(() => "id"),
       getRecord: vi.fn((id: string) => records.find((r) => r.id === id)),
@@ -166,7 +166,7 @@ describe("SubagentsServiceAdapter — getRecord and listAgents", () => {
     };
   }
 
-  function createService(records: Agent[]): SubagentsService {
+  function createService(records: Subagent[]): SubagentsService {
     const manager = createMockManager(records);
     return new SubagentsServiceAdapter(
       manager,
@@ -324,7 +324,7 @@ describe("SubagentsServiceAdapter — steer, abort, waitForAll, hasRunning", () 
     return {
       spawn: vi.fn(() => "id"),
       getRecord: vi.fn<AgentManagerLike["getRecord"]>(),
-      listAgents: vi.fn(() => [] as Agent[]),
+      listAgents: vi.fn(() => [] as Subagent[]),
       abort: vi.fn<AgentManagerLike["abort"]>(() => true),
       waitForAll: vi.fn(async () => {}),
       hasRunning: vi.fn(() => true),
@@ -377,7 +377,7 @@ describe("SubagentsServiceAdapter — steer, abort, waitForAll, hasRunning", () 
       mgr.getRecord.mockReturnValue({
         id: "a-1",
         status: "completed",
-      } as Agent);
+      } as Subagent);
       const svc = createSvc(mgr);
       expect(await svc.steer("a-1", "hurry")).toBe(false);
     });

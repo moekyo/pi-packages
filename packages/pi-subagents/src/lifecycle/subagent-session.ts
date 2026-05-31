@@ -4,10 +4,10 @@
  * A SubagentSession wraps one SDK AgentSession plus its turn-driving and teardown.
  * It is born complete: `createSubagentSession()` returns a fully usable instance
  * (session created, extensions bound, recursion guard applied), so the only thing
- * left for `Agent` to do is coordinate — drive the turn loop, steer, dispose.
+ * left for `Subagent` to do is coordinate — drive the turn loop, steer, dispose.
  *
  * Turn driving lives here, on the object that owns the AgentSession, rather than
- * reaching through `subagentSession.session` from `Agent` (Law of Demeter).
+ * reaching through `subagentSession.session` from `Subagent` (Law of Demeter).
  */
 
 import {

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { Agent } from "#src/lifecycle/agent";
+import { Subagent } from "#src/lifecycle/subagent";
 import { subscribeAgentObserver } from "#src/observation/record-observer";
 import { createMockSession } from "#test/helpers/mock-session";
 
-function makeRecord(overrides?: Partial<ConstructorParameters<typeof Agent>[0]>) {
-  return new Agent({
+function makeRecord(overrides?: Partial<ConstructorParameters<typeof Subagent>[0]>) {
+  return new Subagent({
     id: "test-1",
     type: "general-purpose",
     description: "test",

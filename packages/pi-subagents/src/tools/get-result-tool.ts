@@ -2,13 +2,13 @@ import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import { formatLifetimeTokens, textResult } from "#src/tools/helpers";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import { formatDuration, getDisplayName } from "#src/ui/display";
 
 // ---- Deps interfaces ----
 
 export interface GetResultToolManager {
-	getRecord(id: string): Agent | undefined;
+	getRecord(id: string): Subagent | undefined;
 }
 
 export interface GetResultToolNotifications {

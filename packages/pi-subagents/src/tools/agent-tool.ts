@@ -11,7 +11,7 @@ import { runForeground } from "#src/tools/foreground-runner";
 import { buildDetails, buildTypeListText, textResult } from "#src/tools/helpers";
 import { renderAgentResult } from "#src/tools/result-renderer";
 import { type ModelInfo, resolveSpawnConfig } from "#src/tools/spawn-config";
-import type { Agent, ParentSessionInfo } from "#src/types";
+import type { ParentSessionInfo, Subagent } from "#src/types";
 import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import { type UICtx } from "#src/ui/agent-widget";
 import { type AgentDetails, getDisplayName } from "#src/ui/display";
@@ -33,9 +33,9 @@ export interface AgentActivityAccess {
 /** Narrow manager interface — only the methods the Agent tool calls. */
 export interface AgentToolManager {
 	spawn: (snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig) => string;
-	spawnAndWait: (snapshot: ParentSnapshot, type: string, prompt: string, opts: Omit<AgentSpawnConfig, "isBackground">) => Promise<Agent>;
-	resume: (id: string, prompt: string, signal: AbortSignal) => Promise<Agent | undefined>;
-	getRecord: (id: string) => Agent | undefined;
+	spawnAndWait: (snapshot: ParentSnapshot, type: string, prompt: string, opts: Omit<AgentSpawnConfig, "isBackground">) => Promise<Subagent>;
+	resume: (id: string, prompt: string, signal: AbortSignal) => Promise<Subagent | undefined>;
+	getRecord: (id: string) => Subagent | undefined;
 }
 
 /** Narrow runtime interface — the Agent tool's slice of SubagentRuntime. */

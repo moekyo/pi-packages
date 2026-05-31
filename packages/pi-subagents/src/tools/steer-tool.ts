@@ -1,12 +1,12 @@
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { formatLifetimeTokens, textResult } from "#src/tools/helpers";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 
 // ---- Deps interfaces ----
 
 export interface SteerToolManager {
-	getRecord(id: string): Agent | undefined;
+	getRecord(id: string): Subagent | undefined;
 }
 
 export interface SteerToolEvents {

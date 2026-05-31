@@ -1,5 +1,5 @@
 /**
- * agent.ts — Agent class with encapsulated status-transition logic and per-agent behavior.
+ * subagent.ts — Subagent class with encapsulated status-transition logic and per-subagent behavior.
  *
  * Status transitions (status, result, error, startedAt, completedAt) are owned
  * by the class and exposed via transition methods. External code reads these
@@ -8,8 +8,8 @@
  * Stats (toolUses, lifetimeUsage, compactionCount) are owned by the class and
  * accumulated via mutation methods (incrementToolUses, addUsage, incrementCompactions).
  *
- * Behavior (abort, steer buffering) lives on the agent rather than on
- * AgentManager — each agent manages its own lifecycle concerns.
+ * Behavior (abort, steer buffering) lives on the subagent rather than on
+ * SubagentManager — each subagent manages its own lifecycle concerns.
  *
  * The child's working directory is supplied by a registered WorkspaceProvider
  * (the workspace seam); with no provider the child runs in the parent cwd.
@@ -32,16 +32,16 @@ import { subscribeAgentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
 import type { AgentInvocation, CompactionInfo, ParentSessionInfo, SubagentType, ThinkingLevel } from "#src/types";
 
-/** Per-agent lifecycle observer — created by AgentManager for each spawn. */
-export interface AgentLifecycleObserver {
-	/** Fires when the agent transitions to running (inside run(), after markRunning). */
-	onStarted?(agent: Agent): void;
-	/** Fires once the session is created — the agent's subagentSession is now available. */
-	onSessionCreated?(agent: Agent): void;
+/** Per-subagent lifecycle observer — created by SubagentManager for each spawn. */
+export interface SubagentLifecycleObserver {
+	/** Fires when the subagent transitions to running (inside run(), after markRunning). */
+	onStarted?(agent: Subagent): void;
+	/** Fires once the session is created — the subagent's subagentSession is now available. */
+	onSessionCreated?(agent: Subagent): void;
 	/** Fires once when the run completes or fails (for concurrency drain). */
-	onRunFinished?(agent: Agent): void;
+	onRunFinished?(agent: Subagent): void;
 	/** Fires on compaction events during the run. */
-	onCompacted?(agent: Agent, info: CompactionInfo): void;
+	onCompacted?(agent: Subagent, info: CompactionInfo): void;
 }
 
 export type SubagentStatus =
@@ -53,7 +53,7 @@ export type SubagentStatus =
 	| "stopped"
 	| "error";
 
-export interface AgentInit {
+export interface SubagentInit {
 	// Identity
 	id: string;
 	type: SubagentType;
@@ -70,7 +70,7 @@ export interface AgentInit {
 	// Shared deps (required for run(), optional for tests)
 	/** Assembly factory that produces a born-complete SubagentSession. */
 	createSubagentSession?: (params: CreateSubagentSessionParams) => Promise<SubagentSession>;
-	observer?: AgentLifecycleObserver;
+	observer?: SubagentLifecycleObserver;
 	getRunConfig?: () => RunConfig;
 	/** Resolves the registered workspace provider (if any) at run-start. */
 	getWorkspaceProvider?: () => WorkspaceProvider | undefined;
@@ -88,7 +88,7 @@ export interface AgentInit {
 	signal?: AbortSignal;
 }
 
-export class Agent {
+export class Subagent {
 	// Identity — set once at construction
 	readonly id: string;
 	readonly type: SubagentType;
@@ -128,7 +128,7 @@ export class Agent {
 
 	// Shared deps — optional (required for run())
 	private readonly _createSubagentSession?: (params: CreateSubagentSessionParams) => Promise<SubagentSession>;
-	readonly observer?: AgentLifecycleObserver;
+	readonly observer?: SubagentLifecycleObserver;
 	private readonly _getRunConfig?: () => RunConfig;
 	private readonly _getWorkspaceProvider?: () => WorkspaceProvider | undefined;
 	private readonly _baseCwd: string;
@@ -200,7 +200,7 @@ export class Agent {
 		return this.subagentSession?.messages ?? [];
 	}
 
-	constructor(init: AgentInit) {
+	constructor(init: SubagentInit) {
 		// Identity
 		this.id = init.id;
 		this.type = init.type;
@@ -254,10 +254,10 @@ export class Agent {
 	 */
 	async run(): Promise<void> {
 		if (!this._createSubagentSession) {
-			throw new Error("Agent not configured for execution — missing session factory");
+			throw new Error("Subagent not configured for execution — missing session factory");
 		}
 		if (!this._snapshot || !this._prompt) {
-			throw new Error("Agent not configured for execution — missing snapshot or prompt");
+			throw new Error("Subagent not configured for execution — missing snapshot or prompt");
 		}
 
 		this.markRunning(Date.now());
@@ -332,7 +332,7 @@ export class Agent {
 	async resume(prompt: string, signal?: AbortSignal): Promise<void> {
 		const subagentSession = this.subagentSession;
 		if (!subagentSession) {
-			throw new Error("Agent not configured for resume — missing session");
+			throw new Error("Subagent not configured for resume — missing session");
 		}
 
 		this.resetForResume(Date.now());

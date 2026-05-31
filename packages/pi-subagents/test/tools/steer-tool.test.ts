@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { SteerTool, type SteerToolEvents, type SteerToolManager } from "#src/tools/steer-tool";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import { createTestAgent } from "#test/helpers/make-agent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 
-function makeManager(records: Map<string, Agent> = new Map()): SteerToolManager {
+function makeManager(records: Map<string, Subagent> = new Map()): SteerToolManager {
 	return {
 		getRecord: (id: string) => records.get(id),
 	};

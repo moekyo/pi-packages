@@ -9,7 +9,7 @@ import {
   textResult,
 } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
-import type { Agent, ParentSessionInfo } from "#src/types";
+import type { ParentSessionInfo, Subagent } from "#src/types";
 import { AgentActivityTracker } from "#src/ui/agent-activity-tracker";
 import {
   type AgentDetails,
@@ -26,7 +26,7 @@ export interface ForegroundManagerDeps {
     type: string,
     prompt: string,
     opts: Omit<AgentSpawnConfig, "isBackground">,
-  ): Promise<Agent>;
+  ): Promise<Subagent>;
 }
 
 /** Narrow widget interface for the foreground runner. */
@@ -62,7 +62,7 @@ export async function runForeground(
 
   const fgState = new AgentActivityTracker(execution.effectiveMaxTurns);
   let unsubUI: (() => void) | undefined;
-  let recordRef: Agent | undefined;
+  let recordRef: Subagent | undefined;
 
   const streamUpdate = () => {
     const toolUses = recordRef?.toolUses ?? 0;
@@ -92,7 +92,7 @@ export async function runForeground(
 
   streamUpdate();
 
-  let record: Agent;
+  let record: Subagent;
   try {
     record = await manager.spawnAndWait(
       params.snapshot,

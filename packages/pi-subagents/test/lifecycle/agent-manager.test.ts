@@ -6,7 +6,7 @@ import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { NotificationState } from "#src/observation/notification-state";
 import type { RunConfig } from "#src/runtime";
-import type { Agent } from "#src/types";
+import type { Subagent } from "#src/types";
 import { createBlockingFactory, createSessionFactory } from "#test/helpers/manager-stubs";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
@@ -117,7 +117,7 @@ describe("AgentManager — Bug 1 race condition (notification.resultConsumed vs 
   });
 
   it("normal case: onComplete fires with no notification when agent was not spawned via tool", async () => {
-    let completedRecord: Agent | undefined;
+    let completedRecord: Subagent | undefined;
     ({ manager } = createManager({ observer: { onAgentCompleted: (r) => {
       completedRecord = r;
     } } }));
@@ -630,7 +630,7 @@ describe("AgentManager — lifecycle observer forwarding", () => {
 
   it("forwards onSessionCreated from spawn options observer to Agent", async () => {
     const session = createMockSession();
-    const received: { agent: Agent | undefined } = { agent: undefined };
+    const received: { agent: Subagent | undefined } = { agent: undefined };
     const { factory } = createSessionFactory(session);
     ({ manager } = createManager({ createSubagentSession: factory }));
 
@@ -651,7 +651,7 @@ describe("AgentManager — lifecycle observer forwarding", () => {
 
   it("forwards onSessionCreated for foreground agents", async () => {
     const session = createMockSession();
-    const received: { agent: Agent | undefined } = { agent: undefined };
+    const received: { agent: Subagent | undefined } = { agent: undefined };
     const { factory } = createSessionFactory(session);
     ({ manager } = createManager({ createSubagentSession: factory }));
 

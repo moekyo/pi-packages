@@ -9,7 +9,7 @@
  *   svc?.spawn("Explore", "Check for stale TODOs");
  */
 
-import type { SubagentStatus } from "#src/lifecycle/agent";
+import type { SubagentStatus } from "#src/lifecycle/subagent";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import type {
   Workspace,
@@ -22,7 +22,7 @@ import type {
 
 // SubagentStatus is defined in the lifecycle layer (single home) and re-exported
 // here for the public API surface — mirrors the LifetimeUsage / workspace pattern.
-export type { SubagentStatus } from "#src/lifecycle/agent";
+export type { SubagentStatus } from "#src/lifecycle/subagent";
 // Generative extension seam (ADR 0002, Phase 16 Step 2). The provider type
 // and all four collaborator types it references are re-exported by name so
 // consumers can import them directly rather than recovering them via
