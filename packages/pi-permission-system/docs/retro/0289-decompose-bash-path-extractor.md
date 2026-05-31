@@ -39,3 +39,45 @@ Test count: 1571 → 1614 (+43).
   The `PatternCommandFlagDirective` discriminated union worked cleanly: the `switch` on `directive.kind` narrows `nextArgAction` without any `!` or `as` casts, avoiding the Biome/ESLint assertion conflict flagged in the plan.
 - `collectRedirectTokens` was simplified to use `ARG_NODE_TYPES.has(child.type)` (replacing the inline four-way `||` check), confirmed identical after comparing the original set literal to `ARG_NODE_TYPES`.
 - `fallow dead-code` passed cleanly: both exported classifiers are consumed by `bash-path-extractor.ts`; private helpers (`rejectNonPathToken`, `classifyPatternCommandFlag`) carry no export risk.
+
+## Stage: Final Retrospective (2026-05-31T15:01:56Z)
+
+### Session summary
+
+Shipped issue #289 across three stages (plan → TDD → ship) with no logic rework: a behavior-preserving decomposition of `bash-path-extractor.ts` that removed a 31-line classifier clone, extracted four walker helpers, and added 43 unit tests (1571 → 1614).
+CI passed first try; no release-please PR (all commits were `refactor:`/`test:`/`style:`/`docs:`).
+The single follow-up was a self-identified `style:` commit prompted by the pre-completion reviewer's two WARNs.
+
+### Observations
+
+#### What went well
+
+1. The plan did real predictive work.
+   All three pre-identified risks materialized exactly and their mitigations worked first-try: the Biome/ESLint assertion conflict was avoided by the `PatternCommandFlagDirective` discriminated union (no `!`/`as`), Step 3 needed exactly one atomic commit because of the mutual-recursion signature change, and `fallow dead-code` passed because only the consumed classifiers were exported.
+2. Verification ran incrementally, not just at the end.
+   A green baseline (`check`/`lint`/`test`) was confirmed before any TDD cycle, each cycle ran the affected file red-then-green, and the full suite plus `check`/`lint`/`fallow dead-code` ran after the last step — no end-loaded verification gap.
+3. The pre-completion reviewer earned its keep on a behavior-preserving refactor.
+   It caught latent dead code (`token.startsWith("~/")`) that the plan had deliberately copied verbatim, demonstrating that "behavior-preserving verbatim copy" is exactly the situation where a fresh-context review pays off.
+
+#### What caused friction (agent side)
+
+1. `missing-context` (minor) — the unreachable `token.startsWith("~/")` branch in `classifyTokenAsRuleCandidate` (subsumed by the earlier `token.includes("/")` check) existed in the original code, was not noticed during planning or Step 1 test-writing, and was copied verbatim into the new module.
+   The plan explicitly prescribed line-for-line copying for behavior preservation, so the dead branch rode along and the Step 1 tests pinned current behavior without a distinct case for it.
+   Impact: one follow-up `style:` commit (`55d2774a`), self-identified via the pre-completion reviewer's WARN — no logic rework, no user intervention.
+
+#### What caused friction (user side)
+
+1. None.
+   The only user decision point — the two design forks (new module vs. in-file; return-based vs. accumulator) — was surfaced proactively via `ask_user` during planning, and the answers shaped the plan cleanly with no later reversal.
+
+### Diagnostic details
+
+- Model-performance correlation — the only subagent dispatch was the `pre-completion-reviewer`, pinned to `anthropic/claude-sonnet-4-6` (a valid registry alias, confirmed against `.pi/agents/pre-completion-reviewer.md`), so no silent fallback to the parent model occurred.
+  A judgment-heavy review on an appropriate model; no mismatch.
+- Feedback-loop gap analysis — verification was incremental throughout (baseline before TDD, red/green per cycle, full gate after the last step); no end-loaded-verification flag.
+- Escalation-delay and unused-tool lenses found nothing notable (no rabbit-holes, no missing-context beyond the one minor item above).
+
+### Changes made
+
+1. Appended this Final Retrospective stage entry to `packages/pi-permission-system/docs/retro/0289-decompose-bash-path-extractor.md`.
+   No `AGENTS.md` or prompt changes — the session's single minor friction was self-corrected and already covered by the pre-completion reviewer, so no rule was warranted.
