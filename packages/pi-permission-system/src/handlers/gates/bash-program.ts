@@ -56,6 +56,18 @@ function getParser(): Promise<TSParser> {
 // ── Parsed bash command representation ───────────────────────────────────────
 
 /**
+ * One command-pattern unit of a parsed bash program.
+ *
+ * Minimal by design — `text` is the simple-command (or whole compound
+ * statement) string matched against the bash rules. The type is the stable
+ * extension point: #306 adds an execution `context`, #307 adds per-command
+ * path candidates and an effective working directory.
+ */
+export interface BashCommand {
+  readonly text: string;
+}
+
+/**
  * A bash command parsed once into a reusable representation.
  *
  * Parsing is the expensive step (tree-sitter WASM); `BashProgram` performs it
@@ -131,7 +143,7 @@ export class BashProgram {
   // analysis cannot resolve the static-factory return type (private ctor), so
   // it reports a false positive here.
   /**
-   * The top-level simple-commands of the chain, in source order.
+   * The top-level command-pattern units of the chain, in source order.
    *
    * Splits on the shell chain operators (`&&`, `||`, `;`, `|`, `&`, newlines);
    * quotes, command substitution, and subshells are respected by the parser and
@@ -143,8 +155,8 @@ export class BashProgram {
   // syntactic analysis cannot resolve the static-factory return type (private
   // ctor), so it reports a false positive here.
   // fallow-ignore-next-line unused-class-member
-  topLevelCommands(): string[] {
-    return [...this.topLevelCommandTexts];
+  commands(): BashCommand[] {
+    return this.topLevelCommandTexts.map((text) => ({ text }));
   }
 
   // fallow-ignore-next-line unused-class-member

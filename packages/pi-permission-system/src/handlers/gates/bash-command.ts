@@ -13,7 +13,7 @@ type CheckPermissionFn = (
 
 /** Decompose a bash command into its top-level simple-commands. */
 async function decomposeTopLevelCommands(command: string): Promise<string[]> {
-  return (await BashProgram.parse(command)).topLevelCommands();
+  return (await BashProgram.parse(command)).commands().map((c) => c.text);
 }
 
 /**
