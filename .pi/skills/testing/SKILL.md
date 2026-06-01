@@ -77,6 +77,8 @@ Run `pnpm run check` (`tsc --noEmit`) for type-only changes.
 - When a TDD step removes a field from a shared interface, grep all `src/` files that reference the removed field — every file that reads or passes the field must update in the same step.
   This is the inverse of the excess-property rule: TypeScript rejects reading a property that no longer exists on the type.
 - When removing fields from a shared init type, grep for all test files and factory helpers that pass the removed field — esbuild won't reject unknown properties at runtime, so tests silently get wrong default values instead of failing.
+- When a change moves *when* a value or service becomes available (e.g. factory-init → `session_start`), grep all test files for consumers that resolve it — not just the tests you already plan to touch.
+  A timing change breaks them at runtime (the full suite), not at typecheck, so `pnpm run check` will not flag them.
 - When a TDD plan deletes a module across multiple steps (extract → remove consumers → delete), account for the doomed module's own imports at each intermediate step.
   If step N removes a type or function that the doomed module still imports, either delete the module in the same step or patch its imports to compile cleanly.
 - When a TDD plan nests a previously-flat interface (e.g., splitting `Config` into `{ identity, execution }`), grep test factories for `Partial<OldInterface>` spread patterns.

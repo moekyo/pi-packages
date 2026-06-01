@@ -46,3 +46,46 @@ Final state: `check`, `lint`, `test`, and `pnpm fallow dead-code` (repo root) al
 - Firing `session_start` through the real `SessionLifecycleHandler` in composition-root tests required a `ctx` with `cwd` (a real tmpdir, for `createPermissionManagerForCwd`), `sessionManager.getSessionId/getSessionDir/getEntries`, and `ui.setStatus`; the existing `makeChildCtx` / `makeUiCtx` helpers supplied these without modification.
 - Pre-completion reviewer: WARN (no blocking issues).
   Reviewer warnings: (1) `isRegisteredSubagentChild` accepts the full `ExtensionContext` but reads only `getSessionId()` — left as-is for ISP consistency with the sibling `isSubagentExecutionContext` in the same file; (2) `activateServiceForSession` both publishes and emits ready — left as one closure since the two are co-temporal (ready must follow publish) and live at the composition root.
+
+## Stage: Final Retrospective (2026-06-01T18:10:44Z)
+
+### Session summary
+
+Shipped issue #302 end-to-end across three stages (plan → TDD → ship) with zero rework commits and zero CI failures.
+The fix scopes the process-global `PermissionsService` slot to the publishing instance: publish defers to a child-gated `session_start`, `permissions:ready` moves alongside it, and `unpublishPermissionsService(service)` becomes an identity compare-and-delete.
+Released as `pi-permission-system-v9.0.0` (major bump for the `feat!:` signature change).
+
+### Observations
+
+#### What went well
+
+- The cross-issue `it.fails` handoff worked exactly as the #297 suite designed it: the `it.fails("DESIRED: the parent's service survives a child's shutdown")` characterization test planted by #297 flipped to a real passing assertion in this fix, validating test-driven continuity between sibling issues.
+- One `ask_user` call in planning bundled the two genuinely-coupled design decisions (`permissions:ready` timing + teardown mechanism) and the maintainer's reply ("favor the breaking change if it makes a cleaner design") directly shaped the design toward a required param over a muddier optional one.
+- Verification ran incrementally, not just at the end: each TDD step ran its affected test file (red then green) plus `pnpm run check`, with the full suite re-run after the shared-signature step (2) and the wiring step (3).
+  The runtime-breaking test (see friction) was caught by the post-step-3 full-suite run, not deferred to ship.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the plan's Test Impact Analysis under-counted affected tests.
+  The planning grep keyed on specific test names in `composition-root.test.ts` rather than on the behavior "resolves the service right after the factory," so it missed `composition-root.test.ts` "service and gate share one formatter registry" and `permission-events.test.ts` "ready event wiring" — both assumed ready/publish-at-load.
+  Impact: two extra test updates folded into the `fix:` commit; no extra commits and no CI failures because the full-suite run caught them, but the plan's Test Impact Analysis was incomplete.
+  These break at runtime (full suite), not at typecheck, so `pnpm run check` would never have flagged them.
+
+#### What caused friction (user side)
+
+- None material.
+  The maintainer's breaking-change tolerance arrived at the right moment (the planning `ask_user`) and unblocked the cleaner design; stating that tolerance as a standing repo norm would have pre-empted the question, but that is a minor optimization, not friction.
+
+### Diagnostic details
+
+- **Model-performance correlation** — the only subagent dispatch was the `pre-completion-reviewer` on `anthropic/claude-sonnet-4-6`, a reasoning-capable model appropriate for judgment-heavy review (acceptance criteria, code design, doc staleness).
+  No mismatch.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points; no error sequence exceeded one tool call before resolution.
+- **Unused-tool detection** — no tool gap.
+  The grep miss was a scope-of-query problem (symbol-name grep vs. behavioral grep), not a missing tool; `colgrep` for "tests that consume the published service" could have surfaced the two missed tests during planning.
+- **Feedback-loop gap analysis** — no gap; verification was incremental (per-step affected file + `check`, full suite after the two highest-risk steps).
+  This is the intended loop, not a deferral.
+
+### Changes made
+
+1. `.pi/skills/testing/SKILL.md` — added a TDD-planning rule: when a change moves *when* a value/service becomes available (e.g. factory-init → `session_start`), grep all test files for consumers that resolve it, since the break is at runtime (full suite), not at typecheck.
