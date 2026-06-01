@@ -329,3 +329,36 @@ describe("ready emitted after service publication", () => {
     expect(seen).toEqual(["present"]);
   });
 });
+
+describe("multi-instance global service interplay", () => {
+  // Every instance runs publishPermissionsService at init and
+  // unpublishPermissionsService on shutdown. So a child instance's init
+  // overwrites the parent's globally published service, and the child's
+  // shutdown deletes the global slot entirely — leaving a live parent with no
+  // resolvable service. This is a characterization of current behavior; the
+  // desired behavior is tracked in the follow-up fix issue #302.
+  function runParentThenChildThenChildShutdown(): Promise<unknown> {
+    piPermissionSystemExtension(
+      makeFakePi({ events: createEventBus() }) as unknown as ExtensionAPI,
+    );
+    const childPi = makeFakePi({ events: createEventBus() });
+    piPermissionSystemExtension(childPi as unknown as ExtensionAPI);
+    return childPi.fire("session_shutdown");
+  }
+
+  it("currently leaves the parent without a resolvable service after the child shuts down", async () => {
+    await runParentThenChildThenChildShutdown();
+
+    // Current (buggy) behavior: the child's shutdown unpublished the global
+    // service slot, so the still-live parent's consumers see undefined.
+    expect(getPermissionsService()).toBeUndefined();
+  });
+
+  // Desired behavior: a live parent's service should survive a child's
+  // shutdown. This `fails` test flips to passing once #302 is fixed (then
+  // remove the `.fails`).
+  it.fails("DESIRED: the parent's service survives a child's shutdown", async () => {
+    await runParentThenChildThenChildShutdown();
+    expect(getPermissionsService()).toBeDefined();
+  });
+});
