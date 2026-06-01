@@ -69,6 +69,7 @@ export class BashProgram {
   private constructor(
     private readonly rawTokens: readonly string[],
     private readonly leadingCdTarget: string | undefined,
+    private readonly topLevelCommandTexts: readonly string[],
   ) {}
 
   /**
@@ -82,12 +83,13 @@ export class BashProgram {
   static async parse(command: string): Promise<BashProgram> {
     const parser = await getParser();
     const tree = parser.parse(command);
-    if (!tree) return new BashProgram([], undefined);
+    if (!tree) return new BashProgram([], undefined, []);
 
     try {
       const leadingCdTarget = extractLeadingCdTarget(tree.rootNode);
       const rawTokens = collectPathCandidateTokens(tree.rootNode);
-      return new BashProgram(rawTokens, leadingCdTarget);
+      const topLevelCommandTexts = collectTopLevelCommandTexts(tree.rootNode);
+      return new BashProgram(rawTokens, leadingCdTarget, topLevelCommandTexts);
     } finally {
       tree.delete();
     }
@@ -128,6 +130,23 @@ export class BashProgram {
   // Used by the facades (bash-path-extractor.ts) and tests. Fallow's syntactic
   // analysis cannot resolve the static-factory return type (private ctor), so
   // it reports a false positive here.
+  /**
+   * The top-level simple-commands of the chain, in source order.
+   *
+   * Splits on the shell chain operators (`&&`, `||`, `;`, `|`, `&`, newlines);
+   * quotes, command substitution, and subshells are respected by the parser and
+   * are NOT split — a subshell or other compound statement is emitted whole. May
+   * be empty (e.g. an empty command or a comment-only line); callers fall back
+   * to the whole command so the surface is never evaluated weaker than before.
+   */
+  // Used by resolveBashCommandCheck (bash-command.ts) and tests. Fallow's
+  // syntactic analysis cannot resolve the static-factory return type (private
+  // ctor), so it reports a false positive here.
+  // fallow-ignore-next-line unused-class-member
+  topLevelCommands(): string[] {
+    return [...this.topLevelCommandTexts];
+  }
+
   // fallow-ignore-next-line unused-class-member
   externalPaths(cwd: string): string[] {
     const resolveBase = computeEffectiveResolveBase(this.leadingCdTarget, cwd);
@@ -572,6 +591,67 @@ function collectPathCandidateTokens(node: TSNode): string[] {
 // Token classification is delegated to bash-token-classification.ts,
 // which exports classifyTokenAsPathCandidate and classifyTokenAsRuleCandidate
 // with a shared rejectNonPathToken predicate eliminating the prior clone.
+
+// ── Top-level command enumeration ───────────────────────────────────────────
+
+/**
+ * Container node types descended into when enumerating top-level commands.
+ * A `cd` or `rm` inside a subshell or compound statement is NOT a top-level
+ * command, so those node types are deliberately absent.
+ */
+const TOP_LEVEL_COMMAND_DESCEND = new Set([
+  "program",
+  "list",
+  "pipeline",
+  "redirected_statement",
+]);
+
+/**
+ * Node types skipped during top-level command enumeration: chain-operator and
+ * separator tokens, redirect targets, comments, and heredoc bodies. None of
+ * these is a command to evaluate.
+ */
+const TOP_LEVEL_COMMAND_SKIP = new Set([
+  "&&",
+  "||",
+  ";",
+  "&",
+  "|",
+  "|&",
+  "\n",
+  "file_redirect",
+  "heredoc_redirect",
+  "herestring_redirect",
+  "comment",
+  "heredoc_body",
+  "heredoc_end",
+]);
+
+/**
+ * Collect the text of each top-level simple-command in the program.
+ *
+ * Descends container nodes (`program`, `list`, `pipeline`, `redirected_statement`)
+ * and emits each `command` node's text. Chain-operator tokens and redirect
+ * targets are skipped. Any other top-level statement node (subshell, compound
+ * statement, control-flow) is emitted whole without descending, so its inner
+ * commands are matched as part of the enclosing statement's text rather than
+ * independently (the top-level scope).
+ */
+function collectTopLevelCommandTexts(node: TSNode): string[] {
+  if (node.type === "command") return [node.text];
+  if (TOP_LEVEL_COMMAND_SKIP.has(node.type)) return [];
+  if (TOP_LEVEL_COMMAND_DESCEND.has(node.type)) {
+    const texts: string[] = [];
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child) texts.push(...collectTopLevelCommandTexts(child));
+    }
+    return texts;
+  }
+  // Any other named statement node (subshell, compound_statement, if/while/for,
+  // function_definition, …): emit whole, do not descend.
+  return [node.text];
+}
 
 // ── Leading cd detection ───────────────────────────────────────────────────
 
