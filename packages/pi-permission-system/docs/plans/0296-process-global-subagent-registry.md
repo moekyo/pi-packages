@@ -26,7 +26,7 @@ The [#261] event-based inversion replaced that with a per-session bus, and [#267
 - Restore forwarding for in-process `@gotgenes/pi-subagents` children: a child's `ask` decision reaches the parent's UI as a `Permission Required (Subagent)` prompt.
 - Make the single `SubagentSessionRegistry` instance process-global so the parent's instance writes and the child's instance reads the same store, regardless of which per-session event bus each instance is wired to.
 - Reuse the package's established `Symbol.for()` convention (the same mechanism `src/service.ts` uses for `PermissionsService`).
-- Keep the existing event-driven registration (ADR 0002) intact — only the registry's storage location changes; the publish/subscribe flow and the synchronous `session-created` ordering guarantee are unchanged.
+- Keep the existing event-driven registration ([ADR-0002]) intact — only the registry's storage location changes; the publish/subscribe flow and the synchronous `session-created` ordering guarantee are unchanged.
 
 ## Non-Goals
 
@@ -178,6 +178,7 @@ No changes to `service.ts`, `subagent-context.ts`, `permission-forwarding.ts`, `
   Fixing it would require `@gotgenes/pi-subagents` to derive a unique per-child session directory — a separate, likely cross-package follow-up issue.
 - An end-to-end parent+child integration test (two real sessions on two real buses) would have caught this regression but needs harness support that does not exist yet; the accessor unit test plus the existing injected-registry tests are the practical coverage for this fix.
 
+[ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
 [#22]: https://github.com/gotgenes/pi-packages/issues/22
 [#101]: https://github.com/gotgenes/pi-packages/issues/101
 [#261]: https://github.com/gotgenes/pi-packages/issues/261
