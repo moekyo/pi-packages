@@ -10,7 +10,44 @@
  * The registry is keyed by session directory path, which is unique per
  * session and available to both producer and consumer via
  * `ctx.sessionManager.getSessionDir()`.
+ *
+ * The single registry instance is stored on `globalThis` (via `Symbol.for()`)
+ * so that the parent's permission-system instance (which registers children
+ * on the parent's event bus) and each child's separate jiti instance (which
+ * reads the registry to detect itself and resolve its forwarding target) share
+ * one store across per-session event buses. See `getSubagentSessionRegistry()`.
  */
+
+/** Process-global key for the shared registry slot. */
+const SUBAGENT_SESSION_REGISTRY_KEY = Symbol.for(
+  "@gotgenes/pi-permission-system:subagent-registry",
+);
+
+/**
+ * Return the process-global SubagentSessionRegistry, creating it on first call.
+ *
+ * Backed by `globalThis` + `Symbol.for()` so the parent's permission-system
+ * instance (which registers children on the parent event bus) and each child's
+ * separate jiti instance (which reads the registry to detect itself and resolve
+ * its forwarding target) share one store across per-session event buses.
+ *
+ * Intentionally has no shutdown/unpublish hook — a child's `session_shutdown`
+ * must not be able to wipe the parent's registrations. Entries are added and
+ * removed exclusively by the parent's `subagents:child:session-created` /
+ * `subagents:child:disposed` subscription.
+ */
+export function getSubagentSessionRegistry(): SubagentSessionRegistry {
+  const store = globalThis as Record<symbol, unknown>;
+  const existing = store[SUBAGENT_SESSION_REGISTRY_KEY] as
+    | SubagentSessionRegistry
+    | undefined;
+  if (existing) {
+    return existing;
+  }
+  const registry = new SubagentSessionRegistry();
+  store[SUBAGENT_SESSION_REGISTRY_KEY] = registry;
+  return registry;
+}
 
 /** Signal stored per registered in-process subagent session. */
 export interface SubagentSessionInfo {

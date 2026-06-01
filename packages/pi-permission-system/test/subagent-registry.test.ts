@@ -1,8 +1,13 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import {
+  getSubagentSessionRegistry,
   type SubagentSessionInfo,
   SubagentSessionRegistry,
 } from "#src/subagent-registry";
+
+const REGISTRY_KEY = Symbol.for(
+  "@gotgenes/pi-permission-system:subagent-registry",
+);
 
 function makeInfo(
   overrides: Partial<SubagentSessionInfo> = {},
@@ -90,5 +95,44 @@ describe("SubagentSessionRegistry", () => {
     registry.unregister("/sessions/task-1");
     expect(registry.has("/sessions/task-1")).toBe(false);
     expect(registry.has("/sessions/task-2")).toBe(true);
+  });
+});
+
+// ── process-global accessor ────────────────────────────────────────────────
+
+describe("getSubagentSessionRegistry (process-global accessor)", () => {
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- Symbol-keyed global property; Map.delete() is not applicable
+    delete (globalThis as Record<symbol, unknown>)[REGISTRY_KEY];
+  });
+
+  test("returns a SubagentSessionRegistry instance", () => {
+    const registry = getSubagentSessionRegistry();
+    expect(registry).toBeInstanceOf(SubagentSessionRegistry);
+  });
+
+  test("returns the same instance on repeated calls", () => {
+    const first = getSubagentSessionRegistry();
+    const second = getSubagentSessionRegistry();
+    expect(first).toBe(second);
+  });
+
+  test("state registered through one call is visible through another call", () => {
+    const writer = getSubagentSessionRegistry();
+    writer.register("/sessions/child-tasks", {
+      agentName: "Explore",
+      parentSessionId: "parent-abc",
+    });
+
+    const reader = getSubagentSessionRegistry();
+    expect(reader.has("/sessions/child-tasks")).toBe(true);
+    expect(reader.get("/sessions/child-tasks")?.parentSessionId).toBe(
+      "parent-abc",
+    );
+  });
+
+  test("starts empty on first call", () => {
+    const registry = getSubagentSessionRegistry();
+    expect(registry.has("/sessions/any-key")).toBe(false);
   });
 });
