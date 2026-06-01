@@ -114,10 +114,6 @@ export class BashProgram {
    * paths; does NOT filter by CWD. Returns deduplicated tokens for rule
    * evaluation.
    */
-  // Used by the facades (bash-path-extractor.ts) and tests. Fallow's syntactic
-  // analysis cannot resolve the static-factory return type (private ctor), so
-  // it reports a false positive here.
-  // fallow-ignore-next-line unused-class-member
   pathTokens(): string[] {
     const seen = new Set<string>();
     const result: string[] = [];
@@ -132,16 +128,6 @@ export class BashProgram {
     return result;
   }
 
-  /**
-   * Deduplicated paths that resolve outside `cwd`.
-   *
-   * When the command begins with `cd <dir> && …`, relative candidate paths are
-   * resolved against `<dir>` (if it stays within CWD) rather than CWD itself,
-   * mirroring how the shell would resolve them.
-   */
-  // Used by the facades (bash-path-extractor.ts) and tests. Fallow's syntactic
-  // analysis cannot resolve the static-factory return type (private ctor), so
-  // it reports a false positive here.
   /**
    * The top-level command-pattern units of the chain, in source order.
    *
@@ -159,7 +145,13 @@ export class BashProgram {
     return this.topLevelCommandTexts.map((text) => ({ text }));
   }
 
-  // fallow-ignore-next-line unused-class-member
+  /**
+   * Deduplicated paths that resolve outside `cwd`.
+   *
+   * When the command begins with `cd <dir> && …`, relative candidate paths are
+   * resolved against `<dir>` (if it stays within CWD) rather than CWD itself,
+   * mirroring how the shell would resolve them.
+   */
   externalPaths(cwd: string): string[] {
     const resolveBase = computeEffectiveResolveBase(this.leadingCdTarget, cwd);
     const normalizedCwd = normalizePathForComparison(cwd, cwd);
