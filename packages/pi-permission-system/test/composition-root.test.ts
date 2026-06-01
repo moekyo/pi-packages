@@ -31,6 +31,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getGlobalConfigPath } from "#src/config-paths";
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
 import piPermissionSystemExtension from "#src/index";
+import { PERMISSIONS_READY_CHANNEL } from "#src/permission-events";
 import {
   createPermissionForwardingLocation,
   type ForwardedPermissionRequest,
@@ -310,5 +311,21 @@ describe("service and gate share one formatter registry", () => {
     expect(capturedTitles.some((t) => t.includes(previewMarker))).toBe(true);
 
     rmSync(cwd, { recursive: true, force: true });
+  });
+});
+
+describe("ready emitted after service publication", () => {
+  // Ordering contracts exist only at the composition root: a consumer reacting
+  // to permissions:ready must be able to resolve the service immediately.
+  it("publishes the service before emitting permissions:ready", () => {
+    const seen: string[] = [];
+    const pi = makeFakePi();
+    pi.events.on(PERMISSIONS_READY_CHANNEL, () => {
+      seen.push(getPermissionsService() ? "present" : "missing");
+    });
+
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    expect(seen).toEqual(["present"]);
   });
 });
