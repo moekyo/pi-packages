@@ -29,7 +29,7 @@ import {
 import { createSessionLogger } from "./session-logger";
 import { isSubagentExecutionContext } from "./subagent-context";
 import { subscribeSubagentLifecycle } from "./subagent-lifecycle-events";
-import { SubagentSessionRegistry } from "./subagent-registry";
+import { getSubagentSessionRegistry } from "./subagent-registry";
 import { ToolInputFormatterRegistry } from "./tool-input-formatter-registry";
 import {
   canResolveAskPermissionRequest,
@@ -38,7 +38,7 @@ import {
 
 export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   const runtime = createExtensionRuntime();
-  const subagentRegistry = new SubagentSessionRegistry();
+  const subagentRegistry = getSubagentSessionRegistry();
   const formatterRegistry = new ToolInputFormatterRegistry();
   registerBuiltinToolInputFormatters(formatterRegistry);
 
