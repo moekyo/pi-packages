@@ -4,6 +4,7 @@ import { SessionApproval } from "#src/session-approval";
 import { deriveApprovalPattern } from "#src/session-rules";
 import type { PermissionCheckResult } from "#src/types";
 import { extractTokensForPathRules } from "./bash-path-extractor";
+import { pickMostRestrictive } from "./candidate-check";
 import type { GateResult } from "./descriptor";
 import { formatPathAskPrompt } from "./path";
 import type { ToolCallContext } from "./types";
@@ -45,8 +46,9 @@ export async function describeBashPathGate(
   // Check each token against path rules with session rules appended.
   const sessionRules = getSessionRuleset();
 
-  let worstCheck: PermissionCheckResult | null = null;
-  let worstToken: string | null = null;
+  // Tokens whose resolved state needs a check (deny/ask), paired with the
+  // token that produced them so the descriptor can derive its pattern.
+  const uncovered: Array<{ token: string; check: PermissionCheckResult }> = [];
   let allSessionCovered = true;
 
   for (const token of tokens) {
@@ -70,13 +72,11 @@ export async function describeBashPathGate(
     }
 
     if (check.state === "deny") {
-      worstCheck = check;
-      worstToken = token;
+      uncovered.push({ token, check });
       break; // Short-circuit on deny.
     }
-    if (check.state === "ask" && worstCheck?.state !== "ask") {
-      worstCheck = check;
-      worstToken = token;
+    if (check.state === "ask") {
+      uncovered.push({ token, check });
     }
   }
 
@@ -98,6 +98,12 @@ export async function describeBashPathGate(
       },
     };
   }
+
+  // Pick the most restrictive (deny > ask > allow, first-wins) uncovered token.
+  const worstCheck = pickMostRestrictive(uncovered.map(({ check }) => check));
+  const worstToken = worstCheck
+    ? (uncovered.find(({ check }) => check === worstCheck)?.token ?? null)
+    : null;
 
   // All tokens evaluate to allow — no restriction.
   if (!worstCheck || !worstToken) return null;
