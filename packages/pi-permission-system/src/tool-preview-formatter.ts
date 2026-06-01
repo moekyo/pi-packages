@@ -130,6 +130,11 @@ export class ToolPreviewFormatter {
       case "grep":
       case "ls":
         return this.formatSearchInputForPrompt(toolName, inputRecord);
+      case "mcp":
+        // The MCP target is already surfaced in formatAskPrompt's MCP branch.
+        // When no custom formatter is registered (or it declines), produce no
+        // additional preview rather than leaking the raw event JSON.
+        return "";
       default:
         return this.formatJsonInputForPrompt(input);
     }

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-
 import {
   formatAskPrompt,
   formatMissingToolNameReason,
@@ -8,6 +7,7 @@ import {
   formatUnknownToolReason,
 } from "#src/permission-prompts";
 import type { SkillPromptEntry } from "#src/skill-prompt-sanitizer";
+import type { ToolInputFormatterLookup } from "#src/tool-input-formatter-registry";
 import {
   TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
   TOOL_INPUT_PREVIEW_MAX_LENGTH,
@@ -16,12 +16,21 @@ import {
 import { ToolPreviewFormatter } from "#src/tool-preview-formatter";
 import type { PermissionCheckResult } from "#src/types";
 
-function makeFormatter(): ToolPreviewFormatter {
-  return new ToolPreviewFormatter({
-    toolInputPreviewMaxLength: TOOL_INPUT_PREVIEW_MAX_LENGTH,
-    toolTextSummaryMaxLength: TOOL_TEXT_SUMMARY_MAX_LENGTH,
-    toolInputLogPreviewMaxLength: TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
-  });
+function makeFormatter(
+  lookup?: ToolInputFormatterLookup,
+): ToolPreviewFormatter {
+  return new ToolPreviewFormatter(
+    {
+      toolInputPreviewMaxLength: TOOL_INPUT_PREVIEW_MAX_LENGTH,
+      toolTextSummaryMaxLength: TOOL_TEXT_SUMMARY_MAX_LENGTH,
+      toolInputLogPreviewMaxLength: TOOL_INPUT_LOG_PREVIEW_MAX_LENGTH,
+    },
+    lookup,
+  );
+}
+
+function makeMcpLookup(preview: string): ToolInputFormatterLookup {
+  return { get: (name) => (name === "mcp" ? () => preview : undefined) };
 }
 
 function toolResult(
@@ -161,6 +170,43 @@ describe("formatAskPrompt", () => {
       makeFormatter(),
     );
     expect(result).toContain("matched 'server:*'");
+  });
+
+  test("appends MCP argument summary when the formatter has an mcp formatter registered", () => {
+    const result = formatAskPrompt(
+      mcpResult("exa:search"),
+      undefined,
+      { tool: "exa:search", arguments: { query: "typescript" } },
+      makeFormatter(makeMcpLookup('with query: "typescript"')),
+    );
+    expect(result).toContain("exa:search");
+    expect(result).toContain('with query: "typescript"');
+    expect(result).toContain("Allow this call?");
+  });
+
+  test("MCP prompt is unchanged when the formatter returns undefined (no arguments)", () => {
+    const noArgsLookup: ToolInputFormatterLookup = {
+      get: (name) => (name === "mcp" ? () => undefined : undefined),
+    };
+    const result = formatAskPrompt(
+      mcpResult("exa:search"),
+      undefined,
+      { tool: "exa:search" },
+      makeFormatter(noArgsLookup),
+    );
+    expect(result).toContain("exa:search");
+    expect(result).not.toMatch(/with /);
+    expect(result).toContain("Allow this call?");
+  });
+
+  test("MCP prompt is unchanged when no formatter is provided", () => {
+    const result = formatAskPrompt(mcpResult("exa:search"), undefined, {
+      tool: "exa:search",
+      arguments: { query: "test" },
+    });
+    expect(result).toContain("exa:search");
+    expect(result).not.toMatch(/with /);
+    expect(result).toContain("Allow this call?");
   });
 
   test("includes real input preview for non-bash non-mcp tools", () => {

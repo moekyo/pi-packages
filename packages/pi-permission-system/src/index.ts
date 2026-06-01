@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { registerBuiltinToolInputFormatters } from "./builtin-tool-input-formatters";
 import { registerPermissionSystemCommand } from "./config-modal";
 import { getGlobalConfigPath } from "./config-paths";
 import type { PermissionForwardingDeps } from "./forwarded-permissions/polling";
@@ -39,6 +40,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   const runtime = createExtensionRuntime();
   const subagentRegistry = new SubagentSessionRegistry();
   const formatterRegistry = new ToolInputFormatterRegistry();
+  registerBuiltinToolInputFormatters(formatterRegistry);
 
   const prompter = new PermissionPrompter({
     getConfig: () => runtime.config,

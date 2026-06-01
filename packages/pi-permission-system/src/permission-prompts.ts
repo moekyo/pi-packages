@@ -46,7 +46,11 @@ export function formatAskPrompt(
     const patternInfo = result.matchedPattern
       ? ` (matched '${result.matchedPattern}')`
       : "";
-    return `${subject} requested MCP target '${result.target}'${patternInfo}. Allow this call?`;
+    const mcpPreview = formatter
+      ? formatter.formatToolInputForPrompt("mcp", input)
+      : "";
+    const previewSuffix = mcpPreview ? ` ${mcpPreview}` : "";
+    return `${subject} requested MCP target '${result.target}'${patternInfo}${previewSuffix}. Allow this call?`;
   }
 
   const patternInfo = result.matchedPattern
