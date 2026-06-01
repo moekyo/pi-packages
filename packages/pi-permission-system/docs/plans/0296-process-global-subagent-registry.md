@@ -115,6 +115,31 @@ Why this is the right shape:
   A child's `session_shutdown` must not be able to wipe the parent's registrations.
   Entries are created and removed only by the parent's `session-created` / `disposed` subscription, so no teardown hook is needed and child shutdown leaves the store intact.
 
+### Why not share the event bus instead?
+
+The deeper cause of the regression is that a cross-session signal (`subagents:child:session-created`) was routed over a per-session transport.
+Each session's `ResourceLoader` mints its own `pi.events` bus (`resource-loader.ts`: `this.eventBus = options.eventBus ?? createEventBus()`), and the child's loader is built without the parent's bus, so the child subscribes to a different bus than the one the parent publishes on.
+
+Crucially, lifecycle events do **not** travel on `pi.events`.
+`pi.on(...)` registers into a per-extension handler map, and the per-session `ExtensionRunner` dispatches lifecycle by iterating those maps — it never routes `tool_call` / `turn_end` / etc. through the bus.
+Session isolation (the parent not seeing the child's tool calls) is therefore guaranteed by the per-session `ExtensionRunner`, not by the bus being per-session.
+The per-session scope of `pi.events` is incidental to lifecycle correctness.
+
+A per-session `pi.events` is still the right default: intra-session cross-extension coordination must stay scoped, and this package itself depends on it (`registerPermissionRpcHandlers(pi.events, ...)`, `emitReadyEvent(pi.events)`).
+The mismatch is using that bus as a cross-session channel, not the bus being per-session.
+
+Rejected alternatives:
+
+- **Pass the parent's bus into the child's loader (share one `pi.events`).**
+  Highest blast radius: it would cross *every* extension's intra-session channels between parent and child (this package's RPC and ready events, plus any other extension's pub/sub), breaking the isolation other extensions rely on.
+- **Introduce a process-global event bus for cross-session signals.**
+  More general, but no such bus exists today; inventing one is broader scope and largely re-creates what `globalThis` + `Symbol.for()` already provides.
+
+The chosen approach keeps per-session buses and moves only the cross-session *state* to a process-global store.
+The child never needs to *receive* the event — it only needs to answer "am I a subagent, and who is my parent?", which is a state lookup, not an event.
+The parent writes the global registry; the child reads it.
+The lifecycle events remain useful for the parent-side registration and telemetry, and the child simply stops depending on receiving them.
+
 Edge cases:
 
 - `/reload`: the parent re-runs `getSubagentSessionRegistry()` and reuses the existing global registry.

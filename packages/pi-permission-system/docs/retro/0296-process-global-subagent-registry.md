@@ -26,3 +26,9 @@ The plan adds one accessor (`getSubagentSessionRegistry`) and changes one line i
 - Both code commits use `fix:` (regression restoration, patch bump); the accessor is internal, not part of the published `PermissionsService` surface, so it is not a `feat`.
 - Skipped `ask_user`: the issue's suggested fix (globalThis-backed registry) is unambiguous and already weighs the rejected alternatives (env hints, shared bus).
 - Doc updates needed beyond code: `docs/subagent-integration.md` (the "deterministic child detection" claim is currently misleading), `docs/architecture/architecture.md` (detection-model section + module listing), and the `package-pi-permission-system` skill ("Event-based subagent integration" section).
+- Added a "Why not share the event bus instead?"
+  subsection to the plan after a design discussion with the user.
+  Key finding: lifecycle events dispatch through the per-session `ExtensionRunner`'s per-extension handler maps, **not** through `pi.events`, so session isolation does not depend on the bus being per-session — the per-session scope of `pi.events` is incidental.
+  The regression is using a per-session bus as a cross-session transport, not the bus being per-session.
+  Rejected sharing the parent's bus into the child (crosses every extension's intra-session channels) and inventing a process-global event bus (broader scope; `globalThis` + `Symbol.for()` already covers it).
+  The chosen fix keeps per-session buses and shares only the cross-session state; the child reads the registry rather than receiving the event.
