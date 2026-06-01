@@ -27,3 +27,22 @@ Plan is structured as four TDD steps: extract `isRegisteredSubagentChild`, break
   Sole `src/` caller is the `index.ts` cleanup closure; consumers use only `getPermissionsService()`.
 - Doc updates identified: `service.ts`, `permission-events.ts`, `docs/cross-extension-api.md` (events table + Ready Event section + reload notes), `docs/architecture/architecture.md`.
   Re-grep the package skill before the docs commit.
+
+## Stage: Implementation — TDD (2026-06-01T14:00:00Z)
+
+### Session summary
+
+Executed all four TDD cycles from the plan: extract `isRegisteredSubagentChild` (`refactor:`), identity-scoped `unpublishPermissionsService` (`feat!:`), defer publish + `emitReadyEvent` to a child-gated `session_start` (`fix:`), and doc alignment (`docs:`).
+Test count went from 1668 pass + 1 expected-fail to 1674 pass (the `it.fails` DESIRED test was replaced by a real passing assertion; net +5 new tests).
+Final state: `check`, `lint`, `test`, and `pnpm fallow dead-code` (repo root) all green; lockfile unchanged.
+
+### Observations
+
+- Two extra tests beyond the plan's list assumed ready-at-load and broke under the moved timing: `composition-root.test.ts` "service and gate share one formatter registry" (resolved the service right after the factory) and `permission-events.test.ts` "ready event wiring" (bespoke fake `pi`).
+  Both were updated to fire `session_start` first; noted in the `fix:` commit body.
+  The planning sweep listed the two `composition-root` tests it knew about but missed these two because the grep focused on `getPermissionsService` call sites in `composition-root.test.ts` only — a wider grep across all test files for post-factory service resolution would have caught them during planning.
+- The new constructor-dep order chosen for `SessionLifecycleHandler` is `(session, activateService, cleanupRpc)`, matching the plan snippet; the sole production instantiation and the `lifecycle.test.ts` `makeHandler` were updated in the same `fix:` commit (type-level break).
+- The multi-instance characterization test was consolidated into one comprehensive test (`keeps the parent's service published across the child's lifecycle`) asserting identity (`toBe(parentService)`) at mid-run and after the child's shutdown — stronger than the plan's separate "survives" + "mid-run" assertions.
+- Firing `session_start` through the real `SessionLifecycleHandler` in composition-root tests required a `ctx` with `cwd` (a real tmpdir, for `createPermissionManagerForCwd`), `sessionManager.getSessionId/getSessionDir/getEntries`, and `ui.setStatus`; the existing `makeChildCtx` / `makeUiCtx` helpers supplied these without modification.
+- Pre-completion reviewer: WARN (no blocking issues).
+  Reviewer warnings: (1) `isRegisteredSubagentChild` accepts the full `ExtensionContext` but reads only `getSessionId()` — left as-is for ISP consistency with the sibling `isSubagentExecutionContext` in the same file; (2) `activateServiceForSession` both publishes and emits ready — left as one closure since the two are co-temporal (ready must follow publish) and live at the composition root.
