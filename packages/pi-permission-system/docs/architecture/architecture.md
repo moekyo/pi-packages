@@ -795,13 +795,13 @@ The headline findings are coupling smells (Category C) — anemic behavior, muta
    - Smell category: B (oversized) / E (cohesion).
    - Outcome: `tool-input-preview.ts` dropped off the refactoring-target list; refactoring targets 1 → 0 (confirmed by `fallow health --targets`).
 
-2. **Introduce a `PermissionForwarder` collaborator (own the state)** ([#315])
+2. ✅ **Introduce a `PermissionForwarder` collaborator (own the state)** ([#315])
    - Target: new `src/forwarded-permissions/permission-forwarder.ts`; `forwarding-manager.ts`; `index.ts`.
-   - Create a `PermissionForwarder` class that owns `forwardingDir`, `subagentSessionsDir`, `registry`, `events`, `logger`, and `shouldAutoApprove` (a constructor-supplied policy, not a re-set bag field), exposing two methods: `requestApproval(ctx, message, options?, forwarded?)` and `processInbox(ctx)`.
-   - Lift-and-shift: the methods initially delegate to the existing `polling.ts` free functions, so behavior is unchanged.
-     Wire `ForwardingManager` to hold a `PermissionForwarder` and call `forwarder.processInbox(ctx)` per tick; construct the single forwarder in `index.ts`.
+   - Added a `PermissionForwarder` class exposing `requestApproval(ctx, message, options?, forwarded?)` and `processInbox(ctx)`; for this lift-and-shift step it holds the `PermissionForwardingDeps` bag privately (`shouldAutoApprove` supplied once at construction) and delegates to the existing `polling.ts` free functions, so behavior is unchanged.
+   - Wired `ForwardingManager` to a narrow `InboxProcessor` seam (the manager only calls `processInbox`, mirroring the existing `ForwardingController` convention and dropping the test's `as unknown as` cast); constructed the single forwarder in `index.ts` and injected it.
    - Smell category: C (anemic domain model — give the forwarding behavior an owner).
-   - Outcome: one forwarder instance replaces the `index.ts` forwarding bag; `ForwardingManager` tells the forwarder instead of threading a deps bag.
+   - Outcome: one forwarder instance replaces the threaded `index.ts` forwarding bag; `ForwardingManager` tells the forwarder instead of threading a deps bag.
+     The bag interface itself is dismantled in [#317].
 
 3. **Fold `PermissionPrompter.buildForwardingDeps()` into the injected forwarder** ([#316])
    - Target: `src/permission-prompter.ts`; `index.ts` (sequence after Step 2).
