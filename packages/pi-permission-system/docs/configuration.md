@@ -191,7 +191,11 @@ A bash invocation may be a chain of commands joined by `&&`, `||`, `;`, `|`, `&`
 Each top-level command is evaluated independently against the patterns, and the most restrictive result wins (`deny` > `ask` > `allow`).
 So `cd /repo && npm install x` evaluates both `cd /repo` and `npm install x`; if `npm *` is denied, the whole invocation is denied even when `cd *` is allowed.
 
-Quotes are respected (an operator inside `'…'` or `"…"` does not split the command), and the contents of command substitution (`$(…)`, backticks) and subshells (`( … )`) are matched as part of their enclosing command rather than evaluated independently.
+Quotes are respected (an operator inside `'…'` or `"…"` does not split the command).
+Commands nested inside command substitution (`$(…)`, backticks), process substitution (`<(…)`/`>(…)`), and subshells (`( … )`) are evaluated against the bash patterns too, in addition to their enclosing command — since those inner commands really execute.
+So `echo $(rm -rf foo)` evaluates both `echo $(rm -rf foo)` and the inner `rm -rf foo`; if `rm *` is denied, the whole invocation is denied.
+The deny reason and the approval prompt note the nested origin (e.g. `inside command substitution`).
+Control-flow bodies (`if`/`while`/`for`/`case`) and `{ … }` brace groups are not descended into; their contents are matched as part of the enclosing statement's text.
 
 A pattern ending with `*` (space + wildcard) also matches the bare command without arguments.
 For example, `"git *"` matches both `"git status"` and bare `"git"`.
@@ -377,8 +381,7 @@ Optional-path search tools (`find`, `grep`, `ls`) skip this check when no `path`
 
 Bash commands are also covered: the extension extracts path-like tokens from the command string and applies the same gate when any resolve outside `ctx.cwd`.
 Quoted strings are stripped first to reduce false positives.
-This is a best-effort heuristic — variable expansion, subshells, and escaped quotes are not parsed.
-OS device paths (`/dev/null`, `/dev/stdin`, `/dev/stdout`, `/dev/stderr`) are always excluded.
+This is a best-effort heuristic — variable expansion and escaped quotes are not parsed, and relative paths inside subshells are not yet resolved against a per-subshell working directory. (The separate `bash` command-pattern surface does evaluate commands nested inside substitutions and subshells; see that section.) OS device paths (`/dev/null`, `/dev/stdin`, `/dev/stdout`, `/dev/stderr`) are always excluded.
 
 #### Pi Infrastructure Read Auto-Allow
 
