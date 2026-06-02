@@ -64,7 +64,8 @@ src/
 ├── external-directory.ts     Path-outside-cwd detection and prompt formatting (tree-sitter-bash AST for bash commands)
 ├── skill-prompt-sanitizer.ts Skill prompt filtering by policy
 ├── system-prompt-sanitizer.ts Remove denied tools from system prompt text
-├── tool-input-preview.ts     Extract loggable context from tool inputs
+├── tool-input-preview.ts     Pure tool-input text utilities (truncation, line counting, count formatting) + serialization
+├── tool-input-prompt-formatters.ts Per-tool prompt formatters (edit/write/read) + getPromptPath helper
 ├── tool-registry.ts          Validate tool names against registered tools
 ├── config-loader.ts          JSON/JSONC parsing, legacy path detection
 ├── config-paths.ts           Canonical path derivation for all config scopes
