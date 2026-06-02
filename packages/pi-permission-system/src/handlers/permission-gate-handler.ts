@@ -114,7 +114,7 @@ export class PermissionGateHandler {
     // ── Shared runner deps (built once, reused for all gates) ────────────
     const runnerDeps: GateRunnerDeps = {
       resolve: (surface, input, agent) =>
-        this.session.resolve(surface, input, agent),
+        resolver.resolve(surface, input, agent),
       recordSessionApproval,
       writeReviewLog,
       emitDecision,
