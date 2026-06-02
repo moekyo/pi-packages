@@ -12,6 +12,9 @@ Load this skill when writing or editing markdown files.
 
 ## Formatting rules
 
+The enforcer is `rumdl` (run via `pnpm run lint:md`; also the pre-commit `rumdl fmt` hook), not `markdownlint-cli2` — there is no markdownlint binary in this repo.
+Rules below are named by their markdownlint `MDxxx` IDs because `rumdl` implements the same rule family; use the IDs for reference, not the tool.
+
 - Use one sentence per line (unbroken) for better diffs.
   Each sentence occupies exactly one line; never wrap a sentence across lines or place two sentences on the same line.
   This applies to all prose, including list-item continuations.
