@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { basename, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 
 import {
   classifyTokenAsPathCandidate,
@@ -76,6 +76,28 @@ export interface BashCommand {
 }
 
 /**
+ * The working directory in force where a path candidate appears, expressed as
+ * an offset to be joined with `cwd` at resolution time (the parse-time walk
+ * never sees `cwd`).
+ *
+ * `offset` is a relative-or-absolute path string built by folding the literal
+ * targets of current-shell `cd` commands (`""` = `cwd`); an absolute offset
+ * (from `cd /abs`) ignores `cwd` at resolution time.
+ */
+interface EffectiveBase {
+  readonly offset: string;
+}
+
+/**
+ * A path-candidate token paired with the effective working directory projected
+ * onto the point in the command stream where it appears.
+ */
+interface PathCandidate {
+  readonly token: string;
+  readonly base: EffectiveBase;
+}
+
+/**
  * A bash command parsed once into a reusable representation.
  *
  * Parsing is the expensive step (tree-sitter WASM); `BashProgram` performs it
@@ -87,29 +109,29 @@ export interface BashCommand {
  */
 export class BashProgram {
   private constructor(
-    private readonly rawTokens: readonly string[],
-    private readonly leadingCdTarget: string | undefined,
+    private readonly rawCandidates: readonly PathCandidate[],
     private readonly commandUnits: readonly BashCommand[],
   ) {}
 
   /**
    * Parse a bash command into a `BashProgram`.
    *
-   * Uses tree-sitter-bash to build the full AST, walks command-argument and
-   * redirect-destination nodes once into raw candidate tokens, and records the
-   * leading `cd` target. Heredoc bodies, comments, and other non-argument
-   * content are skipped. An unparseable command yields an empty program.
+   * Uses tree-sitter-bash to build the full AST and walks command-argument and
+   * redirect-destination nodes once into raw candidate tokens, each tagged with
+   * the effective working directory projected onto its position by folding
+   * current-shell `cd` commands. Heredoc bodies, comments, and other
+   * non-argument content are skipped. An unparseable command yields an empty
+   * program.
    */
   static async parse(command: string): Promise<BashProgram> {
     const parser = await getParser();
     const tree = parser.parse(command);
-    if (!tree) return new BashProgram([], undefined, []);
+    if (!tree) return new BashProgram([], []);
 
     try {
-      const leadingCdTarget = extractLeadingCdTarget(tree.rootNode);
-      const rawTokens = collectPathCandidateTokens(tree.rootNode);
+      const rawCandidates = collectPathCandidates(tree.rootNode);
       const commandUnits = collectCommands(tree.rootNode);
-      return new BashProgram(rawTokens, leadingCdTarget, commandUnits);
+      return new BashProgram(rawCandidates, commandUnits);
     } finally {
       tree.delete();
     }
@@ -125,7 +147,7 @@ export class BashProgram {
   pathTokens(): string[] {
     const seen = new Set<string>();
     const result: string[] = [];
-    for (const token of this.rawTokens) {
+    for (const { token } of this.rawCandidates) {
       const candidate = classifyTokenAsRuleCandidate(token);
       if (!candidate) continue;
       if (!seen.has(candidate)) {
@@ -156,21 +178,23 @@ export class BashProgram {
   /**
    * Deduplicated paths that resolve outside `cwd`.
    *
-   * When the command begins with `cd <dir> && …`, relative candidate paths are
-   * resolved against `<dir>` (if it stays within CWD) rather than CWD itself,
-   * mirroring how the shell would resolve them.
+   * Each candidate is resolved against the effective working directory in force
+   * where it appears, projected by folding a sequence of current-shell `cd`
+   * commands (joined by `&&`, `||`, `;`, or a newline). A `cd` inside a
+   * pipeline or a backgrounded command runs in a subshell and does not update
+   * the running directory.
    */
   externalPaths(cwd: string): string[] {
-    const resolveBase = computeEffectiveResolveBase(this.leadingCdTarget, cwd);
     const normalizedCwd = normalizePathForComparison(cwd, cwd);
 
     const seen = new Set<string>();
     const externalPaths: string[] = [];
 
-    for (const token of this.rawTokens) {
+    for (const { token, base } of this.rawCandidates) {
       const candidate = classifyTokenAsPathCandidate(token);
       if (!candidate) continue;
 
+      const resolveBase = resolve(cwd, base.offset);
       const normalized = normalizePathForComparison(candidate, resolveBase);
       if (!normalized) continue;
 
@@ -733,75 +757,173 @@ function collectSubstitutionCommands(node: TSNode, out: BashCommand[]): void {
   }
 }
 
-// ── Leading cd detection ───────────────────────────────────────────────────
+// ── Effective working directory projection ─────────────────────────────────
+
+/** The working directory in force at the start of a program (`cwd`). */
+const CWD_BASE: EffectiveBase = { offset: "" };
 
 /**
- * Walk down from the root to find the first `command` node in the program.
+ * Walk the AST once, collecting every path-candidate token tagged with the
+ * effective working directory projected onto its position.
  *
- * Only descends into `program` and `list` nodes — subshells, pipelines, and
- * other compound statements are ignored because a `cd` inside them does not
- * affect the outer shell's working directory.
+ * The effective directory is stateful: it starts at `cwd` and each current-shell
+ * `cd <literal>` (joined by `&&`, `||`, `;`, or a newline) folds into it for
+ * subsequent commands. A `cd` inside a pipeline or a backgrounded command runs
+ * in a subshell and does not update the running directory; subshell and
+ * brace-group interiors inherit the enclosing base without folding their own
+ * `cd`s (a conservative first tier).
  */
-function findFirstCommand(node: TSNode): TSNode | null {
-  if (node.type === "command") return node;
-  if (node.type === "program" || node.type === "list") {
-    const firstChild = node.child(0);
-    if (firstChild) return findFirstCommand(firstChild);
+function collectPathCandidates(rootNode: TSNode): PathCandidate[] {
+  const out: PathCandidate[] = [];
+  walkForCandidates(rootNode, CWD_BASE, out);
+  return out;
+}
+
+/**
+ * Collect a single node's candidates tagged with `base`, returning the
+ * effective base in force *after* the node (the input base unless the node is a
+ * current-shell `cd <literal>` that folds the running directory).
+ */
+function walkForCandidates(
+  node: TSNode,
+  base: EffectiveBase,
+  out: PathCandidate[],
+): EffectiveBase {
+  switch (node.type) {
+    case "program":
+    case "list":
+    case "redirected_statement":
+      return walkCurrentShellSequence(node, base, out);
+    case "command":
+      tagTokens(collectCommandTokens(node), base, out);
+      return foldCd(node, base);
+    default:
+      // Subshells, brace groups, pipelines, control-flow bodies, redirect
+      // targets: collect every candidate in the subtree tagged with the
+      // enclosing base and do not fold their internal `cd`s.
+      tagTokens(collectPathCandidateTokens(node), base, out);
+      return base;
+  }
+}
+
+/**
+ * Fold a current-shell sequence (`program` / `list` / `redirected_statement`):
+ * thread the effective base left-to-right through the children so a `cd` updates
+ * the base for following siblings. A statement immediately followed by the
+ * background operator (`&`) runs in a subshell, so its folded base is discarded.
+ */
+function walkCurrentShellSequence(
+  seqNode: TSNode,
+  base: EffectiveBase,
+  out: PathCandidate[],
+): EffectiveBase {
+  let current = base;
+  for (let i = 0; i < seqNode.childCount; i++) {
+    const child = seqNode.child(i);
+    if (!child?.isNamed) continue;
+    if (SKIP_SUBTREE_TYPES.has(child.type)) continue;
+    const after = walkForCandidates(child, current, out);
+    current = isBackgrounded(seqNode, i) ? current : after;
+  }
+  return current;
+}
+
+/**
+ * True when the statement at `index` is immediately followed by the background
+ * operator (`&`) — distinct from the `&&` / `||` / `;` current-shell separators.
+ */
+function isBackgrounded(seqNode: TSNode, index: number): boolean {
+  const next = seqNode.child(index + 1);
+  if (!next || next.isNamed) return false;
+  return next.type === "&";
+}
+
+function tagTokens(
+  tokens: readonly string[],
+  base: EffectiveBase,
+  out: PathCandidate[],
+): void {
+  for (const token of tokens) out.push({ token, base });
+}
+
+/**
+ * Compute the effective base after a command runs. Returns `base` unchanged
+ * unless the command is `cd <literal>`, in which case the literal target folds
+ * into the running offset (an absolute target replaces it). A non-literal `cd`
+ * target (`cd "$DIR"`, `cd $(…)`, `cd -`, bare `cd`, `cd ~…`) leaves the base
+ * unchanged for now.
+ */
+function foldCd(commandNode: TSNode, base: EffectiveBase): EffectiveBase {
+  if (extractCommandName(commandNode) !== "cd") return base;
+  const target = cdLiteralTarget(commandNode);
+  if (target === null) return base;
+  return {
+    offset: isAbsolute(target) ? target : join(base.offset, target),
+  };
+}
+
+/**
+ * Resolve the literal target of a `cd` command, or `null` when the first
+ * argument is not a static literal (contains an expansion or command
+ * substitution) or cannot be resolved against the working directory (`cd -`,
+ * `cd ~…`, bare `cd`).
+ */
+function cdLiteralTarget(commandNode: TSNode): string | null {
+  for (let i = 0; i < commandNode.childCount; i++) {
+    const child = commandNode.child(i);
+    if (!child) continue;
+    if (child.type === "command_name" || child.type === "variable_assignment")
+      continue;
+    if (!child.isNamed) continue;
+    // Skip the `--` end-of-flags marker; the next argument is the target.
+    if (child.type === "word" && child.text === "--") continue;
+    if (!ARG_NODE_TYPES.has(child.type)) return null;
+    return literalTextOf(child);
   }
   return null;
 }
 
 /**
- * Extract the target directory of a leading `cd` command from the parsed AST.
- *
- * When a bash command begins with `cd <dir> && …`, the shell resolves
- * subsequent relative paths against `<dir>`, not the original working
- * directory.  The external-directory guard must do the same, otherwise a
- * path that the shell keeps inside the working directory can appear to
- * escape it and trigger a spurious permission prompt.
- *
- * Returns `undefined` when the first command is not `cd`, or when the
- * target cannot be meaningfully resolved (`cd -`, bare `cd`, or `cd ~…`).
+ * The literal string value of an argument node, or `null` when it contains a
+ * variable expansion / command substitution or is a non-resolvable `cd`
+ * destination (`-`, `~…`).
  */
-function extractLeadingCdTarget(rootNode: TSNode): string | undefined {
-  const firstCmd = findFirstCommand(rootNode);
-  if (!firstCmd) return undefined;
-
-  const cmdName = extractCommandName(firstCmd);
-  if (cmdName !== "cd") return undefined;
-
-  for (let i = 0; i < firstCmd.childCount; i++) {
-    const child = firstCmd.child(i);
-    if (!child) continue;
-    if (child.type === "command_name" || child.type === "variable_assignment")
-      continue;
-    if (!ARG_NODE_TYPES.has(child.type)) continue;
-
-    const text = resolveNodeText(child);
-    // Skip `--` (end-of-flags marker)
-    if (text === "--") continue;
-    // `cd -` jumps to $OLDPWD; `cd ~…` is home-relative — neither can be
-    // resolved against the working directory.
-    if (text === "-" || text.startsWith("~")) return undefined;
-    return text;
+function literalTextOf(node: TSNode): string | null {
+  switch (node.type) {
+    case "word": {
+      const text = node.text;
+      if (text === "-" || text.startsWith("~")) return null;
+      return text;
+    }
+    case "raw_string": {
+      const text = node.text;
+      return text.length >= 2 && text.startsWith("'") && text.endsWith("'")
+        ? text.slice(1, -1)
+        : text;
+    }
+    case "concatenation": {
+      let result = "";
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (!child) continue;
+        const part = literalTextOf(child);
+        if (part === null) return null;
+        result += part;
+      }
+      return result;
+    }
+    case "string": {
+      let result = "";
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (!child) continue;
+        if (child.type === '"') continue;
+        if (child.type !== "string_content") return null;
+        result += child.text;
+      }
+      return result;
+    }
+    default:
+      return null;
   }
-  return undefined;
-}
-
-/**
- * Compute the effective base directory for resolving relative path candidates.
- *
- * When the leading `cd` target stays within the working directory, subsequent
- * relative paths should be resolved against it.  An escaping target is itself
- * an external access (reported via its own candidate token) and must never
- * silence checks on subsequent paths, so the function falls back to `cwd`.
- */
-function computeEffectiveResolveBase(
-  cdTarget: string | undefined,
-  cwd: string,
-): string {
-  if (cdTarget === undefined) return cwd;
-  const resolved = resolve(cwd, cdTarget);
-  const normalizedCwd = resolve(cwd);
-  return isPathWithinDirectory(resolved, normalizedCwd) ? resolved : cwd;
 }

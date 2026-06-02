@@ -852,15 +852,16 @@ describe("extractExternalPathsFromBashCommand", () => {
       expect(result).toHaveLength(0);
     });
 
-    test("cd to external dir: paths after cd are still checked against cwd", async () => {
-      // When cd target is outside cwd, we fall back to cwd as the resolve base.
-      // The cd target itself should be flagged, and paths after cd are resolved
-      // against cwd.
+    test("cd to external dir: subsequent paths resolve against the (external) effective directory", async () => {
+      // The effective directory is tracked faithfully: `cd /tmp` makes /tmp the
+      // base, so the cd target itself is flagged AND ../etc/hosts resolves to
+      // /etc/hosts (both outside cwd).
       const result = await extractExternalPathsFromBashCommand(
         "cd /tmp && cat ../etc/hosts",
         cwd,
       );
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toContain("/tmp");
+      expect(result).toContain("/etc/hosts");
     });
 
     test("cd with relative target: resolves inside cwd", async () => {
@@ -880,14 +881,14 @@ describe("extractExternalPathsFromBashCommand", () => {
       expect(result.length).toBeGreaterThan(0);
     });
 
-    test("cd is not first command: cd is ignored", async () => {
-      // cd after another command should not affect path resolution.
+    test("sequential fold: a cd that is not the first command still updates the base", async () => {
+      // The current-shell `cd` folds even though it is not the first command;
+      // ../../outside.txt resolves against /projects/my-app/src → /projects/outside.txt.
       const result = await extractExternalPathsFromBashCommand(
         "echo hello && cd /projects/my-app/src && cat ../../outside.txt",
         cwd,
       );
-      // ../../outside.txt resolves against cwd, not the cd target
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toContain("/projects/outside.txt");
     });
 
     test("cd with semicolon separator", async () => {

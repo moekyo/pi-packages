@@ -33,6 +33,43 @@ describe("BashProgram", () => {
       const program = await BashProgram.parse("cat src/index.ts");
       expect(program.externalPaths(cwd)).toHaveLength(0);
     });
+
+    describe("effective working directory projection", () => {
+      it("folds a sequence of current-shell cd commands", async () => {
+        // cd a → cwd/a, cd b → cwd/a/b; ../c resolves to cwd/a/c (inside).
+        const program = await BashProgram.parse("cd a && cd b && cat ../c");
+        expect(program.externalPaths(cwd)).toHaveLength(0);
+      });
+
+      it("catches an escape masked by a later cd that the single-base model missed", async () => {
+        // Effective dir after `cd nested/deep && cd ..` is cwd/nested, so
+        // ../../etc/passwd escapes to /projects/etc/passwd.
+        const program = await BashProgram.parse(
+          "cd nested/deep && cd .. && cat ../../etc/passwd",
+        );
+        expect(program.externalPaths(cwd)).toContain("/projects/etc/passwd");
+      });
+
+      it("folds a cd that is not the first command", async () => {
+        // The single-base model ignored a cd that was not first; now `cd a`
+        // folds, so ../b resolves to cwd/b (inside) and is not flagged.
+        const program = await BashProgram.parse("mkdir d && cd a && cat ../b");
+        expect(program.externalPaths(cwd)).toHaveLength(0);
+      });
+
+      it("does not fold a backgrounded cd", async () => {
+        // `cd a &` runs in a subshell, so it must not update the running
+        // directory; ../b resolves against cwd and escapes.
+        const program = await BashProgram.parse("cd a & cat ../b");
+        expect(program.externalPaths(cwd)).toContain("/projects/b");
+      });
+
+      it("does not fold a cd inside a pipeline", async () => {
+        // Pipeline members run in subshells; the cd must not leak.
+        const program = await BashProgram.parse("cd nested | cat ../b");
+        expect(program.externalPaths(cwd)).toContain("/projects/b");
+      });
+    });
   });
 
   describe("commands", () => {
