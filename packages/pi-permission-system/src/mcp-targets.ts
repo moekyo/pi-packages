@@ -54,7 +54,7 @@ export function parseQualifiedMcpToolName(
 function addDerivedMcpServerTargets(
   toolName: string,
   configuredServerNames: readonly string[],
-  pushTarget: (value: string | null) => void,
+  targets: McpTargetList,
 ): void {
   const trimmedToolName = toolName.trim();
   if (!trimmedToolName) {
@@ -75,9 +75,9 @@ function addDerivedMcpServerTargets(
       continue;
     }
 
-    pushTarget(`${trimmedServerName}_${trimmedToolName}`);
-    pushTarget(`${trimmedServerName}:${trimmedToolName}`);
-    pushTarget(trimmedServerName);
+    targets.add(`${trimmedServerName}_${trimmedToolName}`);
+    targets.add(`${trimmedServerName}:${trimmedToolName}`);
+    targets.add(trimmedServerName);
   }
 }
 
@@ -85,22 +85,22 @@ function pushMcpToolPermissionTargets(
   rawReference: string,
   serverHint: string | null,
   configuredServerNames: readonly string[],
-  pushTarget: (value: string | null) => void,
+  targets: McpTargetList,
 ): void {
   const qualified = parseQualifiedMcpToolName(rawReference);
   const resolvedServer = serverHint ?? qualified?.server ?? null;
   const resolvedTool = qualified?.tool ?? rawReference;
 
   if (resolvedServer) {
-    pushTarget(`${resolvedServer}_${resolvedTool}`);
-    pushTarget(`${resolvedServer}:${resolvedTool}`);
-    pushTarget(resolvedServer);
+    targets.add(`${resolvedServer}_${resolvedTool}`);
+    targets.add(`${resolvedServer}:${resolvedTool}`);
+    targets.add(resolvedServer);
   } else {
-    addDerivedMcpServerTargets(resolvedTool, configuredServerNames, pushTarget);
+    addDerivedMcpServerTargets(resolvedTool, configuredServerNames, targets);
   }
 
-  pushTarget(resolvedTool);
-  pushTarget(rawReference);
+  targets.add(resolvedTool);
+  targets.add(rawReference);
 }
 
 /**
@@ -121,32 +121,19 @@ export function createMcpPermissionTargets(
   const describe = getNonEmptyString(record.describe);
   const search = getNonEmptyString(record.search);
 
-  const targets: string[] = [];
-  const pushTarget = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-    if (!targets.includes(value)) {
-      targets.push(value);
-    }
-  };
+  const targets = new McpTargetList();
 
   if (tool) {
-    pushMcpToolPermissionTargets(
-      tool,
-      server,
-      configuredServerNames,
-      pushTarget,
-    );
-    pushTarget("mcp_call");
-    return targets;
+    pushMcpToolPermissionTargets(tool, server, configuredServerNames, targets);
+    targets.add("mcp_call");
+    return targets.toArray();
   }
 
   if (connect) {
-    pushTarget(`mcp_connect_${connect}`);
-    pushTarget(connect);
-    pushTarget("mcp_connect");
-    return targets;
+    targets.add(`mcp_connect_${connect}`);
+    targets.add(connect);
+    targets.add("mcp_connect");
+    return targets.toArray();
   }
 
   if (describe) {
@@ -154,30 +141,30 @@ export function createMcpPermissionTargets(
       describe,
       server,
       configuredServerNames,
-      pushTarget,
+      targets,
     );
-    pushTarget("mcp_describe");
-    return targets;
+    targets.add("mcp_describe");
+    return targets.toArray();
   }
 
   if (search) {
     if (server) {
-      pushTarget(`mcp_server_${server}`);
-      pushTarget(server);
+      targets.add(`mcp_server_${server}`);
+      targets.add(server);
     }
 
-    pushTarget(search);
-    pushTarget("mcp_search");
-    return targets;
+    targets.add(search);
+    targets.add("mcp_search");
+    return targets.toArray();
   }
 
   if (server) {
-    pushTarget(`mcp_server_${server}`);
-    pushTarget(server);
-    pushTarget("mcp_list");
-    return targets;
+    targets.add(`mcp_server_${server}`);
+    targets.add(server);
+    targets.add("mcp_list");
+    return targets.toArray();
   }
 
-  pushTarget("mcp_status");
-  return targets;
+  targets.add("mcp_status");
+  return targets.toArray();
 }
