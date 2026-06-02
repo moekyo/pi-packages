@@ -217,6 +217,79 @@ describe("PermissionSession", () => {
     });
   });
 
+  describe("resolve", () => {
+    it("forwards surface, input, and agentName, applying the empty session ruleset", () => {
+      const pm = makePermissionManager();
+      mockCreatePermissionManagerForCwd.mockReturnValue(pm);
+      const { session } = createSession();
+
+      session.resolve("bash", { command: "ls" }, "agent-x");
+
+      expect(pm.checkPermission).toHaveBeenCalledWith(
+        "bash",
+        { command: "ls" },
+        "agent-x",
+        [],
+      );
+    });
+
+    it("defaults agentName to undefined when omitted", () => {
+      const pm = makePermissionManager();
+      mockCreatePermissionManagerForCwd.mockReturnValue(pm);
+      const { session } = createSession();
+
+      session.resolve("read", { path: ".env" });
+
+      expect(pm.checkPermission).toHaveBeenCalledWith(
+        "read",
+        { path: ".env" },
+        undefined,
+        [],
+      );
+    });
+
+    it("applies a recorded session approval on the next resolve", () => {
+      const pm = makePermissionManager();
+      mockCreatePermissionManagerForCwd.mockReturnValue(pm);
+      const { session } = createSession();
+
+      session.recordSessionApproval(SessionApproval.single("bash", "git *"));
+      session.resolve("bash", { command: "git status" });
+
+      const sessionRules = vi.mocked(pm.checkPermission).mock.calls[0][3];
+      expect(sessionRules).toHaveLength(1);
+      expect(sessionRules?.[0]).toMatchObject({
+        surface: "bash",
+        pattern: "git *",
+        action: "allow",
+      });
+    });
+
+    it("returns the PermissionManager's check result", () => {
+      const pm = makePermissionManager({
+        checkPermission: vi.fn().mockReturnValue({
+          state: "deny",
+          toolName: "bash",
+          source: "bash",
+          origin: "global",
+          matchedPattern: "rm *",
+        }),
+      });
+      mockCreatePermissionManagerForCwd.mockReturnValue(pm);
+      const { session } = createSession();
+
+      const result = session.resolve("bash", { command: "rm -rf /" });
+
+      expect(result).toEqual({
+        state: "deny",
+        toolName: "bash",
+        source: "bash",
+        origin: "global",
+        matchedPattern: "rm *",
+      });
+    });
+  });
+
   describe("activate and deactivate", () => {
     it("stores the context on activate", () => {
       const { session, forwarding } = createSession();

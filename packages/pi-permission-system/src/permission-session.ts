@@ -10,6 +10,7 @@ import type { ForwardingController } from "./forwarding-manager";
 import type { PermissionPromptDecision } from "./permission-dialog";
 import type { PermissionManager } from "./permission-manager";
 import type { PromptPermissionDetails } from "./permission-prompter";
+import type { PermissionResolver } from "./permission-resolver";
 import type { Rule } from "./rule";
 import { createPermissionManagerForCwd } from "./runtime";
 import type { SessionApproval } from "./session-approval";
@@ -54,7 +55,7 @@ export interface PermissionSessionRuntimeDeps {
  * - `ForwardingController` — polling lifecycle
  * - `PermissionSessionRuntimeDeps` — config refresh + log delegates
  */
-export class PermissionSession {
+export class PermissionSession implements PermissionResolver {
   private context: ExtensionContext | null = null;
   private permissionManager: PermissionManager;
   private readonly sessionRules = new SessionRules();
@@ -107,6 +108,24 @@ export class PermissionSession {
       input,
       agentName,
       sessionRules,
+    );
+  }
+
+  /**
+   * Resolve the effective permission for a surface/input, applying the current
+   * session rules. Composes `checkPermission` with `getSessionRuleset` so
+   * callers never thread the ruleset by hand.
+   */
+  resolve(
+    surface: string,
+    input: unknown,
+    agentName?: string,
+  ): PermissionCheckResult {
+    return this.checkPermission(
+      surface,
+      input,
+      agentName,
+      this.getSessionRuleset(),
     );
   }
 
