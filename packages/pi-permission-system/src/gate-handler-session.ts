@@ -9,5 +9,5 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
  */
 export interface GateHandlerSession {
   activate(ctx: ExtensionContext): void;
-  resolveAgentName(ctx: ExtensionContext): string | null;
+  resolveAgentName(ctx: ExtensionContext, systemPrompt?: string): string | null;
 }

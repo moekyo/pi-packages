@@ -2,12 +2,11 @@ import type {
   BeforeAgentStartEventResult,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-
+import type { AgentPrepSession } from "#src/agent-prep-session";
 import {
   createActiveToolsCacheKey,
   createBeforeAgentStartPromptStateKey,
 } from "#src/before-agent-start-cache";
-import type { PermissionSession } from "#src/permission-session";
 import { resolveSkillPromptEntries } from "#src/skill-prompt-sanitizer";
 import { sanitizeAvailableToolsSection } from "#src/system-prompt-sanitizer";
 import { getToolNameFromValue, type ToolRegistry } from "#src/tool-registry";
@@ -41,7 +40,7 @@ export function shouldExposeTool(
  */
 export class AgentPrepHandler {
   constructor(
-    private readonly session: PermissionSession,
+    private readonly session: AgentPrepSession,
     private readonly toolRegistry: ToolRegistry,
   ) {}
 

@@ -4,6 +4,7 @@ import {
   getActiveAgentName,
   getActiveAgentNameFromSystemPrompt,
 } from "./active-agent";
+import type { AgentPrepSession } from "./agent-prep-session";
 import type { PermissionSystemExtensionConfig } from "./extension-config";
 import type { ExtensionPaths } from "./extension-paths";
 import type { ForwardingController } from "./forwarding-manager";
@@ -17,6 +18,7 @@ import type { Rule } from "./rule";
 import { createPermissionManagerForCwd } from "./runtime";
 import type { SessionApproval } from "./session-approval";
 import type { SessionApprovalRecorder } from "./session-approval-recorder";
+import type { SessionLifecycleSession } from "./session-lifecycle-session";
 import type { SessionLogger } from "./session-logger";
 import { SessionRules } from "./session-rules";
 import type { SkillPromptEntry } from "./skill-prompt-sanitizer";
@@ -67,7 +69,9 @@ export class PermissionSession
     PermissionResolver,
     SessionApprovalRecorder,
     GatePrompter,
-    GateHandlerSession
+    GateHandlerSession,
+    AgentPrepSession,
+    SessionLifecycleSession
 {
   private context: ExtensionContext | null = null;
   private permissionManager: PermissionManager;
