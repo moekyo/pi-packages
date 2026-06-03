@@ -493,16 +493,17 @@ src/
 ├── permission-resolver.ts    `PermissionResolver` interface - `resolve(surface, input, agentName)`; collapses the checkPermission + getSessionRuleset relay (#319). Implemented by `PermissionSession`
 ├── decision-reporter.ts      `DecisionReporter` interface + `GateDecisionReporter` class - owns `SessionLogger` and event bus; writes review-log entries and emits decision events (#322)
 │
-├── permission-session.ts     PermissionSession class - encapsulates all mutable session state; implements `PermissionResolver`
+├── permission-session.ts     PermissionSession class - encapsulates all mutable session state; implements `PermissionResolver`; exposes `getInfrastructureReadDirs()` and `getToolPreviewLimits()` for Tell-Don't-Ask gate inputs (#327)
 ├── handlers/                 Handler classes with narrow constructor injection
 │   ├── index.ts              Barrel re-exports
 │   ├── lifecycle.ts          SessionLifecycleHandler (session + cleanupRpc)
 │   ├── before-agent-start.ts AgentPrepHandler (session + toolRegistry); shouldExposeTool pure helper
-│   ├── permission-gate-handler.ts PermissionGateHandler (session + events + toolRegistry); parses the bash command once per `tool_call` and injects the shared `BashProgram` into the three bash gates (#308); validateRequestedTool + getEventInput + extractSkillNameFromInput pure helpers
+│   ├── permission-gate-handler.ts PermissionGateHandler (session + events + toolRegistry + pipeline); delegates gate-producer assembly and the run loop to the injected `ToolCallGatePipeline` (#327); validateRequestedTool + getEventInput + extractSkillNameFromInput pure helpers
 │   └── gates/               Pure descriptor factories + runner
 │       ├── types.ts          GateOutcome, ToolCallContext
 │       ├── descriptor.ts     GateDescriptor (with DenialContext), GateBypass, GateResult types
 │       ├── runner.ts         GateRunner class — constructed with `PermissionResolver`, `SessionApprovalRecorder`, `GatePrompter`, `DecisionReporter`; `run(gate, agentName, toolCallId)` dispatches null / bypass / descriptor
+│       ├── tool-call-gate-pipeline.ts `ToolCallGateInputs` interface + `ToolCallGatePipeline` class — constructed once in the composition root and injected into `PermissionGateHandler`; owns bash-command extraction + single `BashProgram.parse`, `ToolPreviewFormatter` construction, infra-dir list, the six gate producers, and the run loop; `evaluate(tcc, runner)` returns the first block outcome or allow (#327)
 │       ├── helpers.ts        deriveDecisionValue, deriveResolution, buildDecisionEvent
 │       ├── skill-read.ts     describeSkillReadGate - pure descriptor factory
 │       ├── external-directory.ts describeExternalDirectoryGate - pure descriptor/bypass factory
@@ -861,12 +862,14 @@ The headline findings are coupling smells (Category C) - anemic behavior, mutabl
    - Smell category: A (duplication) / C (LoD reach-through).
    - Outcome: the inline gate, the nested ternary, and the direct reporter/prompter reaches are gone; `handleInput` becomes activate → resolveAgentName → describe → run; the handler's residual `PermissionSession` surface shrinks ahead of Step 11 ([#325]).
 
-10. **Extract a `ToolCallGatePipeline` collaborator** ([#327])
+10. ✅ **Extract a `ToolCallGatePipeline` collaborator** ([#327])
     - Target: new `src/handlers/gates/tool-call-gate-pipeline.ts`; `src/handlers/permission-gate-handler.ts`; `src/permission-session.ts`; `src/index.ts`.
-    - `handleToolCall` assembles six gate producers by reaching for anemic session getters (`getActiveSkillEntries`, `getInfrastructureDirs` + `getInfrastructureReadPaths`, `config`) — gate-construction work with no owner.
-      Introduce a `ToolCallGatePipeline` class (constructed once, injected like `GateRunner`) that owns descriptor construction; apply Tell-Don't-Ask narrowings on `PermissionSession` (`getToolPreviewLimits()`, `getInfrastructureReadDirs()`) so the pipeline's inputs are clean values, not raw config.
+    - `handleToolCall` assembled six gate producers by reaching for anemic session getters (`getActiveSkillEntries`, `getInfrastructureDirs` + `getInfrastructureReadPaths`, `config`) — gate-construction work with no owner.
+      Introduced `ToolCallGatePipeline` (constructed once in `index.ts`, injected into `PermissionGateHandler`) that owns bash-command extraction, the single `BashProgram.parse`, `ToolPreviewFormatter` construction, all six gate producers, and the run loop; `evaluate(tcc, runner)` returns the first block or allow.
+      Applied Tell-Don't-Ask narrowings: `getInfrastructureReadDirs()` replaces the two-method reach + handler concat; `getToolPreviewLimits()` replaces `resolveToolPreviewLimits(session.config)`.
+      Removed now-unused `getInfrastructureDirs()` / `getInfrastructureReadPaths()` from `PermissionSession`.
     - Smell category: C (anemic getters / missing collaborator).
-    - Outcome: gate construction has an owner the handler tells; the handler's residual `PermissionSession` surface shrinks to `activate` + `resolveAgentName` ahead of Step 11 ([#325]).
+    - Outcome: gate construction has an owner the handler tells; `handleToolCall` shrinks to activate → validate → build `tcc` → pipeline.evaluate → map outcome; the handler's residual `PermissionSession` surface is `activate` + `resolveAgentName` ahead of Step 11 ([#325]).
 
 11. **Retype `PermissionGateHandler` against narrow role interfaces** ([#325])
     - Target: `src/handlers/permission-gate-handler.ts`; `test/helpers/handler-fixtures.ts`; `test/handlers/external-directory-integration.test.ts`; `test/handlers/external-directory-session-dedup.test.ts`.
@@ -905,8 +908,8 @@ flowchart TD
     S6["Step 6: PermissionResolver, relay removal (#319)"]
     S7["Step 7: DecisionReporter extraction (#322)"]
     S8["Step 8: ✅ GateRunner class, role collaborators (#323)"]
-    S9["Step 9: Unify handleInput with GateRunner (#326)"]
-    S10["Step 10: Extract ToolCallGatePipeline (#327)"]
+    S9["Step 9: ✅ Unify handleInput with GateRunner (#326)"]
+    S10["Step 10: ✅ Extract ToolCallGatePipeline (#327)"]
     S11["Step 11: PermissionGateHandler role-interface retyping (#325)"]
     S12["Step 12: Composition root as collaborator injection (#320)"]
     S13["Step 13: Continue test-fixture extraction (#321)"]
