@@ -7,9 +7,12 @@ import type { DecisionReporter } from "#src/decision-reporter";
 import type { GatePrompter } from "#src/gate-prompter";
 import type { GateDescriptor } from "#src/handlers/gates/descriptor";
 import { GateRunner } from "#src/handlers/gates/runner";
+import type { ToolCallGateInputs } from "#src/handlers/gates/tool-call-gate-pipeline";
 import type { ToolCallContext } from "#src/handlers/gates/types";
 import type { PermissionResolver } from "#src/permission-resolver";
 import type { SessionApprovalRecorder } from "#src/session-approval-recorder";
+import type { SkillPromptEntry } from "#src/skill-prompt-sanitizer";
+import type { ToolPreviewFormatterOptions } from "#src/tool-preview-formatter";
 import type { PermissionCheckResult } from "#src/types";
 
 import { makeCheckResult } from "#test/helpers/handler-fixtures";
@@ -162,5 +165,40 @@ export function makeGateCheckResult(
     source: "special",
     origin: "global",
     ...overrides,
+  };
+}
+
+/**
+ * Mock of `ToolCallGateInputs` for `ToolCallGatePipeline` unit tests.
+ *
+ * Each method is a `vi.fn()` stub so callers retain full mock access
+ * (`mock.calls`, `mockReturnValue`, etc.) on the returned object.
+ * Pass `overrides` to replace individual stubs without rebuilding the whole
+ * mock from scratch.
+ */
+export function makeGateInputs(
+  overrides: {
+    resolve?: PermissionResolver["resolve"];
+    getActiveSkillEntries?: () => SkillPromptEntry[];
+    getInfrastructureReadDirs?: () => string[];
+    getToolPreviewLimits?: () => ToolPreviewFormatterOptions;
+  } = {},
+): ToolCallGateInputs {
+  return {
+    resolve:
+      overrides.resolve ??
+      vi.fn<PermissionResolver["resolve"]>().mockReturnValue(makeCheckResult()),
+    getActiveSkillEntries:
+      overrides.getActiveSkillEntries ??
+      vi.fn<() => SkillPromptEntry[]>(() => []),
+    getInfrastructureReadDirs:
+      overrides.getInfrastructureReadDirs ?? vi.fn<() => string[]>(() => []),
+    getToolPreviewLimits:
+      overrides.getToolPreviewLimits ??
+      vi.fn<() => ToolPreviewFormatterOptions>(() => ({
+        toolInputPreviewMaxLength: 500,
+        toolTextSummaryMaxLength: 100,
+        toolInputLogPreviewMaxLength: 200,
+      })),
   };
 }
