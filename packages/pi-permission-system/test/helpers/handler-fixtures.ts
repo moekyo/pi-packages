@@ -8,10 +8,12 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { vi } from "vitest";
 
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
+import { ToolCallGatePipeline } from "#src/handlers/gates/tool-call-gate-pipeline";
 import { PermissionGateHandler } from "#src/handlers/permission-gate-handler";
 import type { PermissionDecisionEvent } from "#src/permission-events";
 import { PERMISSIONS_DECISION_CHANNEL } from "#src/permission-events";
 import type { PermissionSession } from "#src/permission-session";
+import { resolveToolPreviewLimits } from "#src/tool-preview-formatter";
 import type { ToolRegistry } from "#src/tool-registry";
 import type { PermissionCheckResult } from "#src/types";
 
@@ -92,10 +94,12 @@ export function makeSession(
     getSessionRuleset: vi.fn().mockReturnValue([]),
     recordSessionApproval: vi.fn(),
     getActiveSkillEntries: vi.fn().mockReturnValue([]),
-    getInfrastructureDirs: vi
+    getInfrastructureReadDirs: vi
       .fn()
       .mockReturnValue(["/test/agent", "/test/agent/git"]),
-    getInfrastructureReadPaths: vi.fn().mockReturnValue([]),
+    getToolPreviewLimits: vi
+      .fn()
+      .mockReturnValue(resolveToolPreviewLimits(DEFAULT_EXTENSION_CONFIG)),
     config: DEFAULT_EXTENSION_CONFIG,
     canPrompt: vi.fn().mockReturnValue(true),
     prompt: vi.fn().mockResolvedValue({ approved: true, state: "approved" }),
@@ -158,7 +162,13 @@ export function makeHandler(overrides?: {
   const session = makeSession(overrides?.session);
   const events = makeEvents();
   const toolRegistry = makeToolRegistry(overrides?.toolRegistry);
-  const handler = new PermissionGateHandler(session, events, toolRegistry);
+  const pipeline = new ToolCallGatePipeline(session);
+  const handler = new PermissionGateHandler(
+    session,
+    events,
+    toolRegistry,
+    pipeline,
+  );
   return { handler, events, session, toolRegistry };
 }
 

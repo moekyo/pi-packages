@@ -11,10 +11,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
+import { ToolCallGatePipeline } from "#src/handlers/gates/tool-call-gate-pipeline";
 import { PermissionGateHandler } from "#src/handlers/permission-gate-handler";
 import type { PermissionSession } from "#src/permission-session";
 import type { Rule } from "#src/rule";
 import type { SessionApproval } from "#src/session-approval";
+import { resolveToolPreviewLimits } from "#src/tool-preview-formatter";
 import type { ToolRegistry } from "#src/tool-registry";
 import type { PermissionCheckResult } from "#src/types";
 import { wildcardMatch } from "#src/wildcard-matcher";
@@ -121,8 +123,10 @@ function makeStatefulSession(
     getSessionRuleset,
     recordSessionApproval,
     getActiveSkillEntries: vi.fn().mockReturnValue([]),
-    getInfrastructureDirs: vi.fn().mockReturnValue([]),
-    getInfrastructureReadPaths: vi.fn().mockReturnValue([]),
+    getInfrastructureReadDirs: vi.fn().mockReturnValue([]),
+    getToolPreviewLimits: vi
+      .fn()
+      .mockReturnValue(resolveToolPreviewLimits(DEFAULT_EXTENSION_CONFIG)),
     config: DEFAULT_EXTENSION_CONFIG,
     canPrompt: vi.fn().mockReturnValue(true),
     prompt: vi
@@ -160,6 +164,17 @@ function makeStatefulSession(
   return session;
 }
 
+function makeHandlerForSession(
+  session: PermissionSession,
+): PermissionGateHandler {
+  return new PermissionGateHandler(
+    session,
+    makeEvents(),
+    makeToolRegistry(),
+    new ToolCallGatePipeline(session),
+  );
+}
+
 function makeToolRegistry(): ToolRegistry {
   return {
     getAll: vi
@@ -180,11 +195,7 @@ describe("external-directory session dedup", () => {
   describe("path-bearing tools (read, write, edit)", () => {
     it("does not re-prompt for the same external path after session approval", async () => {
       const session = makeStatefulSession();
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
       const externalPath = "/outside/project/data.txt";
 
@@ -213,11 +224,7 @@ describe("external-directory session dedup", () => {
 
     it("does not re-prompt for a different file in the same external directory", async () => {
       const session = makeStatefulSession();
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — prompt for /outside/project/a.txt
@@ -243,11 +250,7 @@ describe("external-directory session dedup", () => {
 
     it("does prompt for a file in a different external directory", async () => {
       const session = makeStatefulSession();
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — /outside/alpha/file.txt
@@ -277,11 +280,7 @@ describe("external-directory session dedup", () => {
           .fn()
           .mockResolvedValue({ approved: true, state: "approved" }),
       });
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
       const externalPath = "/outside/project/data.txt";
 
@@ -310,11 +309,7 @@ describe("external-directory session dedup", () => {
   describe("bash commands with external paths", () => {
     it("does not re-prompt for a bash command referencing the same external path after session approval", async () => {
       const session = makeStatefulSession();
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — bash referencing /tmp/out.txt
@@ -342,11 +337,7 @@ describe("external-directory session dedup", () => {
 
     it("does not re-prompt for read after bash already approved the same directory", async () => {
       const session = makeStatefulSession();
-      const handler = new PermissionGateHandler(
-        session,
-        makeEvents(),
-        makeToolRegistry(),
-      );
+      const handler = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — bash writes to /tmp/out.txt

@@ -13,8 +13,10 @@ import { describe, expect, it, vi } from "vitest";
 import { EXTENSION_TAG } from "#src/denial-messages";
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
 import { formatExternalDirectoryAskPrompt } from "#src/handlers/gates/external-directory-messages";
+import { ToolCallGatePipeline } from "#src/handlers/gates/tool-call-gate-pipeline";
 import { PermissionGateHandler } from "#src/handlers/permission-gate-handler";
 import type { PermissionSession } from "#src/permission-session";
+import { resolveToolPreviewLimits } from "#src/tool-preview-formatter";
 import type { ToolRegistry } from "#src/tool-registry";
 import type { PermissionCheckResult, PermissionState } from "#src/types";
 
@@ -84,8 +86,10 @@ function makeSession(
     getSessionRuleset: vi.fn().mockReturnValue([]),
     recordSessionApproval: vi.fn(),
     getActiveSkillEntries: vi.fn().mockReturnValue([]),
-    getInfrastructureDirs: vi.fn().mockReturnValue([]),
-    getInfrastructureReadPaths: vi.fn().mockReturnValue([]),
+    getInfrastructureReadDirs: vi.fn().mockReturnValue([]),
+    getToolPreviewLimits: vi
+      .fn()
+      .mockReturnValue(resolveToolPreviewLimits(DEFAULT_EXTENSION_CONFIG)),
     config: DEFAULT_EXTENSION_CONFIG,
     canPrompt: vi.fn().mockReturnValue(true),
     prompt: vi.fn().mockResolvedValue({ approved: true, state: "approved" }),
@@ -149,7 +153,13 @@ function makeHandler(overrides?: {
   const session = makeSession(overrides?.session);
   const events = makeEvents();
   const toolRegistry = makeToolRegistry(overrides?.toolRegistry);
-  const handler = new PermissionGateHandler(session, events, toolRegistry);
+  const pipeline = new ToolCallGatePipeline(session);
+  const handler = new PermissionGateHandler(
+    session,
+    events,
+    toolRegistry,
+    pipeline,
+  );
   return { handler, events, session };
 }
 

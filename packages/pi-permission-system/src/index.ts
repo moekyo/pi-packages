@@ -15,6 +15,7 @@ import {
   PermissionGateHandler,
   SessionLifecycleHandler,
 } from "./handlers";
+import { ToolCallGatePipeline } from "./handlers/gates/tool-call-gate-pipeline";
 import { buildInputForSurface } from "./input-normalizer";
 import { requestPermissionDecisionFromUi } from "./permission-dialog";
 import { registerPermissionRpcHandlers } from "./permission-event-rpc";
@@ -174,11 +175,15 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     },
   );
   const agentPrep = new AgentPrepHandler(session, toolRegistry);
+  const toolCallGatePipeline = new ToolCallGatePipeline(
+    session,
+    formatterRegistry,
+  );
   const gates = new PermissionGateHandler(
     session,
     pi.events,
     toolRegistry,
-    formatterRegistry,
+    toolCallGatePipeline,
   );
 
   pi.on("session_start", (event, ctx) =>

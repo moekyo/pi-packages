@@ -3,7 +3,7 @@ import type {
   InputEventResult,
 } from "@earendil-works/pi-coding-agent";
 
-import { getNonEmptyString, toRecord } from "#src/common";
+import { toRecord } from "#src/common";
 import {
   type DecisionReporter,
   GateDecisionReporter,
@@ -14,27 +14,14 @@ import {
   formatUnknownToolReason,
 } from "#src/permission-prompts";
 import type { PermissionSession } from "#src/permission-session";
-import type { ToolInputFormatterLookup } from "#src/tool-input-formatter-registry";
-import {
-  resolveToolPreviewLimits,
-  ToolPreviewFormatter,
-} from "#src/tool-preview-formatter";
 import {
   checkRequestedToolRegistration,
   getToolNameFromValue,
   type ToolRegistry,
 } from "#src/tool-registry";
-import { resolveBashCommandCheck } from "./gates/bash-command";
-import { describeBashExternalDirectoryGate } from "./gates/bash-external-directory";
-import { describeBashPathGate } from "./gates/bash-path";
-import { BashProgram } from "./gates/bash-program";
-import type { GateResult } from "./gates/descriptor";
-import { describeExternalDirectoryGate } from "./gates/external-directory";
-import { describePathGate } from "./gates/path";
 import { GateRunner } from "./gates/runner";
 import { describeSkillInputGate } from "./gates/skill-input";
-import { describeSkillReadGate } from "./gates/skill-read";
-import { describeToolGate } from "./gates/tool";
+import type { ToolCallGatePipeline } from "./gates/tool-call-gate-pipeline";
 import type { ToolCallContext } from "./gates/types";
 
 /** Minimal subset of InputEvent used by handleInput. */
@@ -49,6 +36,7 @@ interface InputPayload {
  * - `session` — encapsulates all mutable session state and permission operations
  * - `events` — event bus for emitting permissions:decision broadcasts
  * - `toolRegistry` — Pi tool API subset (getAll + setActive)
+ * - `pipeline` — owns tool-call gate-producer assembly and the run loop
  */
 export class PermissionGateHandler {
   private readonly reporter: DecisionReporter;
@@ -58,7 +46,7 @@ export class PermissionGateHandler {
     private readonly session: PermissionSession,
     events: PermissionEventBus,
     private readonly toolRegistry: ToolRegistry,
-    private readonly customFormatters?: ToolInputFormatterLookup,
+    private readonly pipeline: ToolCallGatePipeline,
   ) {
     this.reporter = new GateDecisionReporter(session.logger, events);
     this.runner = new GateRunner(session, session, session, this.reporter);
@@ -92,72 +80,10 @@ export class PermissionGateHandler {
       cwd: ctx.cwd,
     };
 
-    // Parse the bash command exactly once per tool_call; the three bash gates
-    // share this single BashProgram instead of each re-parsing (#308).
-    const command = getNonEmptyString(toRecord(tcc.input).command);
-    const bashProgram =
-      tcc.toolName === "bash" && command
-        ? await BashProgram.parse(command)
-        : null;
-
-    // ── Shared resolver (for gate producers that need it directly) ──────
-    const resolver = this.session;
-
-    const formatter = new ToolPreviewFormatter(
-      resolveToolPreviewLimits(this.session.config),
-      this.customFormatters,
-    );
-
-    // ── Ordered gate pipeline ─────────────────────────────────────────────
-    // infraDirs is computed once, outside the pipeline, exactly as before.
-    const infraDirs = [
-      ...this.session.getInfrastructureDirs(),
-      ...this.session.getInfrastructureReadPaths(),
-    ];
-
-    const gateProducers: Array<() => GateResult | Promise<GateResult>> = [
-      () =>
-        describeSkillReadGate(tcc, () => this.session.getActiveSkillEntries()),
-      () => describePathGate(tcc, resolver),
-      () => describeExternalDirectoryGate(tcc, infraDirs),
-      () => describeBashExternalDirectoryGate(tcc, bashProgram, resolver),
-      () => describeBashPathGate(tcc, bashProgram, resolver),
-      () => {
-        // Bash commands may chain several sub-commands (`a && b`, `a | b`, …);
-        // evaluate each unit from the shared parse on the bash surface and
-        // select the most restrictive, rather than matching the whole program
-        // string (#301). Other tools evaluate their single input directly.
-        const toolCheck =
-          tcc.toolName === "bash" && bashProgram
-            ? resolveBashCommandCheck(
-                command ?? "",
-                bashProgram.commands(),
-                tcc.agentName ?? undefined,
-                resolver,
-              )
-            : resolver.resolve(
-                tcc.toolName,
-                tcc.input,
-                tcc.agentName ?? undefined,
-              );
-        const toolDescriptor = describeToolGate(tcc, toolCheck, formatter);
-        toolDescriptor.preCheck = toolCheck;
-        return toolDescriptor;
-      },
-    ];
-
-    for (const produce of gateProducers) {
-      const outcome = await this.runner.run(
-        await produce(),
-        tcc.agentName,
-        tcc.toolCallId,
-      );
-      if (outcome.action === "block") {
-        return { block: true, reason: outcome.reason };
-      }
-    }
-
-    return {};
+    const outcome = await this.pipeline.evaluate(tcc, this.runner);
+    return outcome.action === "block"
+      ? { block: true, reason: outcome.reason }
+      : {};
   }
 
   async handleInput(
