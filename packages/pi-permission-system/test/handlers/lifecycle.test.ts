@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { SessionLifecycleHandler } from "#src/handlers/lifecycle";
-import type { PermissionSession } from "#src/permission-session";
+import type { SessionLifecycleSession } from "#src/session-lifecycle-session";
 
 import { makeCtx } from "#test/helpers/handler-fixtures";
 
@@ -15,27 +15,45 @@ vi.mock("../../src/status", () => ({
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function makeSession(
-  overrides: Partial<Record<keyof PermissionSession, unknown>> = {},
-): PermissionSession {
+  overrides: Partial<SessionLifecycleSession> = {},
+): SessionLifecycleSession {
   return {
-    logger: { debug: vi.fn(), review: vi.fn(), warn: vi.fn() },
-    refreshConfig: vi.fn(),
-    resetForNewSession: vi.fn(),
-    logResolvedConfigPaths: vi.fn(),
-    resolveAgentName: vi.fn().mockReturnValue(null),
-    getConfigIssues: vi.fn().mockReturnValue([]),
-    reload: vi.fn(),
-    getRuntimeContext: vi.fn().mockReturnValue(null),
-    shutdown: vi.fn(),
-    ...overrides,
-  } as unknown as PermissionSession;
+    logger: overrides.logger ?? {
+      debug: vi.fn<SessionLifecycleSession["logger"]["debug"]>(),
+      review: vi.fn<SessionLifecycleSession["logger"]["review"]>(),
+      warn: vi.fn<SessionLifecycleSession["logger"]["warn"]>(),
+    },
+    refreshConfig:
+      overrides.refreshConfig ??
+      vi.fn<SessionLifecycleSession["refreshConfig"]>(),
+    resetForNewSession:
+      overrides.resetForNewSession ??
+      vi.fn<SessionLifecycleSession["resetForNewSession"]>(),
+    logResolvedConfigPaths:
+      overrides.logResolvedConfigPaths ??
+      vi.fn<SessionLifecycleSession["logResolvedConfigPaths"]>(),
+    resolveAgentName:
+      overrides.resolveAgentName ??
+      vi
+        .fn<SessionLifecycleSession["resolveAgentName"]>()
+        .mockReturnValue(null),
+    getConfigIssues:
+      overrides.getConfigIssues ??
+      vi.fn<SessionLifecycleSession["getConfigIssues"]>().mockReturnValue([]),
+    reload: overrides.reload ?? vi.fn<SessionLifecycleSession["reload"]>(),
+    getRuntimeContext:
+      overrides.getRuntimeContext ??
+      vi
+        .fn<SessionLifecycleSession["getRuntimeContext"]>()
+        .mockReturnValue(null),
+    shutdown:
+      overrides.shutdown ?? vi.fn<SessionLifecycleSession["shutdown"]>(),
+  };
 }
 
-function makeHandler(
-  overrides?: Partial<Record<keyof PermissionSession, unknown>>,
-): {
+function makeHandler(overrides?: Partial<SessionLifecycleSession>): {
   handler: SessionLifecycleHandler;
-  session: PermissionSession;
+  session: SessionLifecycleSession;
   activateService: ReturnType<typeof vi.fn>;
   cleanupRpc: ReturnType<typeof vi.fn>;
 } {
