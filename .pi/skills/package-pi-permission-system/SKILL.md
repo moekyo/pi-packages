@@ -90,6 +90,10 @@ Shared communication channels:
 - **`globalThis` + `Symbol.for()`** — process-global by spec, survives jiti isolation.
   Use for direct service access.
 
+The in-process implementation of `PermissionsService` is `LocalPermissionsService` (`src/permissions-service.ts`).
+The `session_start`-gated publication, #302 subagent-child guard, ready-event emit, and session teardown ordering are all owned by `PermissionServiceLifecycle` (`src/service-lifecycle.ts`), which is injected into `SessionLifecycleHandler`.
+Changes to publication timing or teardown order should go through `PermissionServiceLifecycle`, not `index.ts`.
+
 Do not propose module-scoped singletons or Node.js module-cache sharing as a cross-extension communication mechanism — they do not work under jiti.
 
 ## Testing
