@@ -869,14 +869,16 @@ The headline findings are coupling smells (Category C) - anemic behavior, mutabl
       Applied Tell-Don't-Ask narrowings: `getInfrastructureReadDirs()` replaces the two-method reach + handler concat; `getToolPreviewLimits()` replaces `resolveToolPreviewLimits(session.config)`.
       Removed now-unused `getInfrastructureDirs()` / `getInfrastructureReadPaths()` from `PermissionSession`.
     - Smell category: C (anemic getters / missing collaborator).
-    - Outcome: gate construction has an owner the handler tells; `handleToolCall` shrinks to activate → validate → build `tcc` → pipeline.evaluate → map outcome; the handler's residual `PermissionSession` surface is `activate` + `resolveAgentName` ahead of Step 11 ([#325]).
+    - Outcome: gate construction has an owner the handler tells; `handleToolCall` shrinks to activate → validate → build `tcc` → pipeline.evaluate → map outcome; the handler's residual `PermissionSession` surface ahead of Step 11 ([#325]) is `activate` + `resolveAgentName` plus the skill-input path's `checkPermission` + `createPermissionRequestId`.
 
 11. **Retype `PermissionGateHandler` against narrow role interfaces** ([#325])
-    - Target: `src/handlers/permission-gate-handler.ts`; `test/helpers/handler-fixtures.ts`; `test/handlers/external-directory-integration.test.ts`; `test/handlers/external-directory-session-dedup.test.ts`.
-    - The handler's constructor takes `session: PermissionSession` (concrete class, 36 public members); the `as unknown as PermissionSession` casts in every test mock disable TypeScript's structural check.
-      After Steps 9-10 ([#326], [#327]) the handler's residual surface is `activate` + `resolveAgentName` plus the injected collaborators (`ToolCallGatePipeline`, `GateRunner`, `DecisionReporter`), so retyping the constructor against narrow role interfaces and dropping the casts is a small finishing move; inject the pre-built `DecisionReporter` (drop the `events` constructor param).
+    - Target: new `src/gate-handler-session.ts`; `src/permission-session.ts`; `src/handlers/permission-gate-handler.ts`; `src/index.ts`; `test/helpers/handler-fixtures.ts`; `test/handlers/external-directory-integration.test.ts`; `test/handlers/external-directory-session-dedup.test.ts`.
+    - The handler's constructor takes `session: PermissionSession` (concrete class, 36 public members); the `as unknown as PermissionSession` casts in every test mock disable TypeScript's structural check — the regression that prompted this (a mock missing `resolve()`) broke at runtime in [#319], not at `pnpm run check`.
+      After Steps 9-10 ([#326], [#327]) the handler's residual session surface is four methods — `activate`, `resolveAgentName`, `checkPermission`, `createPermissionRequestId` — plus the `session.logger` read and the three roles passed to `GateRunner`.
+      Introduce a `GateHandlerSession` role (those four methods, top-level `src/`, implemented by `PermissionSession`); inject the pre-built `GateRunner` (build the `GateDecisionReporter` + `GateRunner` in `index.ts`) so the handler stops constructing collaborators and reaching `session.logger`, and drop the `events` constructor param; retype the three `makeSession` fixtures to the precise role intersection and drop the casts.
+    - Planning surfaced three follow-ups that finish the arc: extract a `SkillInputGatePipeline` ([#329], which shrinks `GateHandlerSession` to a two-method context role), relocate `createPermissionRequestId` onto the request-creation collaborator ([#330]), and narrow `AgentPrepHandler` + `SessionLifecycleHandler` the same way ([#331]).
     - Smell category: C (concrete class dependency forces wide mocks; narrow interfaces enforce completeness at the type level).
-    - Outcome: `as unknown as PermissionSession` casts are gone; a consumer calling a method the mock lacks fails at `pnpm run check`, not at runtime.
+    - Outcome: `as unknown as PermissionSession` casts are gone from the gate-handler mocks; the runner is injected, not built in the handler; a consumer calling a method the mock lacks fails at `pnpm run check`, not at runtime.
 
 12. **Reframe the `index.ts` composition root as collaborator injection** ([#320])
     - Target: `src/index.ts` (sequence after Steps 2-4 and 6-11).
@@ -941,6 +943,17 @@ flowchart TD
 | D: Composition root        | 12                    | Reframe `index.ts` as collaborator injection (after Tracks B and C)                                                                                                                                            |
 | E: Test duplication        | 13                    | Migrate the four largest clone families onto shared fixtures (best last)                                                                                                                                       |
 
+### Phase 3 follow-ups (surfaced during #325 planning)
+
+Planning [#325] confirmed the handler-narrowing arc is not finished once the casts are gone.
+These three follow-ups extend Track C and are independent of one another, except that [#330] is best sequenced with or after [#329].
+
+| Issue  | Theme                        | Description                                                                                                                                                                            |
+| ------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#329] | C: missing collaborator      | Extract a `SkillInputGatePipeline` mirroring `ToolCallGatePipeline`; absorbs the inline skill-input gate assembly so `GateHandlerSession` collapses to a two-method context role       |
+| [#330] | C: misplaced utility         | Relocate `createPermissionRequestId` off `PermissionSession` (it touches zero session state) onto the request-creation collaborator                                                    |
+| [#331] | C: concrete-class dependency | Narrow `AgentPrepHandler` + `SessionLifecycleHandler` against role interfaces and drop their `as unknown as PermissionSession` casts, completing what [#325] does for the gate handler |
+
 [#266]: https://github.com/gotgenes/pi-packages/issues/266
 [#282]: https://github.com/gotgenes/pi-packages/issues/282
 [#285]: https://github.com/gotgenes/pi-packages/issues/285
@@ -962,3 +975,6 @@ flowchart TD
 [#325]: https://github.com/gotgenes/pi-packages/issues/325
 [#326]: https://github.com/gotgenes/pi-packages/issues/326
 [#327]: https://github.com/gotgenes/pi-packages/issues/327
+[#329]: https://github.com/gotgenes/pi-packages/issues/329
+[#330]: https://github.com/gotgenes/pi-packages/issues/330
+[#331]: https://github.com/gotgenes/pi-packages/issues/331
