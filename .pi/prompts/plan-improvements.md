@@ -113,4 +113,5 @@ After the plan is committed, ask whether to file the issues now; if confirmed:
 3. Link the doc back: append `([#N])` to each step heading, add `(#N)` to each Mermaid node, and add reference-link definitions at the end of the file.
 4. Commit with `docs($1): link Phase N roadmap steps to issues #A-#B` and push.
 
+Finally, restate the recommended working sequence: list the issues as `#N — title` lines in dependency order (a topological order of the step diagram), noting which can proceed in parallel and which are blocked until an earlier one lands.
 Then stop.
