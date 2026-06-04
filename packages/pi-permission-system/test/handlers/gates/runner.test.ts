@@ -2,12 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DenialContext } from "#src/denial-messages";
 import { EXTENSION_TAG } from "#src/denial-messages";
-import type {
-  GateBypass,
-  GateDescriptor,
-} from "#src/handlers/gates/descriptor";
+import type { GateBypass } from "#src/handlers/gates/descriptor";
 import { SessionApproval } from "#src/session-approval";
-import { makeDescriptor, makeGateRunner } from "#test/helpers/gate-fixtures";
+import {
+  makeDenialDescriptor,
+  makeDescriptor,
+  makeGateRunner,
+} from "#test/helpers/gate-fixtures";
 import { makeCheckResult } from "#test/helpers/handler-fixtures";
 
 // ── GateRunner — descriptor path ───────────────────────────────────────────
@@ -29,11 +30,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns block and emits policy_deny when policy is deny", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "deny", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "deny", matchedPattern: "*" }),
     });
     const result = await runner.run(makeDescriptor(), null, "tc-1");
     expect(result).toMatchObject({ action: "block" });
@@ -51,11 +48,10 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns allow and emits session_approved on session hit", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ source: "session", matchedPattern: "git *" }),
-        ),
+      resolveResult: makeCheckResult({
+        source: "session",
+        matchedPattern: "git *",
+      }),
     });
     const result = await runner.run(
       makeDescriptor({
@@ -84,11 +80,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns allow and emits user_approved when ask + user approves", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: true, state: "approved" }),
@@ -105,11 +97,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns allow, emits user_approved_for_session, and records session rule on approved_for_session", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: true, state: "approved_for_session" }),
@@ -131,11 +119,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("calls recordSessionApproval once with the full SessionApproval when sessionApproval has multiple patterns", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: true, state: "approved_for_session" }),
@@ -153,11 +137,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns block and emits user_denied when ask + user denies", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: false, state: "denied" }),
@@ -174,11 +154,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("returns block and emits confirmation_unavailable when ask + no UI", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       canConfirm: vi.fn().mockReturnValue(false),
     });
     const result = await runner.run(makeDescriptor(), null, "tc-1");
@@ -193,11 +169,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("emits auto_approved resolution when decision has autoApproved flag", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi.fn().mockResolvedValue({
         approved: true,
         state: "approved",
@@ -257,11 +229,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("passes requestId from toolCallId to promptPermission", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
     });
     await runner.run(makeDescriptor(), null, "tc-42");
     expect(deps.promptPermission).toHaveBeenCalledWith(
@@ -271,11 +239,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("does not call recordSessionApproval when user approves once (no sessionApproval)", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: true, state: "approved" }),
@@ -307,11 +271,7 @@ describe("GateRunner — descriptor path", () => {
 
   it("does not call recordSessionApproval when user approves for session but no sessionApproval on descriptor", async () => {
     const { runner, deps } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "ask", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       promptPermission: vi
         .fn()
         .mockResolvedValue({ approved: true, state: "approved_for_session" }),
@@ -322,41 +282,9 @@ describe("GateRunner — descriptor path", () => {
   });
 
   describe("denialContext formatting", () => {
-    function makeDenialContextDescriptor(
-      denialContext: DenialContext,
-      overrides: Partial<GateDescriptor> = {},
-    ): GateDescriptor {
-      return {
-        surface: "write",
-        input: {},
-        denialContext,
-        promptDetails: {
-          source: "tool_call",
-          agentName: null,
-          message: "Allow tool 'write'?",
-          toolCallId: "tc-1",
-          toolName: "write",
-        },
-        logContext: {
-          source: "tool_call",
-          toolCallId: "tc-1",
-          toolName: "write",
-        },
-        decision: {
-          surface: "write",
-          value: "write",
-        },
-        ...overrides,
-      };
-    }
-
     it("uses denialContext to format denyReason with extension tag", async () => {
       const { runner } = makeGateRunner({
-        resolve: vi
-          .fn()
-          .mockReturnValue(
-            makeCheckResult({ state: "deny", matchedPattern: "*" }),
-          ),
+        resolveResult: makeCheckResult({ state: "deny", matchedPattern: "*" }),
       });
       const ctx: DenialContext = {
         kind: "tool",
@@ -364,7 +292,7 @@ describe("GateRunner — descriptor path", () => {
         agentName: "test-agent",
       };
       const result = await runner.run(
-        makeDenialContextDescriptor(ctx),
+        makeDenialDescriptor(ctx),
         "test-agent",
         "tc-1",
       );
@@ -377,22 +305,14 @@ describe("GateRunner — descriptor path", () => {
 
     it("uses denialContext to format unavailableReason with extension tag", async () => {
       const { runner } = makeGateRunner({
-        resolve: vi
-          .fn()
-          .mockReturnValue(
-            makeCheckResult({ state: "ask", matchedPattern: "*" }),
-          ),
+        resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
         canConfirm: vi.fn().mockReturnValue(false),
       });
       const ctx: DenialContext = {
         kind: "tool",
         check: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       };
-      const result = await runner.run(
-        makeDenialContextDescriptor(ctx),
-        null,
-        "tc-1",
-      );
+      const result = await runner.run(makeDenialDescriptor(ctx), null, "tc-1");
       expect(result.action).toBe("block");
       if (result.action === "block") {
         expect(result.reason).toContain(EXTENSION_TAG);
@@ -402,11 +322,7 @@ describe("GateRunner — descriptor path", () => {
 
     it("uses denialContext to format userDeniedReason with extension tag", async () => {
       const { runner } = makeGateRunner({
-        resolve: vi
-          .fn()
-          .mockReturnValue(
-            makeCheckResult({ state: "ask", matchedPattern: "*" }),
-          ),
+        resolveResult: makeCheckResult({ state: "ask", matchedPattern: "*" }),
         promptPermission: vi.fn().mockResolvedValue({
           approved: false,
           state: "denied",
@@ -417,11 +333,7 @@ describe("GateRunner — descriptor path", () => {
         kind: "tool",
         check: makeCheckResult({ state: "ask", matchedPattern: "*" }),
       };
-      const result = await runner.run(
-        makeDenialContextDescriptor(ctx),
-        null,
-        "tc-1",
-      );
+      const result = await runner.run(makeDenialDescriptor(ctx), null, "tc-1");
       expect(result.action).toBe("block");
       if (result.action === "block") {
         expect(result.reason).toContain(EXTENSION_TAG);
@@ -489,11 +401,7 @@ describe("GateRunner.run — null and bypass dispatch", () => {
 
   it("routes a descriptor to the gate check logic and returns block", async () => {
     const { runner } = makeGateRunner({
-      resolve: vi
-        .fn()
-        .mockReturnValue(
-          makeCheckResult({ state: "deny", matchedPattern: "*" }),
-        ),
+      resolveResult: makeCheckResult({ state: "deny", matchedPattern: "*" }),
     });
     const result = await runner.run(makeDescriptor(), null, "tc-1");
     expect(result).toMatchObject({ action: "block" });

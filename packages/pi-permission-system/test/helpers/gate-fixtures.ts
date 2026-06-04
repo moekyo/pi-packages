@@ -2,8 +2,8 @@
  * Shared gate-level test fixtures for gate descriptor and runner tests.
  */
 import { vi } from "vitest";
-
 import type { DecisionReporter } from "#src/decision-reporter";
+import type { DenialContext } from "#src/denial-messages";
 import type { GatePrompter } from "#src/gate-prompter";
 import type { GateDescriptor } from "#src/handlers/gates/descriptor";
 import { GateRunner } from "#src/handlers/gates/runner";
@@ -90,6 +90,7 @@ export function makeReporter(
  */
 export function makeGateRunner(
   overrides: {
+    resolveResult?: PermissionCheckResult;
     resolve?: PermissionResolver["resolve"];
     recordSessionApproval?: SessionApprovalRecorder["recordSessionApproval"];
     canConfirm?: GatePrompter["canConfirm"];
@@ -102,7 +103,9 @@ export function makeGateRunner(
     overrides.resolve ??
     vi
       .fn<PermissionResolver["resolve"]>()
-      .mockReturnValue(makeCheckResult({ matchedPattern: "*" }));
+      .mockReturnValue(
+        overrides.resolveResult ?? makeCheckResult({ matchedPattern: "*" }),
+      );
   const recordSessionApproval =
     overrides.recordSessionApproval ??
     (vi.fn() as SessionApprovalRecorder["recordSessionApproval"]);
@@ -129,6 +132,42 @@ export function makeGateRunner(
       promptPermission,
       reporter,
     },
+  };
+}
+
+/**
+ * Gate descriptor variant with write-surface defaults and a caller-supplied
+ * denialContext.
+ *
+ * Use instead of `makeDescriptor` when the test exercises denial-message
+ * formatting — the write surface and its matching promptDetails/logContext
+ * keep the message helpers' field access consistent.
+ */
+export function makeDenialDescriptor(
+  denialContext: DenialContext,
+  overrides: Partial<GateDescriptor> = {},
+): GateDescriptor {
+  return {
+    surface: "write",
+    input: {},
+    denialContext,
+    promptDetails: {
+      source: "tool_call",
+      agentName: null,
+      message: "Allow tool 'write'?",
+      toolCallId: "tc-1",
+      toolName: "write",
+    },
+    logContext: {
+      source: "tool_call",
+      toolCallId: "tc-1",
+      toolName: "write",
+    },
+    decision: {
+      surface: "write",
+      value: "write",
+    },
+    ...overrides,
   };
 }
 
