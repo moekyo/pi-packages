@@ -8,7 +8,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PermissionManager } from "#src/permission-manager";
+import { getGlobalConfigPath, getProjectConfigPath } from "#src/config-paths";
+import {
+  PermissionManager,
+  type ScopedPermissionManager,
+} from "#src/permission-manager";
 import type { Rule, Ruleset } from "#src/rule";
 
 // ---------------------------------------------------------------------------
@@ -1344,6 +1348,160 @@ describe("cross-cutting path surface", () => {
         path: "secret.txt",
       });
       expect(readResult.state).toBe("deny");
+    } finally {
+      cleanup();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// configureForCwd and agentDir construction
+// ---------------------------------------------------------------------------
+
+describe("PermissionManager — configureForCwd and agentDir option", () => {
+  /**
+   * Build a temp agentDir with a global config and an optional cwd with a
+   * project config.  Returns the paths and a cleanup function.
+   */
+  function makeAgentDirSetup(opts: {
+    globalPermission: Record<string, unknown>;
+    projectPermission?: Record<string, unknown>;
+  }): {
+    agentDir: string;
+    cwd: string;
+    globalConfigPath: string;
+    projectConfigPath: string;
+    cleanup: () => void;
+  } {
+    const baseDir = mkdtempSync(join(tmpdir(), "pm-agent-dir-test-"));
+    const agentDir = join(baseDir, "agent");
+    const cwd = join(baseDir, "project");
+
+    // Write global config under getGlobalConfigPath(agentDir)
+    const globalConfigPath = getGlobalConfigPath(agentDir);
+    mkdirSync(join(agentDir, "extensions", "pi-permission-system"), {
+      recursive: true,
+    });
+    writeFileSync(
+      globalConfigPath,
+      JSON.stringify({ permission: opts.globalPermission }, null, 2),
+    );
+
+    // Write project config under getProjectConfigPath(cwd)
+    const projectConfigPath = getProjectConfigPath(cwd);
+    mkdirSync(join(cwd, ".pi", "extensions", "pi-permission-system"), {
+      recursive: true,
+    });
+    if (opts.projectPermission) {
+      writeFileSync(
+        projectConfigPath,
+        JSON.stringify({ permission: opts.projectPermission }, null, 2),
+      );
+    }
+
+    return {
+      agentDir,
+      cwd,
+      globalConfigPath,
+      projectConfigPath,
+      cleanup: () => rmSync(baseDir, { recursive: true, force: true }),
+    };
+  }
+
+  it("ScopedPermissionManager is exported and PermissionManager satisfies it", () => {
+    // Type-level assertion: assigning PermissionManager to ScopedPermissionManager compiles.
+    const manager = new PermissionManager({
+      globalConfigPath: "/nonexistent/config.json",
+      agentsDir: "/nonexistent/agents",
+    });
+    const scoped: ScopedPermissionManager = manager;
+    expect(typeof scoped.configureForCwd).toBe("function");
+    expect(typeof scoped.checkPermission).toBe("function");
+    expect(typeof scoped.getToolPermission).toBe("function");
+    expect(typeof scoped.getConfigIssues).toBe("function");
+    expect(typeof scoped.getPolicyCacheStamp).toBe("function");
+  });
+
+  it("construction with { agentDir } reads global config from getGlobalConfigPath(agentDir)", () => {
+    const { agentDir, cleanup } = makeAgentDirSetup({
+      globalPermission: { read: "deny" },
+    });
+    try {
+      const manager = new PermissionManager({ agentDir });
+      const result = manager.checkPermission("read", { path: "foo.txt" });
+      expect(result.state).toBe("deny");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("configureForCwd(cwd) applies project config (project overrides global)", () => {
+    const { agentDir, cwd, cleanup } = makeAgentDirSetup({
+      globalPermission: { read: "deny" },
+      projectPermission: { read: "allow" },
+    });
+    try {
+      const manager = new PermissionManager({ agentDir });
+      // Before configureForCwd: global policy applies
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "deny",
+      );
+
+      manager.configureForCwd(cwd);
+
+      // After configureForCwd: project override applies (last-match-wins)
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "allow",
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("configureForCwd(undefined) reverts to global-only", () => {
+    const { agentDir, cwd, cleanup } = makeAgentDirSetup({
+      globalPermission: { read: "deny" },
+      projectPermission: { read: "allow" },
+    });
+    try {
+      const manager = new PermissionManager({ agentDir });
+      manager.configureForCwd(cwd);
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "allow",
+      );
+
+      manager.configureForCwd(undefined);
+
+      // After reverting: global policy applies again
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "deny",
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("configureForCwd clears the resolved-permissions cache", () => {
+    const { agentDir, globalConfigPath, cleanup } = makeAgentDirSetup({
+      globalPermission: { read: "allow" },
+    });
+    try {
+      const manager = new PermissionManager({ agentDir });
+      // Warm the cache
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "allow",
+      );
+      // Update global config on disk to deny read
+      writeFileSync(
+        globalConfigPath,
+        JSON.stringify({ permission: { read: "deny" } }, null, 2),
+      );
+      // configureForCwd clears cache + rebuilds loader
+      manager.configureForCwd(undefined);
+      // Should pick up the changed global config
+      expect(manager.checkPermission("read", { path: "foo.txt" }).state).toBe(
+        "deny",
+      );
     } finally {
       cleanup();
     }

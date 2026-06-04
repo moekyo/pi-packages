@@ -1,4 +1,6 @@
+import { join } from "node:path";
 import { isPermissionState } from "./common";
+import { getGlobalConfigPath, getProjectConfigPath } from "./config-paths";
 import { normalizeInput } from "./input-normalizer";
 import { normalizeFlatConfig } from "./normalize";
 import {
@@ -48,19 +50,83 @@ type ResolvedPermissions = {
   composedRules: Ruleset;
 };
 
-export interface PermissionManagerOptions extends PolicyLoaderOptions {
-  policyLoader?: PolicyLoader;
+/**
+ * Narrow interface for session-scoped permission checking.
+ * `PermissionSession` depends on this — not the full concrete class — so
+ * test mocks can satisfy it without an `as unknown as PermissionManager` cast.
+ */
+export interface ScopedPermissionManager {
+  configureForCwd(cwd: string | undefined | null): void;
+  checkPermission(
+    toolName: string,
+    input: unknown,
+    agentName?: string,
+    sessionRules?: Ruleset,
+  ): PermissionCheckResult;
+  getToolPermission(toolName: string, agentName?: string): PermissionState;
+  getConfigIssues(agentName?: string): string[];
+  getPolicyCacheStamp(agentName?: string): string;
 }
 
-export class PermissionManager {
-  private readonly loader: PolicyLoader;
+export interface PermissionManagerOptions extends PolicyLoaderOptions {
+  policyLoader?: PolicyLoader;
+  /**
+   * Pi agent directory.  When provided, the manager derives all loader paths
+   * from this value and supports {@link PermissionManager.configureForCwd}.
+   */
+  agentDir?: string;
+}
+
+/**
+ * Derive `PolicyLoaderOptions` from an agentDir + an optional cwd.
+ * Setting agentsDir explicitly from agentDir removes the hidden
+ * `getAgentDir()` env-read that FilePolicyLoader's default would perform.
+ */
+function derivePolicyLoaderOptions(
+  agentDir: string,
+  cwd: string | undefined | null,
+): PolicyLoaderOptions {
+  return {
+    globalConfigPath: getGlobalConfigPath(agentDir),
+    agentsDir: join(agentDir, "agents"),
+    projectGlobalConfigPath: cwd ? getProjectConfigPath(cwd) : undefined,
+    projectAgentsDir: cwd ? join(cwd, ".pi", "agent", "agents") : undefined,
+  };
+}
+
+export class PermissionManager implements ScopedPermissionManager {
+  private readonly agentDir: string | undefined;
+  private loader: PolicyLoader;
   private readonly resolvedPermissionsCache = new Map<
     string,
     FileCacheEntry<ResolvedPermissions>
   >();
 
   constructor(options: PermissionManagerOptions = {}) {
-    this.loader = options.policyLoader ?? new FilePolicyLoader(options);
+    this.agentDir = options.agentDir;
+    this.loader =
+      options.policyLoader ??
+      new FilePolicyLoader(
+        options.agentDir !== undefined
+          ? derivePolicyLoaderOptions(options.agentDir, undefined)
+          : options,
+      );
+  }
+
+  /**
+   * Rebuild the policy loader for a new working directory and clear the
+   * resolved-permissions cache.
+   *
+   * When `agentDir` was not provided at construction (e.g. test managers
+   * built with explicit paths), only the cache is cleared.
+   */
+  configureForCwd(cwd: string | undefined | null): void {
+    if (this.agentDir !== undefined) {
+      this.loader = new FilePolicyLoader(
+        derivePolicyLoaderOptions(this.agentDir, cwd),
+      );
+    }
+    this.resolvedPermissionsCache.clear();
   }
 
   getConfigIssues(agentName?: string): string[] {
