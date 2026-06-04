@@ -633,11 +633,13 @@ The nine steps are filed as [#334]–[#342].
 Production first (Steps 1-8), then the test-cleanup tail (Step 9).
 Each step is a behavior-preserving refactor that leaves the suite green; the success metric is the constructibility table above moving toward zero, observed as fewer `vi.mock` module stubs, smaller fixtures, and dropped casts.
 
-1. **Inject a `PermissionManagerFactory` into `PermissionSession`** ([#334])
-   - Target: new `src/permission-manager-factory.ts` (`forCwd(cwd): PermissionManager` wrapping `createPermissionManagerForCwd`); `permission-session.ts` constructor + `resetForNewSession` + `reload`; `index.ts`.
-   - `PermissionSession` stops calling the free function and asks the injected factory; tests pass a stub factory instead of mocking the `../src/runtime` module.
+1. **Inject a single `PermissionManager` into `PermissionSession`** ([#334])
+   - Target: `permission-manager.ts` (add `configureForCwd(cwd)`); `permission-session.ts` constructor + `resetForNewSession` + `reload`; `index.ts`.
+   - `PermissionSession` holds one injected `PermissionManager` and calls `configureForCwd(ctx.cwd)` once at `session_start`, instead of constructing a new manager via the `createPermissionManagerForCwd` free function on every lifecycle event; tests pass a real or fake manager directly.
+   - The per-call reconstruction implied the project cwd can change across a session; it cannot (verified against Pi core — `AgentSession._cwd` and `ExtensionRunner.cwd` are each assigned once and never reassigned; `/reload` re-emits `session_start` with the same cwd).
+     The instance-swapping is dead generality; the extension just does not learn cwd until `session_start`.
    - Smell category: C (DIP violation — addresses Finding 1).
-   - Outcome: `vi.mock("../src/runtime")` and `as unknown as PermissionManager` leave `permission-session.test.ts`; the manager is substitutable.
+   - Outcome: `vi.mock("../src/runtime")` and `as unknown as PermissionManager` leave `permission-session.test.ts`; the manager is a single injected, substitutable collaborator — no `Factory` class.
 
 2. **Extract a `ConfigStore` from the runtime free-functions** ([#335])
    - Target: new `src/config-store.ts` class owning `config` + `lastConfigWarning` with `current()` / `refresh(ctx?)` / `save(next, ctx)` / `logResolvedPaths()`; convert `refreshExtensionConfig` / `saveExtensionConfig` / `logResolvedConfigPaths` from `(runtime, …)` free functions into methods.
@@ -703,7 +705,7 @@ Step 9 (test tail) depends on the full production refactor — the collaborators
 
 ```mermaid
 flowchart TD
-    S1["Step 1: Inject PermissionManagerFactory (#334)"]
+    S1["Step 1: Inject single PermissionManager (#334)"]
     S2["Step 2: Extract ConfigStore (#335)"]
     S3["Step 3: Make logger injectable (#336)"]
     S4["Step 4: Dissolve ExtensionRuntime (#337)"]
@@ -727,12 +729,12 @@ flowchart TD
 
 ### Tracks
 
-| Track                   | Steps         | Description                                                                                                                                 |
-| ----------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| A: Injection foundation | 1             | Inject the `PermissionManagerFactory` so `PermissionSession` is constructable with a test double (unblocks Tracks B and C)                  |
-| B: De-god the runtime   | 2 → 3 → 4 → 5 | `ConfigStore` → injectable logger → dissolve `ExtensionRuntime` → collapse the `index.ts` closure bags                                      |
-| C: Split the session    | 6, 7 → 8      | Extract `PromptingGateway` + `PermissionResolver` (parallel after Step 1), then slim `PermissionSession` and unwind the fig-leaf interfaces |
-| D: Test-cleanup tail    | 9             | Retire the `permission-system.test.ts` catch-all once collaborators are constructable (measured consequence)                                |
+| Track                   | Steps         | Description                                                                                                                                              |
+| ----------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A: Injection foundation | 1             | Inject one `PermissionManager` (configured once at `session_start`) so `PermissionSession` is constructable with a test double (unblocks Tracks B and C) |
+| B: De-god the runtime   | 2 → 3 → 4 → 5 | `ConfigStore` → injectable logger → dissolve `ExtensionRuntime` → collapse the `index.ts` closure bags                                                   |
+| C: Split the session    | 6, 7 → 8      | Extract `PromptingGateway` + `PermissionResolver` (parallel after Step 1), then slim `PermissionSession` and unwind the fig-leaf interfaces              |
+| D: Test-cleanup tail    | 9             | Retire the `permission-system.test.ts` catch-all once collaborators are constructable (measured consequence)                                             |
 
 ## Refactoring history
 
