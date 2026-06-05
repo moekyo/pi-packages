@@ -44,3 +44,47 @@ Test count: 1834 → 1831 (−3 net: +5 new `configureForCwd` tests, −8 delete
   The lesson: when moving a helper below its caller in a class file, use two separate focused edits (remove from old location, insert at new location) rather than one large combined replace.
 - The plan's `makePermissionManager` overrides parameter was dropped entirely in favour of the per-field `??` pattern (testing skill convention); callers that needed custom return values use `vi.mocked(pm.method).mockReturnValue(...)` after construction instead.
 - The `ScopedPermissionManager` interface (5 methods) was introduced in Step 1 and consumed in Step 2 with no intermediate dead-code flag from fallow, confirming same-plan cross-step exports are acceptable.
+
+## Stage: Final Retrospective (2026-06-05T00:45:38Z)
+
+### Session summary
+
+Shipped Phase 4 Step 1 end-to-end across Planning, TDD, and Ship stages in a single session: injected one `PermissionManager` into `PermissionSession`, added `configureForCwd` + the `agentDir` option, and deleted the `createPermissionManagerForCwd` / `derivePiProjectPaths` factories.
+Released as `pi-permission-system-v10.2.0` after CI passed; the issue was closed and the release-please PR (#343) merged.
+The run was clean overall — the only agent-side rework was a self-inflicted editing slip during a reviewer-flagged cleanup, caught immediately by `biome`.
+
+### Observations
+
+#### What went well
+
+- The prior `0334-phase-4-roadmap.md` retro's changes paid off: that meta-session flagged `premature-convergence` and `instruction-violation` (not reading tests / not loading `design-review` before planning).
+  This session's Planning stage loaded `design-review`, read the test files alongside production code, and produced a plan that needed no `ask_user` round — the exact behavior those retro changes were meant to induce.
+- The `ScopedPermissionManager` narrow-interface seam delivered the constructibility goal precisely: `vi.mock("../src/runtime")` and the `as unknown as PermissionManager` cast both left `permission-session.test.ts`, and the same-plan cross-step export (interface in Step 1, consumer in Step 2) passed `fallow` with no intermediate dead-code flag.
+- The pre-completion reviewer (`claude-sonnet-4-6`) caught two genuine WARNs that would otherwise have shipped — a fresh-context read returning real value on a refactor whose whole point was structural cleanliness.
+- Ship-stage `ask_user` release-timing gate fired correctly for a multi-issue sequence (Phase 4 is #334–#342); the user chose to release Step 1 individually and the release landed cleanly.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (reviewer-caught) — `derivePolicyLoaderOptions` was placed *above* `class PermissionManager`, violating the stepdown rule that `code-design` states explicitly ("place it below the function that calls it, not above").
+  The violation originated in the Planning-stage code sketch (the plan showed the helper above the class) and was followed faithfully during TDD.
+  Impact: one reviewer WARN; the fix was a ~15-line reposition.
+- `other` (mechanical edit slip) — repositioning `derivePolicyLoaderOptions` below the class was attempted as one large combined `Edit` that closed the class early and reopened it as `_PermissionManagerMethods`, producing a duplicate `PermissionManager` declaration.
+  Impact: ~5 extra tool calls to recover; caught immediately by the `biome` `noRedeclare` / `noUnusedPrivateClassMembers` autoformat feedback (the feedback loop working as designed), so no rework escaped the session.
+
+#### What caused friction (user side)
+
+- None.
+  User involvement was limited to the one strategic decision the workflow is designed to surface (release now vs. batch the sequence); no corrections or redirects were needed.
+
+### Diagnostic details
+
+- **Model-performance correlation** — one subagent dispatched (pre-completion-reviewer) on `anthropic/claude-sonnet-4-6`, appropriate for judgment-heavy review; no mismatch.
+  A transient `model_change` to `opencode-go/deepseek-v4-flash` appears in the session log with no attributable assistant turn — a selection that did not run; not over-interpreted.
+- **Escalation-delay tracking** — the class-split slip spanned ~5 tool calls (botched edit → `biome` error → read → rename → `noRedeclare` error → read → corrective edits → green), but each step made forward progress against a concrete compiler/linter message rather than looping on the same error; no subagent escalation was warranted.
+- **Feedback-loop gap analysis** — no gap.
+  `pnpm run check` ran after every TDD step, the full suite after each step, and `pnpm fallow dead-code` from the repo root before push; verification was incremental, not end-loaded.
+
+### Changes made
+
+1. Appended this Final Retrospective stage entry to `packages/pi-permission-system/docs/retro/0334-inject-single-permission-manager.md`.
+   No prompt or `AGENTS.md` changes were made: the user chose retro-only, since the preventing rules (the `code-design` stepdown rule) already exist and `biome` plus the pre-completion reviewer caught both friction points in-session.
