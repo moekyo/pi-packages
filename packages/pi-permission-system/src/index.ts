@@ -56,12 +56,12 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     writeReviewLog: runtime.writeReviewLog.bind(runtime),
     requestPermissionDecisionFromUi,
     shouldAutoApprove: () =>
-      shouldAutoApprovePermissionState("ask", runtime.config),
+      shouldAutoApprovePermissionState("ask", runtime.configStore.current()),
   };
   const forwarder = new PermissionForwarder(forwardingDeps);
 
   const prompter = new PermissionPrompter({
-    getConfig: () => runtime.config,
+    config: runtime.configStore,
     writeReviewLog: runtime.writeReviewLog.bind(runtime),
     events: pi.events,
     forwarder,

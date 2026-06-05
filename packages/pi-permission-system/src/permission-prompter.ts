@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PermissionSystemExtensionConfig } from "./extension-config";
+import type { ConfigReader } from "./config-store";
 import type { ApprovalRequester } from "./forwarded-permissions/permission-forwarder";
 import type { PermissionPromptDecision } from "./permission-dialog";
 import {
@@ -45,7 +45,7 @@ export interface PermissionPrompterApi {
  */
 export interface PermissionPrompterDeps {
   /** Read current config for yolo-mode check (called at prompt time). */
-  getConfig(): PermissionSystemExtensionConfig;
+  config: ConfigReader;
   /** Write structured entries to the permission review log. */
   writeReviewLog(event: string, details: Record<string, unknown>): void;
   /** Event bus used for UI prompt broadcasts. */
@@ -72,7 +72,7 @@ export class PermissionPrompter implements PermissionPrompterApi {
     ctx: ExtensionContext,
     details: PromptPermissionDetails,
   ): Promise<PermissionPromptDecision> {
-    if (shouldAutoApprovePermissionState("ask", this.deps.getConfig())) {
+    if (shouldAutoApprovePermissionState("ask", this.deps.config.current())) {
       this.writeReviewEntry("permission_request.auto_approved", details);
       return { approved: true, state: "approved", autoApproved: true };
     }

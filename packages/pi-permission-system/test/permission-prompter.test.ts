@@ -7,6 +7,7 @@ const mockRequestApproval = vi.fn();
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ConfigReader } from "#src/config-store";
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
 import type { PermissionPromptDecision } from "#src/permission-dialog";
 import type { PromptPermissionDetails } from "#src/permission-prompter";
@@ -38,11 +39,17 @@ function makeDetails(
   };
 }
 
+function makeConfigReader(
+  config: Partial<typeof DEFAULT_EXTENSION_CONFIG> = {},
+): ConfigReader {
+  return { current: () => ({ ...DEFAULT_EXTENSION_CONFIG, ...config }) };
+}
+
 function makeDeps(
   overrides?: Partial<PermissionPrompterDeps>,
 ): PermissionPrompterDeps {
   return {
-    getConfig: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: false }),
+    config: makeConfigReader(),
     writeReviewLog: vi.fn(),
     events: { emit: vi.fn(), on: vi.fn().mockReturnValue(() => undefined) },
     forwarder: { requestApproval: mockRequestApproval },
@@ -70,7 +77,7 @@ describe("PermissionPrompter", () => {
         on: vi.fn().mockReturnValue(() => undefined),
       };
       const deps = makeDeps({
-        getConfig: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
+        config: makeConfigReader({ yoloMode: true }),
         events,
       });
       const prompter = new PermissionPrompter(deps);
@@ -92,7 +99,7 @@ describe("PermissionPrompter", () => {
     it("logs permission_request.auto_approved in yolo mode", async () => {
       const writeReviewLog = vi.fn();
       const deps = makeDeps({
-        getConfig: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
+        config: makeConfigReader({ yoloMode: true }),
         writeReviewLog,
       });
       const prompter = new PermissionPrompter(deps);
@@ -108,7 +115,7 @@ describe("PermissionPrompter", () => {
     it("does not log permission_request.waiting in yolo mode", async () => {
       const writeReviewLog = vi.fn();
       const deps = makeDeps({
-        getConfig: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
+        config: makeConfigReader({ yoloMode: true }),
         writeReviewLog,
       });
       const prompter = new PermissionPrompter(deps);
@@ -123,7 +130,7 @@ describe("PermissionPrompter", () => {
 
     it("does not call confirmPermission with yoloMode even when ctx has UI", async () => {
       const deps = makeDeps({
-        getConfig: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
+        config: makeConfigReader({ yoloMode: true }),
       });
       const prompter = new PermissionPrompter(deps);
 
