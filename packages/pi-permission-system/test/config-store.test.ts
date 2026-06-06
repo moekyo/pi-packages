@@ -62,25 +62,11 @@ import {
   ConfigStore,
   type ConfigStoreDeps,
   type ResolvedPolicyPathProvider,
-  type RuntimeContextRef,
 } from "#src/config-store";
 import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
 import type { ResolvedPolicyPaths } from "#src/policy-loader";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-function makeContextRef(
-  initialCtx: ExtensionContext | null = null,
-): RuntimeContextRef & { _ctx: ExtensionContext | null } {
-  const ref = {
-    _ctx: initialCtx,
-    get: () => ref._ctx,
-    set: (ctx: ExtensionContext) => {
-      ref._ctx = ctx;
-    },
-  };
-  return ref;
-}
 
 function makePolicyPathProvider(
   paths?: Partial<ResolvedPolicyPaths>,
@@ -133,19 +119,16 @@ function makeCommandCtx(
 
 function makeStore(overrides: Partial<ConfigStoreDeps> = {}): {
   store: ConfigStore;
-  contextRef: RuntimeContextRef & { _ctx: ExtensionContext | null };
   logger: ReturnType<typeof makeLogger>;
 } {
-  const contextRef = makeContextRef();
   const logger = makeLogger();
   const deps: ConfigStoreDeps = {
     agentDir: "/test/agent",
-    context: contextRef,
     policyPaths: makePolicyPathProvider(),
     logger,
     ...overrides,
   };
-  return { store: new ConfigStore(deps), contextRef, logger };
+  return { store: new ConfigStore(deps), logger };
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -180,10 +163,9 @@ describe("ConfigStore", () => {
   // ── refresh() ─────────────────────────────────────────────────────────
 
   describe("refresh()", () => {
-    it("calls loadAndMergeConfigs with agentDir and cwd from context", () => {
-      const { store, contextRef } = makeStore();
-      contextRef._ctx = makeCtx({ cwd: "/my/project" });
-      store.refresh();
+    it("uses the passed ctx cwd for loadAndMergeConfigs", () => {
+      const { store } = makeStore();
+      store.refresh(makeCtx({ cwd: "/my/project" }));
       expect(mockLoadAndMergeConfigs).toHaveBeenCalledWith(
         "/test/agent",
         "/my/project",
@@ -191,19 +173,14 @@ describe("ConfigStore", () => {
       );
     });
 
-    it("updates context via context.set when ctx is provided", () => {
-      const { store, contextRef } = makeStore();
-      const ctx = makeCtx({ cwd: "/new/project" });
-      store.refresh(ctx);
-      expect(contextRef._ctx).toBe(ctx);
-    });
-
-    it("does not overwrite context when ctx is omitted", () => {
-      const { store, contextRef } = makeStore();
-      const existing = makeCtx();
-      contextRef._ctx = existing;
+    it("uses empty string cwd when no ctx is provided", () => {
+      const { store } = makeStore();
       store.refresh();
-      expect(contextRef._ctx).toBe(existing);
+      expect(mockLoadAndMergeConfigs).toHaveBeenCalledWith(
+        "/test/agent",
+        "",
+        expect.any(String),
+      );
     });
 
     it("updates current() with normalized merged result", () => {
@@ -422,13 +399,12 @@ describe("ConfigStore", () => {
     });
 
     it("passes legacy detection results to buildResolvedConfigLogEntry", () => {
-      const { store, contextRef } = makeStore();
-      contextRef._ctx = makeCtx({ cwd: "/some/project" });
+      const { store } = makeStore();
       // Make one legacy path exist
       mockExistsSync.mockImplementation((p: string) =>
         p.includes("policies.json"),
       );
-      store.logResolvedPaths();
+      store.logResolvedPaths("/some/project");
       expect(mockBuildResolvedConfigLogEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           legacyGlobalPolicyDetected: expect.any(Boolean),
@@ -438,9 +414,9 @@ describe("ConfigStore", () => {
       );
     });
 
-    it("does not check project legacy path when context has no cwd", () => {
-      const { store } = makeStore(); // contextRef._ctx = null
-      store.logResolvedPaths();
+    it("does not check project legacy path when no cwd is provided", () => {
+      const { store } = makeStore();
+      store.logResolvedPaths(); // no cwd
       // existsSync called for global and ext-config legacy paths only (not project)
       const calls = mockExistsSync.mock.calls.map(([p]: [string]) => p);
       const projectCalls = calls.filter(

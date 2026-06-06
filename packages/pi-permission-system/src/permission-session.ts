@@ -31,8 +31,7 @@ import type { PermissionCheckResult, PermissionState } from "./types";
 /**
  * Runtime operations that `PermissionSession` delegates to but does not own.
  *
- * Injected at construction time from the composition root (`index.ts`),
- * where the `ExtensionRuntime` is available.
+ * Injected at construction time from the composition root (`index.ts`).
  */
 export interface PermissionSessionRuntimeDeps {
   /** Whether the current context can show an interactive permission prompt. */
@@ -262,7 +261,7 @@ export class PermissionSession
 
   /** Write the resolved config path set to the review and debug logs. */
   logResolvedConfigPaths(): void {
-    this.configStore.logResolvedPaths();
+    this.configStore.logResolvedPaths(this.context?.cwd);
   }
 
   /** Read current extension config. */

@@ -41,7 +41,7 @@ export interface ConfigReader {
  */
 export interface SessionConfigStore extends ConfigReader {
   refresh(ctx?: ExtensionContext): void;
-  logResolvedPaths(): void;
+  logResolvedPaths(cwd?: string): void;
 }
 
 /**
@@ -57,16 +57,6 @@ export interface CommandConfigStore extends ConfigReader {
   ): void;
 }
 
-/**
- * Transitional get/set seam over the runtime-owned context.
- *
- * Retired in Step 4 (#337) when context ownership moves to `PermissionSession`.
- */
-export interface RuntimeContextRef {
-  get(): ExtensionContext | null;
-  set(ctx: ExtensionContext): void;
-}
-
 /** Narrow logging sink — replaced by an injected logger in Step 3 (#336). */
 export interface ConfigStoreLogger {
   writeDebugLog(event: string, details?: Record<string, unknown>): void;
@@ -80,7 +70,6 @@ export interface ResolvedPolicyPathProvider {
 
 export interface ConfigStoreDeps {
   agentDir: string;
-  context: RuntimeContextRef;
   policyPaths: ResolvedPolicyPathProvider;
   logger: ConfigStoreLogger;
 }
@@ -111,14 +100,11 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
   /**
    * Reload merged config from disk.
    *
-   * If `ctx` is provided, updates the stored runtime context via the seam first.
+   * If `ctx` is provided, uses it to derive the cwd and sync UI status.
    * Equivalent to `refreshExtensionConfig(runtime, ctx?)`.
    */
   refresh(ctx?: ExtensionContext): void {
-    if (ctx) {
-      this.deps.context.set(ctx);
-    }
-    const cwd = this.deps.context.get()?.cwd ?? null;
+    const cwd = ctx?.cwd ?? null;
     const mergeResult = loadAndMergeConfigs(
       this.deps.agentDir,
       cwd ?? "",
@@ -127,9 +113,8 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
     const runtimeConfig = normalizePermissionSystemConfig(mergeResult.merged);
     this.config = runtimeConfig;
 
-    const currentCtx = this.deps.context.get();
-    if (currentCtx?.hasUI) {
-      syncPermissionSystemStatus(currentCtx, runtimeConfig);
+    if (ctx?.hasUI) {
+      syncPermissionSystemStatus(ctx, runtimeConfig);
     }
 
     const warning =
@@ -137,7 +122,7 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
 
     if (warning && warning !== this.lastConfigWarning) {
       this.lastConfigWarning = warning;
-      currentCtx?.ui.notify(warning, "warning");
+      ctx?.ui.notify(warning, "warning");
     } else if (!warning) {
       this.lastConfigWarning = null;
     }
@@ -210,9 +195,8 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
    *
    * Equivalent to `logResolvedConfigPaths(runtime)`.
    */
-  logResolvedPaths(): void {
+  logResolvedPaths(cwd?: string): void {
     const policyPaths = this.deps.policyPaths.getResolvedPolicyPaths();
-    const cwd = this.deps.context.get()?.cwd ?? null;
     const { agentDir } = this.deps;
     const legacyGlobalPolicyDetected = existsSync(
       getLegacyGlobalPolicyPath(agentDir),

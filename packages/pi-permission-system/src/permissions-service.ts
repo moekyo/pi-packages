@@ -10,11 +10,9 @@ import type {
 /**
  * In-process implementation of the cross-extension {@link PermissionsService}.
  *
- * Constructed once in the composition root and backed by the runtime's
- * permission manager and session rules. Both injected instances are stable
- * for the lifetime of the factory — `runtime.permissionManager` is never
- * reassigned on the runtime object (only `PermissionSession` reassigns its
- * own internal copy), and `runtime.sessionRules` is `readonly`.
+ * Constructed once in the composition root and backed by the single shared
+ * `PermissionManager` and `SessionRules` instances that `PermissionSession`
+ * also uses — so service queries and gate-path approvals see the same state.
  */
 export class LocalPermissionsService implements PermissionsService {
   constructor(

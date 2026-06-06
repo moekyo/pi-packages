@@ -1,8 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { registerBuiltinToolInputFormatters } from "./builtin-tool-input-formatters";
 import { registerPermissionSystemCommand } from "./config-modal";
 import { getGlobalConfigPath } from "./config-paths";
+import { ConfigStore } from "./config-store";
 import { GateDecisionReporter } from "./decision-reporter";
+import { computeExtensionPaths } from "./extension-paths";
 import {
   PermissionForwarder,
   type PermissionForwarderDeps,
@@ -18,12 +21,13 @@ import { SkillInputGatePipeline } from "./handlers/gates/skill-input-gate-pipeli
 import { ToolCallGatePipeline } from "./handlers/gates/tool-call-gate-pipeline";
 import { requestPermissionDecisionFromUi } from "./permission-dialog";
 import { registerPermissionRpcHandlers } from "./permission-event-rpc";
+import { PermissionManager } from "./permission-manager";
 import { PermissionPrompter } from "./permission-prompter";
 import { PermissionSession } from "./permission-session";
 import { LocalPermissionsService } from "./permissions-service";
-import { createExtensionRuntime } from "./runtime";
 import { PermissionServiceLifecycle } from "./service-lifecycle";
-
+import { createSessionLogger } from "./session-logger";
+import { SessionRules } from "./session-rules";
 import { isSubagentExecutionContext } from "./subagent-context";
 import { subscribeSubagentLifecycle } from "./subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "./subagent-registry";
@@ -34,55 +38,85 @@ import {
 } from "./yolo-mode";
 
 export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
-  const runtime = createExtensionRuntime();
+  const agentDir = getAgentDir();
+  const paths = computeExtensionPaths(agentDir);
+  const permissionManager = new PermissionManager({ agentDir });
+  const sessionRules = new SessionRules();
   const subagentRegistry = getSubagentSessionRegistry();
   const formatterRegistry = new ToolInputFormatterRegistry();
   registerBuiltinToolInputFormatters(formatterRegistry);
 
+  // Forward reference: configStore is declared before the logger so the
+  // logger's getConfig thunk can close over the variable; assigned immediately
+  // after. Typed via cast so the closure compiles without assertions.
+  // The same null-at-init pattern used in the former createExtensionRuntime.
+  let configStore = null as unknown as ConfigStore;
+
+  // sessionNotify is a mutable holder so the logger's notify closure can
+  // reach the UI once PermissionSession is constructed. Starts as null;
+  // notify is a best-effort sink (no-op at factory-init when there is no UI).
+  let sessionNotify: PermissionSession | null = null;
+
+  const logger = createSessionLogger({
+    globalLogsDir: paths.globalLogsDir,
+    getConfig: () => configStore.current(),
+    notify: (message) =>
+      sessionNotify?.getRuntimeContext()?.ui.notify(message, "warning"),
+  });
+
+  configStore = new ConfigStore({
+    agentDir,
+    policyPaths: permissionManager,
+    logger: {
+      writeDebugLog: (e, d) => logger.debug(e, d),
+      writeReviewLog: (e, d) => logger.review(e, d),
+    },
+  });
+
   const forwardingDeps: PermissionForwarderDeps = {
-    forwardingDir: runtime.forwardingDir,
-    subagentSessionsDir: runtime.subagentSessionsDir,
+    forwardingDir: paths.forwardingDir,
+    subagentSessionsDir: paths.subagentSessionsDir,
     registry: subagentRegistry,
     events: pi.events,
     logger: {
-      writeReviewLog: (event, details) => runtime.logger.review(event, details),
-      writeDebugLog: (event, details) => runtime.logger.debug(event, details),
+      writeReviewLog: (event, details) => logger.review(event, details),
+      writeDebugLog: (event, details) => logger.debug(event, details),
     },
-    writeReviewLog: (event, details) => runtime.logger.review(event, details),
+    writeReviewLog: (event, details) => logger.review(event, details),
     requestPermissionDecisionFromUi,
     shouldAutoApprove: () =>
-      shouldAutoApprovePermissionState("ask", runtime.configStore.current()),
+      shouldAutoApprovePermissionState("ask", configStore.current()),
   };
   const forwarder = new PermissionForwarder(forwardingDeps);
 
   const prompter = new PermissionPrompter({
-    config: runtime.configStore,
-    writeReviewLog: (event, details) => runtime.logger.review(event, details),
+    config: configStore,
+    writeReviewLog: (event, details) => logger.review(event, details),
     events: pi.events,
     forwarder,
   });
 
-  runtime.configStore.refresh();
+  configStore.refresh();
 
   const session = new PermissionSession(
-    runtime,
-    runtime.logger,
+    paths,
+    logger,
     new ForwardingManager(
-      runtime.subagentSessionsDir,
+      paths.subagentSessionsDir,
       forwarder,
       subagentRegistry,
     ),
-    runtime.permissionManager,
-    runtime.sessionRules,
-    runtime.configStore,
+    permissionManager,
+    sessionRules,
+    configStore,
     {
       canRequestPermissionConfirmation: (ctx) =>
         canResolveAskPermissionRequest({
-          config: runtime.configStore.current(),
+          config: configStore.current(),
           hasUI: ctx.hasUI,
           isSubagent: isSubagentExecutionContext(
             ctx,
-            runtime.subagentSessionsDir,
+            paths.subagentSessionsDir,
             subagentRegistry,
           ),
         }),
@@ -90,26 +124,29 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     },
   );
 
+  // Connect the notify sink now that session is available.
+  sessionNotify = session;
+
   registerPermissionSystemCommand(pi, {
-    config: runtime.configStore,
-    getConfigPath: () => getGlobalConfigPath(runtime.agentDir),
+    config: configStore,
+    getConfigPath: () => getGlobalConfigPath(agentDir),
     getComposedRules: () =>
-      runtime.permissionManager.getComposedConfigRules(
-        runtime.lastKnownActiveAgentName ?? undefined,
+      permissionManager.getComposedConfigRules(
+        session.lastKnownActiveAgentName ?? undefined,
       ),
   });
 
   const rpcHandles = registerPermissionRpcHandlers(pi.events, {
-    getPermissionManager: () => runtime.permissionManager,
-    getSessionRules: () => runtime.sessionRules.getRuleset(),
-    getRuntimeContext: () => runtime.runtimeContext,
+    getPermissionManager: () => permissionManager,
+    getSessionRules: () => sessionRules.getRuleset(),
+    getRuntimeContext: () => session.getRuntimeContext(),
     requestPermissionDecisionFromUi,
-    writeReviewLog: (event, details) => runtime.logger.review(event, details),
+    writeReviewLog: (event, details) => logger.review(event, details),
   });
 
   const permissionsService = new LocalPermissionsService(
-    runtime.permissionManager,
-    runtime.sessionRules,
+    permissionManager,
+    sessionRules,
     formatterRegistry,
   );
 
