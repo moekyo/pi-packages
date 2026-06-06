@@ -46,10 +46,10 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     registry: subagentRegistry,
     events: pi.events,
     logger: {
-      writeReviewLog: runtime.writeReviewLog.bind(runtime),
-      writeDebugLog: runtime.writeDebugLog.bind(runtime),
+      writeReviewLog: (event, details) => runtime.logger.review(event, details),
+      writeDebugLog: (event, details) => runtime.logger.debug(event, details),
     },
-    writeReviewLog: runtime.writeReviewLog.bind(runtime),
+    writeReviewLog: (event, details) => runtime.logger.review(event, details),
     requestPermissionDecisionFromUi,
     shouldAutoApprove: () =>
       shouldAutoApprovePermissionState("ask", runtime.configStore.current()),
@@ -58,7 +58,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
 
   const prompter = new PermissionPrompter({
     config: runtime.configStore,
-    writeReviewLog: runtime.writeReviewLog.bind(runtime),
+    writeReviewLog: (event, details) => runtime.logger.review(event, details),
     events: pi.events,
     forwarder,
   });
@@ -106,7 +106,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     getSessionRules: () => runtime.sessionRules.getRuleset(),
     getRuntimeContext: () => runtime.runtimeContext,
     requestPermissionDecisionFromUi,
-    writeReviewLog: runtime.writeReviewLog.bind(runtime),
+    writeReviewLog: (event, details) => runtime.logger.review(event, details),
   });
 
   const permissionsService = new LocalPermissionsService(

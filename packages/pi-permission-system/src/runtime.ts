@@ -46,10 +46,6 @@ export interface ExtensionRuntime extends ExtensionPaths, SessionState {
 
   /** The unified log-write + notification surface. */
   logger: SessionLogger;
-
-  // ── Transitional delegators — removed in Step 2 (#336) ────────────────
-  writeDebugLog(event: string, details?: Record<string, unknown>): void;
-  writeReviewLog(event: string, details?: Record<string, unknown>): void;
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────
@@ -79,9 +75,6 @@ export function createExtensionRuntime(options?: {
     lastActiveToolsCacheKey: null,
     lastPromptStateCacheKey: null,
     sessionRules: new SessionRules(),
-    // Transitional delegators — assigned below after the logger is constructed.
-    writeDebugLog: () => {},
-    writeReviewLog: () => {},
   };
 
   // Transitional RuntimeContextRef: reads/writes the still-runtime-owned
@@ -117,8 +110,6 @@ export function createExtensionRuntime(options?: {
 
   runtime.configStore = configStore;
   runtime.logger = logger;
-  runtime.writeDebugLog = (event, details) => logger.debug(event, details);
-  runtime.writeReviewLog = (event, details) => logger.review(event, details);
 
   return runtime;
 }

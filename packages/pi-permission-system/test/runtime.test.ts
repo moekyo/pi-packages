@@ -197,36 +197,6 @@ describe("createExtensionRuntime", () => {
     expect(runtime.logger.review).toBe(mockLoggerReview);
   });
 
-  // ── writeDebugLog / writeReviewLog delegate to logger ────────────────────
-
-  it("writeDebugLog delegates to logger.debug with event and details", () => {
-    const runtime = createExtensionRuntime({ agentDir: "/test/agent" });
-    runtime.writeDebugLog("test.event", { key: "value" });
-    expect(mockLoggerDebug).toHaveBeenCalledWith("test.event", {
-      key: "value",
-    });
-  });
-
-  it("writeDebugLog passes undefined details when none provided", () => {
-    const runtime = createExtensionRuntime({ agentDir: "/test/agent" });
-    runtime.writeDebugLog("test.event");
-    expect(mockLoggerDebug).toHaveBeenCalledWith("test.event", undefined);
-  });
-
-  it("writeReviewLog delegates to logger.review with event and details", () => {
-    const runtime = createExtensionRuntime({ agentDir: "/test/agent" });
-    runtime.writeReviewLog("test.event", { key: "value" });
-    expect(mockLoggerReview).toHaveBeenCalledWith("test.event", {
-      key: "value",
-    });
-  });
-
-  it("writeReviewLog passes undefined details when none provided", () => {
-    const runtime = createExtensionRuntime({ agentDir: "/test/agent" });
-    runtime.writeReviewLog("test.event");
-    expect(mockLoggerReview).toHaveBeenCalledWith("test.event", undefined);
-  });
-
   // ── Multiple independent runtimes ─────────────────────────────────────────
 
   it("two runtimes have independent state", () => {
