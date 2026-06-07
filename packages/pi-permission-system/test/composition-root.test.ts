@@ -337,6 +337,47 @@ describe("service and gate share one formatter registry", () => {
   });
 });
 
+describe("service and gate share one access extractor registry", () => {
+  it("uses a service-registered extractor in the live path gate", async () => {
+    writeGlobalConfig({
+      permission: {
+        "*": "allow",
+        path: {
+          "/blocked/*": "deny",
+        },
+        demo: "allow",
+      },
+    });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-access-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    const { ctx } = makeUiCtx(cwd, []);
+    await fireSessionStart(pi, ctx);
+
+    getPermissionsService()!.registerToolAccessExtractor("demo", (input) => ({
+      resource: "path",
+      operation: "read",
+      value: String(input.root),
+    }));
+
+    const result = (await pi.fire(
+      "tool_call",
+      {
+        toolName: "demo",
+        toolCallId: "demo-deny",
+        input: { root: "/blocked/secret.txt" },
+      },
+      ctx,
+    )) as { block?: true };
+
+    expect(result.block).toBe(true);
+
+    rmSync(cwd, { recursive: true, force: true });
+  });
+});
+
 describe("ready emitted after service publication", () => {
   // Ordering contracts exist only at the composition root: a consumer reacting
   // to permissions:ready must be able to resolve the service immediately. The

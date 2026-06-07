@@ -6,6 +6,7 @@ import {
   publishPermissionsService,
   unpublishPermissionsService,
 } from "#src/service";
+import { ToolAccessExtractorRegistry } from "#src/tool-access-extractor-registry";
 import { ToolInputFormatterRegistry } from "#src/tool-input-formatter-registry";
 import type { PermissionCheckResult } from "#src/types";
 
@@ -17,6 +18,7 @@ function makeService(
   return {
     checkPermission: vi.fn(),
     getToolPermission: vi.fn(),
+    registerToolAccessExtractor: vi.fn(),
     registerToolInputFormatter: vi.fn(),
     ...overrides,
   };
@@ -154,6 +156,7 @@ describe("service adapter delegation", () => {
       getToolPermission(toolName, agentName) {
         return getToolPermissionFn(toolName, agentName);
       },
+      registerToolAccessExtractor: vi.fn(),
       registerToolInputFormatter: vi.fn(),
     };
 
@@ -176,6 +179,7 @@ describe("service adapter delegation", () => {
       getToolPermission(toolName, agentName) {
         return getToolPermissionFn(toolName, agentName);
       },
+      registerToolAccessExtractor: vi.fn(),
       registerToolInputFormatter: vi.fn(),
     };
 
@@ -200,6 +204,58 @@ describe("service adapter delegation", () => {
     getPermissionsService()!.checkPermission("read", "/tmp/file");
 
     expect(checkPermission).toHaveBeenCalledWith("read", {}, undefined, []);
+  });
+});
+
+// ── registerToolAccessExtractor delegation ────────────────────────────────
+
+describe("registerToolAccessExtractor delegation", () => {
+  afterEach(() => {
+    const current = getPermissionsService();
+    if (current) {
+      unpublishPermissionsService(current);
+    }
+  });
+
+  it("delegates to the registry and returns its disposer", () => {
+    const registry = new ToolAccessExtractorRegistry();
+    const extractor = () => undefined;
+
+    const service = makeService({
+      registerToolAccessExtractor(toolName, ext) {
+        return registry.register(toolName, ext);
+      },
+    });
+
+    publishPermissionsService(service);
+    const dispose = getPermissionsService()!.registerToolAccessExtractor(
+      "my-tool",
+      extractor,
+    );
+
+    expect(registry.get("my-tool")).toBe(extractor);
+
+    dispose();
+    expect(registry.get("my-tool")).toBeUndefined();
+  });
+
+  it("throws when an extractor is already registered for the tool name", () => {
+    const registry = new ToolAccessExtractorRegistry();
+    registry.register("my-tool", () => undefined);
+
+    const service = makeService({
+      registerToolAccessExtractor(toolName, ext) {
+        return registry.register(toolName, ext);
+      },
+    });
+
+    publishPermissionsService(service);
+    expect(() =>
+      getPermissionsService()!.registerToolAccessExtractor(
+        "my-tool",
+        () => undefined,
+      ),
+    ).toThrow("my-tool");
   });
 });
 

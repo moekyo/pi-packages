@@ -1,3 +1,4 @@
+import type { ToolAccessExtractorLookup } from "#src/access-intent";
 import { getPathBearingToolPath } from "#src/path-utils";
 import type { ScopedPermissionResolver } from "#src/permission-resolver";
 import { SessionApproval } from "#src/session-approval";
@@ -16,8 +17,13 @@ import type { ToolCallContext } from "./types";
 export function describePathGate(
   tcc: ToolCallContext,
   resolver: ScopedPermissionResolver,
+  accessExtractors?: ToolAccessExtractorLookup,
 ): GateResult {
-  const filePath = getPathBearingToolPath(tcc.toolName, tcc.input);
+  const filePath = getPathBearingToolPath(
+    tcc.toolName,
+    tcc.input,
+    accessExtractors,
+  );
   if (!filePath) return null;
 
   const check = resolver.resolve(

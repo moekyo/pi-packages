@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ToolAccessExtractorLookup } from "#src/access-intent";
 import type { GateDescriptor } from "#src/handlers/gates/descriptor";
 import { isGateDescriptor } from "#src/handlers/gates/descriptor";
 import { describePathGate } from "#src/handlers/gates/path";
@@ -57,6 +58,41 @@ describe("describePathGate", () => {
     const desc = result as GateDescriptor;
     expect(desc.surface).toBe("path");
     expect(desc.input).toEqual({ path: "/workspace/.env" });
+  });
+
+  it("returns GateDescriptor for an extension tool with a registered access extractor", () => {
+    const resolver = makeResolver(
+      makeCheckResult({
+        state: "ask",
+        matchedPattern: "/workspace/*",
+        source: "special",
+        origin: "global",
+      }),
+    );
+    const accessExtractors: ToolAccessExtractorLookup = {
+      get(toolName) {
+        if (toolName !== "ffgrep") {
+          return undefined;
+        }
+        return (input) => ({
+          resource: "path",
+          operation: "search",
+          value: String(input.root),
+        });
+      },
+    };
+    const result = describePathGate(
+      makeTcc({
+        toolName: "ffgrep",
+        input: { pattern: "needle", root: "/workspace/src" },
+      }),
+      resolver,
+      accessExtractors,
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    expect(desc.surface).toBe("path");
+    expect(desc.input).toEqual({ path: "/workspace/src" });
   });
 
   it("returns null when tool has no extractable path", () => {

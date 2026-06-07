@@ -208,7 +208,7 @@ describe("normalizeInput — non-MCP surfaces", () => {
     });
   });
 
-  describe("extension tools (non-path-bearing)", () => {
+  describe("extension tools", () => {
     it("uses '*' as the lookup value for extension tools", () => {
       const result = normalizeInput("my_extension_tool", { some: "input" }, []);
       expect(result.surface).toBe("my_extension_tool");
@@ -223,6 +223,27 @@ describe("normalizeInput — non-MCP surfaces", () => {
         [],
       );
       expect(result.values).toEqual(["/some/path"]);
+    });
+
+    it("uses a registered access extractor when an extension tool has a custom input shape", () => {
+      const result = normalizeInput(
+        "my_extension_tool",
+        { root: "/some/root" },
+        [],
+        {
+          get(toolName) {
+            if (toolName !== "my_extension_tool") {
+              return undefined;
+            }
+            return (input) => ({
+              resource: "path",
+              operation: "search",
+              value: String(input.root),
+            });
+          },
+        },
+      );
+      expect(result.values).toEqual(["/some/root"]);
     });
   });
 });

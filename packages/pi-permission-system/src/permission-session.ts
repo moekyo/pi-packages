@@ -4,6 +4,7 @@ import {
   getActiveAgentName,
   getActiveAgentNameFromSystemPrompt,
 } from "./active-agent";
+
 import type { SessionConfigStore } from "./config-store";
 import type { PermissionSystemExtensionConfig } from "./extension-config";
 import type { ExtensionPaths } from "./extension-paths";

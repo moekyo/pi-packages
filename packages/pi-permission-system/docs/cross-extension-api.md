@@ -44,6 +44,12 @@ A consumer reacting to the `permissions:ready` broadcast (also emitted at `sessi
 The `PermissionsService` interface:
 
 ```typescript
+type ToolAccessIntentDeclaration = {
+  resource: "path";
+  value: string;
+  operation?: "read" | "write" | "edit" | "search" | "list" | "unknown";
+};
+
 interface PermissionsService {
   /** Query the permission policy for a surface and value. */
   checkPermission(
@@ -64,6 +70,18 @@ interface PermissionsService {
     toolName: string,
     formatter: (input: Record<string, unknown>) => string | undefined,
   ): () => void;
+
+  /**
+   * Register a custom access-intent extractor for a specific tool name.
+   * Returns a disposer that unregisters the extractor.
+   * Throws if an extractor is already registered for that tool name.
+   */
+  registerToolAccessExtractor(
+    toolName: string,
+    extractor: (
+      input: Record<string, unknown>,
+    ) => ToolAccessIntentDeclaration | undefined,
+  ): () => void;
 }
 ```
 
@@ -77,9 +95,14 @@ interface PermissionsService {
 
 Returns `PermissionCheckResult` with fields `state`, `matchedPattern`, `source`, `origin`, etc.
 
-If your extension tool reads or writes files, include the target in a singular path field such as `path`, `file`, `filePath`, `file_path`, `filepath`, `directory`, `dir`, `root`, or `cwd`.
-Those fields let `path`, `external_directory`, and per-tool path maps apply the same filesystem policy used for built-in file tools.
-MCP calls keep their target-level `mcp` policy, and path gates only inspect path-like fields inside `input.arguments`.
+`checkPermission(surface, value)` is a simple surface query, not a full raw tool-call adapter.
+For path-only preflight checks, query the `path` or `external_directory` surface with the path value.
+For a custom extension tool's runtime calls, register a tool access extractor so the actual `tool_call` gate can evaluate the raw tool input through the shared path policy.
+
+If your extension tool reads or writes files, prefer passing the target as `input.path`.
+That default convention lets `path`, `external_directory`, and per-tool path maps apply the same filesystem policy used for built-in file tools.
+If your tool has a different input shape, register a tool access extractor instead of relying on the permission system to guess.
+MCP calls keep their target-level `mcp` policy, and path gates only inspect `input.arguments.path`.
 
 #### `getToolPermission`
 
@@ -121,6 +144,25 @@ The `toolName` you register is matched against the **registered Pi tool name** t
   The `"mcp"` name is already claimed by the built-in summarizer (below), and because duplicate registration throws, you cannot replace it.
   If you need richer per-server MCP previews, open an issue — that requires a chained-formatter model this seam does not yet provide.
 - `"bash"` never reaches your formatter: bash prompts take a dedicated branch that shows the command directly.
+
+#### `registerToolAccessExtractor`
+
+Register a custom access-intent extractor for a specific tool name.
+Use this when your tool accesses files but cannot expose the target as `input.path`.
+
+```typescript
+const dispose = permissions.registerToolAccessExtractor("ffgrep", (input) => {
+  const root = typeof input.root === "string" ? input.root : undefined;
+  return root
+    ? { resource: "path", operation: "search", value: root }
+    : undefined;
+});
+```
+
+The returned disposer unregisters the extractor.
+Duplicate registration for the same tool name throws, matching `registerToolInputFormatter`.
+Extracted path intents feed the existing `path`, `external_directory`, and per-tool permission maps.
+Pathless tool calls keep their previous catch-all behavior.
 
 ##### What your formatter receives
 

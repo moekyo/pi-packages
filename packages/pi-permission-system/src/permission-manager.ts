@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import type { ToolAccessExtractorLookup } from "./access-intent";
 import { isPermissionState } from "./common";
 import { getGlobalConfigPath, getProjectConfigPath } from "./config-paths";
 import { normalizeInput } from "./input-normalizer";
@@ -70,6 +71,8 @@ export interface ScopedPermissionManager {
 
 export interface PermissionManagerOptions extends PolicyLoaderOptions {
   policyLoader?: PolicyLoader;
+  /** Optional access-intent extractors registered by sibling extensions. */
+  accessExtractors?: ToolAccessExtractorLookup;
   /**
    * Pi agent directory.  When provided, the manager derives all loader paths
    * from this value and supports {@link PermissionManager.configureForCwd}.
@@ -79,6 +82,7 @@ export interface PermissionManagerOptions extends PolicyLoaderOptions {
 
 export class PermissionManager implements ScopedPermissionManager {
   private readonly agentDir: string | undefined;
+  private readonly accessExtractors: ToolAccessExtractorLookup | undefined;
   private loader: PolicyLoader;
   private readonly resolvedPermissionsCache = new Map<
     string,
@@ -87,6 +91,7 @@ export class PermissionManager implements ScopedPermissionManager {
 
   constructor(options: PermissionManagerOptions = {}) {
     this.agentDir = options.agentDir;
+    this.accessExtractors = options.accessExtractors;
     this.loader =
       options.policyLoader ??
       new FilePolicyLoader(
@@ -245,6 +250,7 @@ export class PermissionManager implements ScopedPermissionManager {
       normalizedToolName,
       input,
       this.loader.getConfiguredMcpServerNames(),
+      this.accessExtractors,
     );
 
     const { rule, value } = evaluateFirst(surface, values, fullRules);

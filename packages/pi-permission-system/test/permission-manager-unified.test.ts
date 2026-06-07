@@ -8,6 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it, test } from "vitest";
+import type { ToolAccessExtractorLookup } from "#src/access-intent";
 import { getGlobalConfigPath, getProjectConfigPath } from "#src/config-paths";
 import {
   PermissionManager,
@@ -41,6 +42,7 @@ function makeManager(
 function makeManagerWithConfig(
   permission: Record<string, unknown>,
   mcpServerNames: readonly string[] = [],
+  accessExtractors?: ToolAccessExtractorLookup,
 ): { manager: PermissionManager; cleanup: () => void } {
   const baseDir = mkdtempSync(join(tmpdir(), "pm-unified-test-"));
   const agentsDir = join(baseDir, "agents");
@@ -51,6 +53,7 @@ function makeManagerWithConfig(
     globalConfigPath,
     agentsDir,
     mcpServerNames: [...mcpServerNames],
+    accessExtractors,
   });
   return {
     manager,
@@ -1148,6 +1151,50 @@ describe("checkPermission — per-tool path patterns", () => {
       const env = manager.checkPermission("ffgrep", {
         pattern: "SECRET",
         path: "/Users/example/Development/app/.env",
+      });
+      expect(env.state).toBe("deny");
+      expect(env.matchedPattern).toBe("*.env");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("extension tool path maps use a registered access extractor", () => {
+    const accessExtractors: ToolAccessExtractorLookup = {
+      get(toolName) {
+        if (toolName !== "ffgrep") {
+          return undefined;
+        }
+        return (input) => ({
+          resource: "path",
+          operation: "search",
+          value: String(input.root),
+        });
+      },
+    };
+    const { manager, cleanup } = makeManagerWithConfig(
+      {
+        "*": "ask",
+        ffgrep: {
+          "*": "ask",
+          "/Users/example/Development/*": "allow",
+          "*.env": "deny",
+        },
+      },
+      [],
+      accessExtractors,
+    );
+    try {
+      const allowed = manager.checkPermission("ffgrep", {
+        pattern: "needle",
+        root: "/Users/example/Development/app/src",
+      });
+      expect(allowed.state).toBe("allow");
+      expect(allowed.matchedPattern).toBe("/Users/example/Development/*");
+
+      const env = manager.checkPermission("ffgrep", {
+        pattern: "SECRET",
+        root: "/Users/example/Development/app/.env",
       });
       expect(env.state).toBe("deny");
       expect(env.matchedPattern).toBe("*.env");

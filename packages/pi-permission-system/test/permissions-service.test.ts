@@ -4,6 +4,10 @@ import { LocalPermissionsService } from "#src/permissions-service";
 import type { Ruleset } from "#src/rule";
 import type { SessionRules } from "#src/session-rules";
 import type {
+  ToolAccessExtractor,
+  ToolAccessExtractorRegistrar,
+} from "#src/tool-access-extractor-registry";
+import type {
   ToolInputFormatter,
   ToolInputFormatterRegistrar,
 } from "#src/tool-input-formatter-registry";
@@ -39,22 +43,40 @@ function makeFormatterRegistry(): ToolInputFormatterRegistrar {
   };
 }
 
+function makeAccessExtractorRegistry(): ToolAccessExtractorRegistrar {
+  return {
+    register: vi
+      .fn<ToolAccessExtractorRegistrar["register"]>()
+      .mockReturnValue(vi.fn()),
+  };
+}
+
 function makeService(overrides?: {
   permissionManager?: ScopedPermissionManager;
   sessionRules?: Pick<SessionRules, "getRuleset">;
   formatterRegistry?: ToolInputFormatterRegistrar;
+  accessExtractorRegistry?: ToolAccessExtractorRegistrar;
 }) {
   const permissionManager =
     overrides?.permissionManager ?? makeFakePermissionManager();
   const sessionRules = overrides?.sessionRules ?? makeSessionRules();
   const formatterRegistry =
     overrides?.formatterRegistry ?? makeFormatterRegistry();
+  const accessExtractorRegistry =
+    overrides?.accessExtractorRegistry ?? makeAccessExtractorRegistry();
   const service = new LocalPermissionsService(
     permissionManager,
     sessionRules,
     formatterRegistry,
+    accessExtractorRegistry,
   );
-  return { service, permissionManager, sessionRules, formatterRegistry };
+  return {
+    service,
+    permissionManager,
+    sessionRules,
+    formatterRegistry,
+    accessExtractorRegistry,
+  };
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────
@@ -137,6 +159,21 @@ describe("registerToolInputFormatter", () => {
     expect(formatterRegistry.register).toHaveBeenCalledWith(
       "my-tool",
       formatter,
+    );
+    expect(result).toBe(unsub);
+  });
+});
+
+describe("registerToolAccessExtractor", () => {
+  it("delegates to accessExtractorRegistry.register and returns the unsubscribe function", () => {
+    const unsub = vi.fn();
+    const { service, accessExtractorRegistry } = makeService();
+    vi.mocked(accessExtractorRegistry.register).mockReturnValue(unsub);
+    const extractor: ToolAccessExtractor = vi.fn();
+    const result = service.registerToolAccessExtractor("my-tool", extractor);
+    expect(accessExtractorRegistry.register).toHaveBeenCalledWith(
+      "my-tool",
+      extractor,
     );
     expect(result).toBe(unsub);
   });

@@ -68,9 +68,9 @@ See [docs/session-approvals.md](docs/session-approvals.md) for details on sessio
 The `path` surface is a cross-cutting gate that applies to **all** file access — both Pi tools and bash commands.
 A `path` deny cannot be overridden by a per-tool allow, making it the right place to protect sensitive files like `.env` or `~/.ssh/*` from every tool at once.
 
-For per-tool path patterns (`read`, `write`, `edit`, `find`, `grep`, `ls`, and extension tools that expose an explicit path field), patterns are matched against the extracted file path.
-Built-in file tools read `input.path`; extension tools may expose a singular `path`, `file`, `filePath`, `file_path`, `filepath`, `directory`, `dir`, `root`, or `cwd` field.
-This lets you express rules like "allow reads but deny `.env` files" at the individual tool level, including for third-party search tools when they pass their search root explicitly.
+For per-tool path patterns (`read`, `write`, `edit`, `find`, `grep`, `ls`, and extension tools with access intents), patterns are matched against the extracted file path.
+Built-in file tools and extension tools using the default convention read `input.path`; sibling extensions with different input shapes can register a tool access extractor.
+This lets you express rules like "allow reads but deny `.env` files" at the individual tool level, including for third-party search tools when they declare their search root explicitly.
 
 Four layers compose with most-restrictive-wins: `path` (cross-cutting) → `external_directory` (CWD boundary) → per-tool patterns → `bash` command patterns.
 

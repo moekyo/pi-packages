@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ToolAccessExtractorLookup } from "#src/access-intent";
 import type {
   GateBypass,
   GateDescriptor,
@@ -46,6 +47,33 @@ describe("describeExternalDirectoryGate", () => {
         input: { pattern: "needle", path: "/outside/project/src" },
       }),
       ["/test/agent"],
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    expect(desc.surface).toBe("external_directory");
+    expect(desc.input).toEqual({ path: "/outside/project/src" });
+  });
+
+  it("returns GateDescriptor for an extension tool with a registered access extractor", () => {
+    const accessExtractors: ToolAccessExtractorLookup = {
+      get(toolName) {
+        if (toolName !== "ffgrep") {
+          return undefined;
+        }
+        return (input) => ({
+          resource: "path",
+          operation: "search",
+          value: String(input.root),
+        });
+      },
+    };
+    const result = describeExternalDirectoryGate(
+      makeTcc({
+        toolName: "ffgrep",
+        input: { pattern: "needle", root: "/outside/project/src" },
+      }),
+      ["/test/agent"],
+      accessExtractors,
     );
     expect(isGateDescriptor(result)).toBe(true);
     const desc = result as GateDescriptor;

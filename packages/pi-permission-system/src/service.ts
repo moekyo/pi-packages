@@ -11,6 +11,11 @@
  * reference — this ensures resilience across `/reload` and load-order edge cases.
  */
 
+import type {
+  ToolAccessExtractor,
+  ToolAccessIntentDeclaration,
+  ToolAccessOperation,
+} from "./access-intent";
 import type { ToolInputFormatter } from "./tool-input-formatter-registry";
 import type { PermissionCheckResult, PermissionState } from "./types";
 
@@ -31,7 +36,14 @@ export {
   PERMISSIONS_RPC_PROMPT_CHANNEL,
   PERMISSIONS_UI_PROMPT_CHANNEL,
 } from "./permission-events";
-export type { PermissionCheckResult, PermissionState, ToolInputFormatter };
+export type {
+  PermissionCheckResult,
+  PermissionState,
+  ToolAccessExtractor,
+  ToolAccessIntentDeclaration,
+  ToolAccessOperation,
+  ToolInputFormatter,
+};
 
 /** Process-global key for the service slot. */
 const SERVICE_KEY = Symbol.for("@gotgenes/pi-permission-system:service");
@@ -41,7 +53,8 @@ const SERVICE_KEY = Symbol.for("@gotgenes/pi-permission-system:service");
  *
  * Mirrors the simplified RPC signature — surface + optional value + optional
  * agent name — and delegates to `PermissionManager.checkPermission()` with
- * current session rules internally.
+ * current session rules internally. This is a simple surface query; full
+ * tool-call inputs are evaluated by the runtime gate path.
  */
 export interface PermissionsService {
   /**
@@ -49,9 +62,9 @@ export interface PermissionsService {
    *
    * @param surface   - Permission surface: "bash", "read", "mcp", "skill",
    *                    "external_directory", etc.
-   * @param value     - The value to evaluate: command string, tool name, skill
-   *                    name, or path. Omit or pass `undefined` for a
-   *                    surface-level query.
+   * @param value     - The value to evaluate for simple surfaces: command
+   *                    string, skill name, or path. Omit or pass `undefined`
+   *                    for a surface-level query.
    * @param agentName - Optional agent name for per-agent policy resolution.
    * @returns Full check result including state, matched pattern, and origin.
    */
@@ -78,6 +91,18 @@ export interface PermissionsService {
   registerToolInputFormatter(
     toolName: string,
     formatter: ToolInputFormatter,
+  ): () => void;
+
+  /**
+   * Register a custom access-intent extractor for a specific tool name.
+   *
+   * Use this when a sibling extension's tool accesses files but does not use
+   * the built-in `input.path` convention. The extractor returns path intents
+   * that feed the existing `path`, `external_directory`, and per-tool gates.
+   */
+  registerToolAccessExtractor(
+    toolName: string,
+    extractor: ToolAccessExtractor,
   ): () => void;
 
   /**

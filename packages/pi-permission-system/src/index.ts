@@ -32,6 +32,7 @@ import { PermissionSessionLogger } from "./session-logger";
 import { SessionRules } from "./session-rules";
 import { subscribeSubagentLifecycle } from "./subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "./subagent-registry";
+import { ToolAccessExtractorRegistry } from "./tool-access-extractor-registry";
 import { ToolInputFormatterRegistry } from "./tool-input-formatter-registry";
 
 export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
@@ -39,9 +40,13 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   // getPackageDir() is Pi's own install dir; auto-allow it for read-only tools
   // so the agent can read Pi's bundled docs/examples regardless of layout.
   const paths = computeExtensionPaths(agentDir, getPackageDir());
-  const permissionManager = new PermissionManager({ agentDir });
   const sessionRules = new SessionRules();
   const subagentRegistry = getSubagentSessionRegistry();
+  const accessExtractorRegistry = new ToolAccessExtractorRegistry();
+  const permissionManager = new PermissionManager({
+    agentDir,
+    accessExtractors: accessExtractorRegistry,
+  });
   const formatterRegistry = new ToolInputFormatterRegistry();
   registerBuiltinToolInputFormatters(formatterRegistry);
 
@@ -129,6 +134,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     permissionManager,
     sessionRules,
     formatterRegistry,
+    accessExtractorRegistry,
   );
 
   // Subscribe to @gotgenes/pi-subagents' child lifecycle events so child
@@ -171,6 +177,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     resolver,
     session,
     formatterRegistry,
+    accessExtractorRegistry,
   );
   const skillInputGatePipeline = new SkillInputGatePipeline(resolver);
   const gates = new PermissionGateHandler(

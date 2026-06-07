@@ -1,3 +1,4 @@
+import type { ToolAccessExtractorLookup } from "#src/access-intent";
 import {
   canonicalNormalizePathForComparison,
   getPathBearingToolPath,
@@ -21,10 +22,15 @@ import type { ToolCallContext } from "./types";
 export function describeExternalDirectoryGate(
   tcc: ToolCallContext,
   infraDirs: string[],
+  accessExtractors?: ToolAccessExtractorLookup,
 ): GateResult {
   if (!tcc.cwd) return null;
 
-  const externalDirectoryPath = getPathBearingToolPath(tcc.toolName, tcc.input);
+  const externalDirectoryPath = getPathBearingToolPath(
+    tcc.toolName,
+    tcc.input,
+    accessExtractors,
+  );
   if (!externalDirectoryPath) return null;
 
   if (!isPathOutsideWorkingDirectory(externalDirectoryPath, tcc.cwd)) {

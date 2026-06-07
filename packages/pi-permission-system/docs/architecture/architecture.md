@@ -280,6 +280,10 @@ When `input.path` is missing or empty, the value falls back to `"*"` (surface-le
 Path values are home-expanded via `expandHomePath` before matching, so `~/...` and `$HOME/...` values match home-anchored patterns (`~/.ssh/*`) just as absolute paths do.
 `getToolPermission()` is unaffected - it always evaluates with `"*"` to determine whether to inject the tool at agent start.
 
+Tool access intent extraction lives in `src/access-intent.ts`.
+It keeps the existing built-in `input.path` convention but gives sibling extensions an explicit `registerToolAccessExtractor(toolName, extractor)` hook for custom tool input shapes.
+The extracted path intents feed the same path, external-directory, and per-tool gates; pathless extension calls keep their historical catch-all behavior.
+
 ## Session approvals: the cache-miss model
 
 Session rules are stored as `Ruleset` and are generalized to all surfaces.
@@ -459,11 +463,12 @@ The extension publishes a `PermissionsService` object via `publishPermissionsSer
 Other extensions retrieve it with `getPermissionsService()` from `import("@gotgenes/pi-permission-system")`.
 The `package.json` `exports` field points to `src/service.ts`, which contains the interface, the accessor functions, and the `Symbol.for()` key - no extension machinery.
 
-The `PermissionsService` interface exposes three methods:
+The `PermissionsService` interface exposes four methods:
 
 - `checkPermission(surface, value?, agentName?)` - full policy query.
 - `getToolPermission(toolName, agentName?)` - tool-level permission state (`allow`/`deny`/`ask`) for pre-filtering.
 - `registerToolInputFormatter(toolName, formatter)` - register a custom ask-prompt preview for a tool name; returns a disposer (#283).
+- `registerToolAccessExtractor(toolName, extractor)` - register a custom access-intent extractor for a tool name; returns a disposer.
 
 The event-bus RPC (`permissions:rpc:check`) remains as a zero-dependency fallback for consumers who do not want to add an optional peer dep.
 It is deprecated in favor of the service accessor.
@@ -479,6 +484,7 @@ src/
 ├── synthesize.ts             Universal default + MCP baseline → Ruleset
 ├── wildcard-matcher.ts       Compiled glob matching
 ├── mcp-targets.ts            MCP multi-name target derivation
+├── access-intent.ts          Tool-call access intent extraction for built-ins, MCP argument paths, and registered extension extractors
 ├── input-normalizer.ts       Surface-specific input normalization → NormalizedInput
 ├── pattern-suggest.ts        Per-surface approval pattern suggestions
 ├── bash-arity.ts             Command arity table for bash pattern suggestions
@@ -526,7 +532,7 @@ src/
 │       └── index.ts          Barrel re-exports
 │
 ├── index.ts                  Extension factory - event wiring, collaborator construction (~170 lines after #320; established injection-bag wiring kept inline per anti-procedure-splitting rule)
-├── permissions-service.ts    `LocalPermissionsService` class - in-process implementation of `PermissionsService`; injected with narrow collaborator interfaces `ScopedPermissionManager`, `Pick<SessionRules, "getRuleset">`, `ToolInputFormatterRegistrar` (#320, narrowed #366)
+├── permissions-service.ts    `LocalPermissionsService` class - in-process implementation of `PermissionsService`; injected with narrow collaborator interfaces `ScopedPermissionManager`, `Pick<SessionRules, "getRuleset">`, `ToolInputFormatterRegistrar`, `ToolAccessExtractorRegistrar` (#320, narrowed #366)
 ├── service-lifecycle.ts      `ServiceLifecycle` interface + `PermissionServiceLifecycle` class — owns the process-global service publish (#302 child-gated), ready emit, and session teardown ordering (#320)
 ├── service.ts                PermissionsService interface, Symbol.for() accessor (cross-extension API)
 ├── permission-events.ts      Event channel constants, payload types, emit helpers
@@ -542,7 +548,8 @@ src/
 │
 ├── permission-merge.ts        Deep-shallow merge for flat permission configs
 ├── canonicalize-path.ts       Best-effort symlink resolution via `realpathSync` — walks up to longest existing ancestor and re-appends non-existent tail; ENOENT/ENOTDIR safe, EACCES/ELOOP fall back to lexical form
-├── path-utils.ts              Path normalization, within-directory (case-insensitive on Windows via `path.relative`), outside-CWD (canonical), safe-system-path, path-bearing-tool, Pi infrastructure read; `canonicalNormalizePathForComparison` for containment decisions
+├── path-utils.ts              Path normalization, within-directory (case-insensitive on Windows via `path.relative`), outside-CWD (canonical), safe-system-path, compatibility helpers over access intents, Pi infrastructure read; `canonicalNormalizePathForComparison` for containment decisions
+├── tool-access-extractor-registry.ts Custom access-intent extractor registry exposed through `PermissionsService`
 ├── node-modules-discovery.ts  Global node_modules resolution (walk-up + npm root -g fallback)
 ├── system-prompt-sanitizer.ts Remove denied tools from system prompt
 ├── skill-prompt-sanitizer.ts  Skill prompt filtering by policy

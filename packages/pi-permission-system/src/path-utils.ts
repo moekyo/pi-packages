@@ -6,8 +6,12 @@ import {
   win32 as winPath,
 } from "node:path";
 
+import {
+  getToolPathValues,
+  PATH_BEARING_TOOLS,
+  type ToolAccessExtractorLookup,
+} from "./access-intent";
 import { canonicalizePath } from "./canonicalize-path";
-import { getNonEmptyString, toRecord } from "./common";
 import { expandHomePath } from "./expand-home";
 import { wildcardMatch } from "./wildcard-matcher";
 
@@ -92,14 +96,7 @@ export const READ_ONLY_PATH_BEARING_TOOLS: ReadonlySet<string> = new Set([
   "ls",
 ]);
 
-export const PATH_BEARING_TOOLS = new Set([
-  "read",
-  "write",
-  "edit",
-  "find",
-  "grep",
-  "ls",
-]);
+export { PATH_BEARING_TOOLS };
 
 /**
  * Surfaces whose patterns are matched against filesystem paths and therefore
@@ -112,59 +109,20 @@ export const PATH_SURFACES: ReadonlySet<string> = new Set([
   "path",
 ]);
 
-const PATH_FIELD_NAMES = [
-  "path",
-  "file",
-  "filePath",
-  "file_path",
-  "filepath",
-  "directory",
-  "dir",
-  "root",
-  "cwd",
-] as const;
-
 export function getPathBearingToolPath(
   toolName: string,
   input: unknown,
+  extractors?: ToolAccessExtractorLookup,
 ): string | null {
-  return getToolInputPaths(toolName, input)[0] ?? null;
+  return getToolInputPaths(toolName, input, extractors)[0] ?? null;
 }
 
-export function getToolInputPaths(toolName: string, input: unknown): string[] {
-  if (toolName === "bash") {
-    return [];
-  }
-
-  const record = toRecord(input);
-
-  if (!PATH_BEARING_TOOLS.has(toolName)) {
-    const source =
-      toolName === "mcp"
-        ? isPlainRecord(record.arguments)
-          ? record.arguments
-          : {}
-        : record;
-    return extractExplicitPathFields(source);
-  }
-
-  const path = getNonEmptyString(record.path);
-  return path ? [path] : [];
-}
-
-function extractExplicitPathFields(record: Record<string, unknown>): string[] {
-  for (const key of PATH_FIELD_NAMES) {
-    const pathValue = getNonEmptyString(record[key]);
-    if (pathValue) {
-      return [pathValue];
-    }
-  }
-
-  return [];
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+export function getToolInputPaths(
+  toolName: string,
+  input: unknown,
+  extractors?: ToolAccessExtractorLookup,
+): string[] {
+  return getToolPathValues(toolName, input, extractors);
 }
 
 /**

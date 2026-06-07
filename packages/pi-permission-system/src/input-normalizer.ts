@@ -1,3 +1,4 @@
+import type { ToolAccessExtractorLookup } from "./access-intent";
 import { getNonEmptyString, toRecord } from "./common";
 import { expandHomePath } from "./expand-home";
 import { createMcpPermissionTargets } from "./mcp-targets";
@@ -11,8 +12,12 @@ import { getToolInputPaths, PATH_BEARING_TOOLS } from "./path-utils";
  * surface, from a single string value.
  *
  * Used by the event-bus RPC handler and the `Symbol.for()` service accessor
- * so external callers can query policy with `(surface, value)` instead of
- * constructing a full tool-call input payload.
+ * so external callers can query simple surfaces with `(surface, value)` instead
+ * of constructing a full tool-call input payload.
+ *
+ * This helper intentionally stays narrow. Arbitrary tool surfaces receive an
+ * empty object and therefore query the surface-level catch-all; real tool-call
+ * inputs flow through `PermissionManager.checkPermission(toolName, input)`.
  *
  * Note: MCP inputs are complex (server name + tool name derivation). Callers
  * providing an MCP surface receive a best-effort policy evaluation using the
@@ -66,6 +71,7 @@ export function normalizeInput(
   toolName: string,
   input: unknown,
   configuredMcpServerNames: readonly string[],
+  accessExtractors?: ToolAccessExtractorLookup,
 ): NormalizedInput {
   // --- Special surfaces (path, external_directory) ---
   if (SPECIAL_PERMISSION_KEYS.has(toolName)) {
@@ -123,7 +129,9 @@ export function normalizeInput(
   }
 
   // --- Extension tools ---
-  const paths = getToolInputPaths(toolName, input).map(expandHomePath);
+  const paths = getToolInputPaths(toolName, input, accessExtractors).map(
+    expandHomePath,
+  );
   return {
     surface: toolName,
     values: paths.length > 0 ? paths : ["*"],

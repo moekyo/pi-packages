@@ -235,7 +235,7 @@ There is no incremental lift-and-shift here — no large test file is rewritten 
      `pnpm run check` (tsc) fails: plain objects typed as the narrow interfaces do not satisfy the still-`ExtensionContext` parameters.
    - Green: add `SessionEntryView` / `ActiveAgentContext` to `active-agent.ts`, `SubagentDetectionContext` to `subagent-context.ts`, and `ForwarderContext` to `permission-forwarder.ts`; narrow all the parameters/fields/imports listed in Module-Level Changes; drop the now-redundant internal cast in `getActiveAgentName`.
      `pnpm run check`, `pnpm run lint`, and `pnpm run test` pass; `index.ts`, `permission-prompter.ts`, and `forwarding-manager.ts` need no edit.
-   - Commit: `refactor: narrow PermissionForwarder context to a local interface (#367)`.
+   - Commit for [#367]: `refactor: narrow PermissionForwarder context to a local interface`.
 
 ## Risks and Mitigations
 
@@ -253,4 +253,7 @@ There is no incremental lift-and-shift here — no large test file is rewritten 
 ## Open Questions
 
 - None.
-  The design is determined by the issue, the type constraints, and the 0366 precedent; deferred items (the remaining four casts, `permission-event-rpc.ts`, the roadmap completion mark) are captured under Non-Goals.
+  The design is determined by the issue, the type constraints, and the [#366] precedent; deferred items (the remaining four casts, `permission-event-rpc.ts`, the roadmap completion mark) are captured under Non-Goals.
+
+[#366]: https://github.com/gotgenes/pi-packages/issues/366
+[#367]: https://github.com/gotgenes/pi-packages/issues/367
