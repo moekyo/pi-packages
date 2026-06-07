@@ -140,11 +140,11 @@ describe("PromptingGateway", () => {
     });
   });
 
-  describe("promptPermission", () => {
+  describe("prompt", () => {
     it("rejects before activate", async () => {
       const gateway = new PromptingGateway(makeDeps());
-      await expect(gateway.promptPermission(makeDetails())).rejects.toThrow(
-        "promptPermission called before the session was activated",
+      await expect(gateway.prompt(makeDetails())).rejects.toThrow(
+        "prompt called before the session was activated",
       );
     });
 
@@ -155,7 +155,7 @@ describe("PromptingGateway", () => {
       gateway.activate(ctx);
       const details = makeDetails();
 
-      const result = await gateway.promptPermission(details);
+      const result = await gateway.prompt(details);
 
       expect(prompter.prompt).toHaveBeenCalledWith(ctx, details);
       expect(result).toEqual({ approved: true, state: "approved" });
@@ -170,7 +170,7 @@ describe("PromptingGateway", () => {
       gateway.activate(firstCtx);
       gateway.activate(secondCtx);
 
-      await gateway.promptPermission(makeDetails());
+      await gateway.prompt(makeDetails());
 
       expect(prompter.prompt).toHaveBeenCalledWith(
         secondCtx,
@@ -182,8 +182,8 @@ describe("PromptingGateway", () => {
       const gateway = new PromptingGateway(makeDeps());
       gateway.activate(makeCtx());
       gateway.deactivate();
-      await expect(gateway.promptPermission(makeDetails())).rejects.toThrow(
-        "promptPermission called before the session was activated",
+      await expect(gateway.prompt(makeDetails())).rejects.toThrow(
+        "prompt called before the session was activated",
       );
     });
 
@@ -198,7 +198,7 @@ describe("PromptingGateway", () => {
       const gateway = new PromptingGateway(makeDeps({ prompter }));
       gateway.activate(makeCtx());
 
-      const result = await gateway.promptPermission(makeDetails());
+      const result = await gateway.prompt(makeDetails());
 
       expect(result).toEqual(decision);
     });

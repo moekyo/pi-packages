@@ -121,7 +121,7 @@ export class GateRunner {
       canConfirm,
       sessionApproval: descriptor.sessionApproval?.toGateApproval(),
       promptForApproval: async () => {
-        const decision = await this.prompter.promptPermission({
+        const decision = await this.prompter.prompt({
           requestId: toolCallId,
           ...descriptor.promptDetails,
         });

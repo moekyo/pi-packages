@@ -94,7 +94,7 @@ export function makeGateRunner(
     resolve?: PermissionResolver["resolve"];
     recordSessionApproval?: SessionApprovalRecorder["recordSessionApproval"];
     canConfirm?: GatePrompter["canConfirm"];
-    promptPermission?: GatePrompter["promptPermission"];
+    prompt?: GatePrompter["prompt"];
     reporter?: Partial<DecisionReporter>;
   } = {},
 ) {
@@ -112,15 +112,15 @@ export function makeGateRunner(
   const canConfirm =
     overrides.canConfirm ??
     (vi.fn().mockReturnValue(true) as GatePrompter["canConfirm"]);
-  const promptPermission =
-    overrides.promptPermission ??
+  const prompt =
+    overrides.prompt ??
     vi
-      .fn<GatePrompter["promptPermission"]>()
+      .fn<GatePrompter["prompt"]>()
       .mockResolvedValue({ approved: true, state: "approved" });
   const runner = new GateRunner(
     { resolve },
     { recordSessionApproval },
-    { canConfirm, promptPermission },
+    { canConfirm, prompt },
     reporter,
   );
   return {
@@ -129,7 +129,7 @@ export function makeGateRunner(
       resolve,
       recordSessionApproval,
       canConfirm,
-      promptPermission,
+      prompt,
       reporter,
     },
   };

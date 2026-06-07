@@ -16,7 +16,7 @@ import { canResolveAskPermissionRequest } from "./yolo-mode";
  *
  * All four fields are actively consumed:
  * - `config` + `subagentSessionsDir` + `registry` drive `canConfirm()`.
- * - `prompter` is called by `promptPermission()`.
+ * - `prompter` is called by `prompt()`.
  */
 export interface PromptingGatewayDeps {
   /** Read current config for the yolo-mode branch of the can-prompt policy. */
@@ -93,12 +93,10 @@ export class PromptingGateway
    * Rejects if no context is active — canConfirm() guards this in normal use.
    * Implements {@link GatePrompter}.
    */
-  promptPermission(
-    details: PromptPermissionDetails,
-  ): Promise<PermissionPromptDecision> {
+  prompt(details: PromptPermissionDetails): Promise<PermissionPromptDecision> {
     if (this.context === null) {
       return Promise.reject(
-        new Error("promptPermission called before the session was activated"),
+        new Error("prompt called before the session was activated"),
       );
     }
     return this.deps.prompter.prompt(this.context, details);

@@ -197,7 +197,7 @@ function makeHandlerForSession(
   // Bridge: delegates to session's transitional prompting extras (#339).
   const prompter: GatePrompter = {
     canConfirm: () => session.canConfirm(),
-    promptPermission: (details) => session.promptPermission(details),
+    prompt: (details) => session.promptPermission(details),
   };
   const runner = new GateRunner(session, session, prompter, reporter);
   return new PermissionGateHandler(

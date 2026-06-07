@@ -338,7 +338,7 @@ export function makeHandler(overrides?: {
   // until tests migrate to use the prompter directly (cycle 9 cleanup).
   const prompter: GatePrompter = overrides?.prompter ?? {
     canConfirm: () => session.canConfirm(),
-    promptPermission: (details) => session.promptPermission(details),
+    prompt: (details) => session.promptPermission(details),
   };
   const runner = new GateRunner(session, session, prompter, reporter);
   const handler = new PermissionGateHandler(
