@@ -24,3 +24,21 @@ Confirmed dependencies are complete (Step 1 `#334` and Step 6 `#339` both CLOSED
 - Shared-instance contract: session and resolver hold the *same* `permissionManager` + `sessionRules` injected from the composition root, so no split-brain (mirrors `#337`'s `ExtensionRuntime` dissolution).
 - `SkillInputGatePipeline` needs no interface change — the `PermissionResolver` class satisfies `SkillInputGateInputs` (`{ checkPermission }`) structurally; only its construction site moves from `session` to `resolver`.
 - TDD plan uses lift-and-shift: rename interface first, add class + rewire `GateRunner`/`SkillInputGatePipeline`, then `ToolCallGatePipeline`, then drop `session.resolve` last (once it has no consumers).
+
+## Stage: Implementation — TDD (2026-06-07T17:19:30Z)
+
+### Session summary
+
+Completed all 5 TDD steps from the plan: renamed `PermissionResolver` interface to `ScopedPermissionResolver`, added the concrete `PermissionResolver` class, routed `GateRunner` and `SkillInputGatePipeline` through it, injected it into `ToolCallGatePipeline` (splitting the resolver out of `ToolCallGateInputs`), removed the resolve role from `PermissionSession`, and updated architecture and skill docs.
+Test count moved from 1823 (baseline) to 1828 (net +5: 9 new resolver tests minus 4 removed session resolve tests).
+Pre-completion reviewer: PASS — no warnings.
+
+### Observations
+
+- **Unplanned deviation**: `test/helpers/handler-fixtures.ts` (`makeSession`, `makeHandler`) and `test/handlers/external-directory-session-dedup.test.ts` (`makeStatefulSession`, `makeHandlerForSession`) both had a `resolve` field/closure on the `MockGateHandlerSession` because `ToolCallGateInputs` previously extended `ScopedPermissionResolver`.
+  Both needed to drop the `resolve` field and create a local resolver closure (`{ resolve: (s, i, a) => session.checkPermission(s, i, a, session.getSessionRuleset()) }`) to pass to `GateRunner` and `ToolCallGatePipeline`.
+  These files were not listed in the plan's Module-Level Changes (an expected gap — the plan noted the 3-file scope was approximate).
+- **Fallow suppression**: `getToolPermission`, `getConfigIssues`, and `getPolicyCacheStamp` on `PermissionResolver` are flagged as unused class members by `fallow` because no handler has been rewired to them yet (that is Step 8 `#341`).
+  Used `// fallow-ignore-next-line unused-class-member` (singular — fallow parses every space-separated token after the directive as an issue kind, so trailing prose comments create stale-suppression noise; the fix was to use the exact kind only).
+- **`makeResolver()` default**: `makeResolver()` with no argument returns a `vi.fn()` that returns `undefined`.
+  All pipeline tests that needed an allow result had to call `makeResolver(makeCheckResult())` explicitly — this was missed in the initial test rewrite and caught by the runtime failure (`Cannot read properties of undefined (reading 'command')`) rather than by type-check.
