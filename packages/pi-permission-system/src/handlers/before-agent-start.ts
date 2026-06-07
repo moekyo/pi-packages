@@ -2,11 +2,12 @@ import type {
   BeforeAgentStartEventResult,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import type { AgentPrepSession } from "#src/agent-prep-session";
 import {
   createActiveToolsCacheKey,
   createBeforeAgentStartPromptStateKey,
 } from "#src/before-agent-start-cache";
+import type { PermissionResolver } from "#src/permission-resolver";
+import type { PermissionSession } from "#src/permission-session";
 import { resolveSkillPromptEntries } from "#src/skill-prompt-sanitizer";
 import { sanitizeAvailableToolsSection } from "#src/system-prompt-sanitizer";
 import { getToolNameFromValue, type ToolRegistry } from "#src/tool-registry";
@@ -35,12 +36,14 @@ export function shouldExposeTool(
  * Handles the `before_agent_start` event: tool filtering + prompt sanitization.
  *
  * Constructor deps:
- * - `session` — encapsulates all mutable session state
+ * - `session` — encapsulates all mutable session state and lifecycle operations
+ * - `resolver` — owns permission-query surface: `getToolPermission`, `getPolicyCacheStamp`, skill check
  * - `toolRegistry` — Pi tool API subset (getAll + setActive)
  */
 export class AgentPrepHandler {
   constructor(
-    private readonly session: AgentPrepSession,
+    private readonly session: PermissionSession,
+    private readonly resolver: PermissionResolver,
     private readonly toolRegistry: ToolRegistry,
   ) {}
 
@@ -63,7 +66,7 @@ export class AgentPrepHandler {
       }
       if (
         shouldExposeTool(toolName, agentName, (t, a) =>
-          this.session.getToolPermission(t, a),
+          this.resolver.getToolPermission(t, a),
         )
       ) {
         allowedTools.push(toolName);
@@ -79,7 +82,9 @@ export class AgentPrepHandler {
     const promptStateCacheKey = createBeforeAgentStartPromptStateKey({
       agentName,
       cwd: ctx.cwd,
-      permissionStamp: this.session.getPolicyCacheStamp(agentName ?? undefined),
+      permissionStamp: this.resolver.getPolicyCacheStamp(
+        agentName ?? undefined,
+      ),
       systemPrompt: event.systemPrompt,
       allowedToolNames: allowedTools,
     });
@@ -96,7 +101,7 @@ export class AgentPrepHandler {
     );
     const skillPromptResult = resolveSkillPromptEntries(
       toolPromptResult.prompt,
-      this.session,
+      this.resolver,
       agentName,
       ctx.cwd,
     );

@@ -57,41 +57,6 @@ beforeEach(() => {
 });
 
 describe("PermissionSession", () => {
-  describe("constructor and delegation", () => {
-    it("delegates checkPermission to internal PermissionManager", () => {
-      const pm = makePermissionManager();
-      const { session } = createSession({ permissionManager: pm });
-
-      const result = session.checkPermission("bash", { command: "ls" });
-
-      expect(pm.checkPermission).toHaveBeenCalledWith(
-        "bash",
-        { command: "ls" },
-        undefined,
-        undefined,
-      );
-      expect(result.state).toBe("allow");
-    });
-
-    it("delegates getToolPermission to internal PermissionManager", () => {
-      const pm = makePermissionManager();
-      const { session } = createSession({ permissionManager: pm });
-
-      const result = session.getToolPermission("read");
-
-      expect(pm.getToolPermission).toHaveBeenCalledWith("read", undefined);
-      expect(result).toBe("allow");
-    });
-
-    it("delegates getPolicyCacheStamp to internal PermissionManager", () => {
-      const pm = makePermissionManager();
-      const { session } = createSession({ permissionManager: pm });
-
-      expect(session.getPolicyCacheStamp("agent1")).toBe("stamp-1");
-      expect(pm.getPolicyCacheStamp).toHaveBeenCalledWith("agent1");
-    });
-  });
-
   describe("activate and deactivate", () => {
     it("stores the context on activate", () => {
       const { session, forwarding } = createSession();

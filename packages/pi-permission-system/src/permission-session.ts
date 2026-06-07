@@ -4,7 +4,7 @@ import {
   getActiveAgentName,
   getActiveAgentNameFromSystemPrompt,
 } from "./active-agent";
-import type { AgentPrepSession } from "./agent-prep-session";
+
 import type { SessionConfigStore } from "./config-store";
 import type { PermissionSystemExtensionConfig } from "./extension-config";
 import type { ExtensionPaths } from "./extension-paths";
@@ -38,7 +38,7 @@ import type { PermissionCheckResult, PermissionState } from "./types";
  * - `SessionConfigStore` — owns extension config; provides refresh, log, read
  * - `PromptingGatewayLifecycle` — prompting lifecycle forwarded via activate/deactivate
  */
-export class PermissionSession implements GateHandlerSession, AgentPrepSession {
+export class PermissionSession implements GateHandlerSession {
   private context: ExtensionContext | null = null;
   private skillEntries: SkillPromptEntry[] = [];
   private knownAgentName: string | null = null;
@@ -74,30 +74,6 @@ export class PermissionSession implements GateHandlerSession, AgentPrepSession {
   /** Return the current runtime context, or null if not activated. */
   getRuntimeContext(): ExtensionContext | null {
     return this.context;
-  }
-
-  // ── Permission checking (delegates to PermissionManager) ───────────────
-
-  checkPermission(
-    surface: string,
-    input: unknown,
-    agentName?: string,
-    sessionRules?: Rule[],
-  ): PermissionCheckResult {
-    return this.permissionManager.checkPermission(
-      surface,
-      input,
-      agentName,
-      sessionRules,
-    );
-  }
-
-  getToolPermission(toolName: string, agentName?: string): PermissionState {
-    return this.permissionManager.getToolPermission(toolName, agentName);
-  }
-
-  getPolicyCacheStamp(agentName?: string): string {
-    return this.permissionManager.getPolicyCacheStamp(agentName);
   }
 
   // ── Session lifecycle ────────────────────────────────────────────────────

@@ -164,7 +164,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     resolver,
     serviceLifecycle,
   );
-  const agentPrep = new AgentPrepHandler(session, toolRegistry);
+  const agentPrep = new AgentPrepHandler(session, resolver, toolRegistry);
 
   const reporter = new GateDecisionReporter(session.logger, pi.events);
   const gateRunner = new GateRunner(resolver, sessionRules, gateway, reporter);
