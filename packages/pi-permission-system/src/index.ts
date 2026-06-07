@@ -88,7 +88,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
 
   const prompter = new PermissionPrompter({
     config: configStore,
-    writeReviewLog: (event, details) => logger.review(event, details),
+    logger,
     events: pi.events,
     forwarder,
   });
