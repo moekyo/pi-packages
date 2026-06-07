@@ -32,10 +32,7 @@ import { isSubagentExecutionContext } from "./subagent-context";
 import { subscribeSubagentLifecycle } from "./subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "./subagent-registry";
 import { ToolInputFormatterRegistry } from "./tool-input-formatter-registry";
-import {
-  canResolveAskPermissionRequest,
-  shouldAutoApprovePermissionState,
-} from "./yolo-mode";
+import { canResolveAskPermissionRequest } from "./yolo-mode";
 
 export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   const agentDir = getAgentDir();
@@ -75,14 +72,9 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     subagentSessionsDir: paths.subagentSessionsDir,
     registry: subagentRegistry,
     events: pi.events,
-    logger: {
-      writeReviewLog: (event, details) => logger.review(event, details),
-      writeDebugLog: (event, details) => logger.debug(event, details),
-    },
-    writeReviewLog: (event, details) => logger.review(event, details),
+    logger,
     requestPermissionDecisionFromUi,
-    shouldAutoApprove: () =>
-      shouldAutoApprovePermissionState("ask", configStore.current()),
+    config: configStore,
   };
   const forwarder = new PermissionForwarder(forwardingDeps);
 

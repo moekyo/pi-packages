@@ -17,6 +17,7 @@ import {
   type ForwardedPermissionResponse,
   type PermissionForwardingLocation,
 } from "#src/permission-forwarding";
+import type { DebugReviewLogger } from "#src/session-logger";
 
 /** Valid `permissions:ui_prompt` source values, for tolerant request reads. */
 const UI_PROMPT_SOURCES = [
@@ -41,13 +42,6 @@ function asNullableDisplayString(value: unknown): string | null | undefined {
   return undefined;
 }
 
-type LogFn = (event: string, details: Record<string, unknown>) => void;
-
-export interface ForwardedPermissionLogger {
-  writeReviewLog: LogFn;
-  writeDebugLog: LogFn;
-}
-
 export function formatUnknownErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
     return error.message;
@@ -69,7 +63,7 @@ export function isErrnoCode(error: unknown, code: string): boolean {
  * Pass `null` for `logger` to silently no-op (e.g. in unit tests without IO).
  */
 export function logPermissionForwardingWarning(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   message: string,
   error?: unknown,
 ): void {
@@ -78,8 +72,8 @@ export function logPermissionForwardingWarning(
       ? { message }
       : { message, error: formatUnknownErrorMessage(error) };
 
-  logger?.writeReviewLog("permission_forwarding.warning", details);
-  logger?.writeDebugLog("permission_forwarding.warning", details);
+  logger?.review("permission_forwarding.warning", details);
+  logger?.debug("permission_forwarding.warning", details);
 }
 
 /**
@@ -87,7 +81,7 @@ export function logPermissionForwardingWarning(
  * Pass `null` for `logger` to silently no-op (e.g. in unit tests without IO).
  */
 export function logPermissionForwardingError(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   message: string,
   error?: unknown,
 ): void {
@@ -96,12 +90,12 @@ export function logPermissionForwardingError(
       ? { message }
       : { message, error: formatUnknownErrorMessage(error) };
 
-  logger?.writeReviewLog("permission_forwarding.error", details);
-  logger?.writeDebugLog("permission_forwarding.error", details);
+  logger?.review("permission_forwarding.error", details);
+  logger?.debug("permission_forwarding.error", details);
 }
 
 export function ensureDirectoryExists(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   path: string,
   description: string,
 ): boolean {
@@ -126,7 +120,7 @@ export function getPermissionForwardingLocationForSession(
 }
 
 export function ensurePermissionForwardingLocation(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   forwardingDir: string,
   sessionId: string,
 ): PermissionForwardingLocation | null {
@@ -182,7 +176,7 @@ export function getExistingPermissionForwardingLocation(
 }
 
 export function tryRemoveDirectoryIfEmpty(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   path: string,
   description: string,
 ): void {
@@ -222,7 +216,7 @@ export function tryRemoveDirectoryIfEmpty(
 }
 
 export function cleanupPermissionForwardingLocationIfEmpty(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   location: PermissionForwardingLocation,
 ): void {
   tryRemoveDirectoryIfEmpty(
@@ -243,7 +237,7 @@ export function cleanupPermissionForwardingLocationIfEmpty(
 }
 
 export function safeDeleteFile(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   filePath: string,
   description: string,
 ): void {
@@ -263,7 +257,7 @@ export function safeDeleteFile(
 }
 
 export function writeJsonFileAtomic(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   filePath: string,
   value: unknown,
 ): void {
@@ -279,7 +273,7 @@ export function writeJsonFileAtomic(
 }
 
 export function readForwardedPermissionRequest(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   filePath: string,
 ): ForwardedPermissionRequest | null {
   try {
@@ -326,7 +320,7 @@ export function readForwardedPermissionRequest(
 }
 
 export function readForwardedPermissionResponse(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   filePath: string,
 ): ForwardedPermissionResponse | null {
   try {
@@ -370,7 +364,7 @@ export function readForwardedPermissionResponse(
 }
 
 export function listRequestFiles(
-  logger: ForwardedPermissionLogger | null,
+  logger: DebugReviewLogger | null,
   requestsDir: string,
 ): string[] {
   try {

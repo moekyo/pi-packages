@@ -7,6 +7,7 @@ import {
   getActiveAgentNameFromSystemPrompt,
 } from "#src/active-agent";
 import { toRecord } from "#src/common";
+import type { ConfigReader } from "#src/config-store";
 import type {
   PermissionPromptDecision,
   RequestPermissionOptions,
@@ -27,13 +28,14 @@ import {
   SUBAGENT_PARENT_SESSION_ENV_CANDIDATES,
 } from "#src/permission-forwarding";
 import { buildForwardedUiPrompt } from "#src/permission-ui-prompt";
+import type { DebugReviewLogger } from "#src/session-logger";
 import { isSubagentExecutionContext } from "#src/subagent-context";
 import type { SubagentSessionRegistry } from "#src/subagent-registry";
+import { shouldAutoApprovePermissionState } from "#src/yolo-mode";
 
 import {
   cleanupPermissionForwardingLocationIfEmpty,
   ensurePermissionForwardingLocation,
-  type ForwardedPermissionLogger,
   getExistingPermissionForwardingLocation,
   listRequestFiles,
   logPermissionForwardingError,
@@ -59,15 +61,15 @@ export interface PermissionForwarderDeps {
   registry?: SubagentSessionRegistry;
   /** Event bus used for UI prompt broadcasts. */
   events?: PermissionEventBus;
-  logger: ForwardedPermissionLogger;
-  writeReviewLog: (event: string, details: Record<string, unknown>) => void;
+  logger: DebugReviewLogger;
   requestPermissionDecisionFromUi: (
     ui: ExtensionContext["ui"],
     title: string,
     message: string,
     options?: RequestPermissionOptions,
   ) => Promise<PermissionPromptDecision>;
-  shouldAutoApprove: () => boolean;
+  /** Read current config for yolo-mode auto-approve check (called at prompt time). */
+  config: ConfigReader;
 }
 
 // ── Module-private helpers ────────────────────────────────────────────────
@@ -165,18 +167,14 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
   private readonly subagentSessionsDir: string;
   private readonly registry: SubagentSessionRegistry | undefined;
   private readonly events: PermissionEventBus | undefined;
-  private readonly logger: ForwardedPermissionLogger;
-  private readonly writeReviewLog: (
-    event: string,
-    details: Record<string, unknown>,
-  ) => void;
+  private readonly logger: DebugReviewLogger;
   private readonly requestPermissionDecisionFromUi: (
     ui: ExtensionContext["ui"],
     title: string,
     message: string,
     options?: RequestPermissionOptions,
   ) => Promise<PermissionPromptDecision>;
-  private readonly shouldAutoApprove: () => boolean;
+  private readonly config: ConfigReader;
 
   constructor(deps: PermissionForwarderDeps) {
     this.forwardingDir = deps.forwardingDir;
@@ -184,9 +182,8 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
     this.registry = deps.registry;
     this.events = deps.events;
     this.logger = deps.logger;
-    this.writeReviewLog = deps.writeReviewLog;
     this.requestPermissionDecisionFromUi = deps.requestPermissionDecisionFromUi;
-    this.shouldAutoApprove = deps.shouldAutoApprove;
+    this.config = deps.config;
   }
 
   // ── Public seam methods ────────────────────────────────────────────────
@@ -319,7 +316,7 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
     const requestPath = join(location.requestsDir, `${request.id}.json`);
     const responsePath = join(location.responsesDir, `${request.id}.json`);
 
-    this.writeReviewLog("forwarded_permission.request_created", {
+    this.logger.review("forwarded_permission.request_created", {
       requestId: request.id,
       requesterAgentName: request.requesterAgentName,
       requesterSessionId: request.requesterSessionId,
@@ -391,7 +388,7 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
           this.logger,
           responsePath,
         );
-        this.writeReviewLog("forwarded_permission.response_received", {
+        this.logger.review("forwarded_permission.response_received", {
           requestId,
           approved: response?.approved ?? null,
           state: response?.state ?? null,
@@ -421,7 +418,7 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
       this.logger,
       `Timed out waiting for forwarded permission response '${responsePath}'`,
     );
-    this.writeReviewLog("forwarded_permission.response_timed_out", {
+    this.logger.review("forwarded_permission.response_timed_out", {
       requestId,
       requesterAgentName,
       targetSessionId,
@@ -465,14 +462,14 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
       approved: false,
       state: "denied",
     };
-    if (this.shouldAutoApprove()) {
-      this.writeReviewLog(
+    if (shouldAutoApprovePermissionState("ask", this.config.current())) {
+      this.logger.review(
         "forwarded_permission.auto_approved",
         forwardedPermissionLogDetails,
       );
       decision = { approved: true, state: "approved" };
     } else {
-      this.writeReviewLog(
+      this.logger.review(
         "forwarded_permission.prompted",
         forwardedPermissionLogDetails,
       );
@@ -508,7 +505,7 @@ export class PermissionForwarder implements ApprovalRequester, InboxProcessor {
     }
 
     const responsePath = join(location.responsesDir, `${request.id}.json`);
-    this.writeReviewLog(
+    this.logger.review(
       decision.approved
         ? "forwarded_permission.approved"
         : "forwarded_permission.denied",

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, test, vi } from "vitest";
-
+import { DEFAULT_EXTENSION_CONFIG } from "#src/extension-config";
 import {
   PermissionForwarder,
   type PermissionForwarderDeps,
@@ -18,12 +18,11 @@ function makeDeps(
   return {
     forwardingDir: "/tmp/forwarding",
     subagentSessionsDir: "/tmp/subagents",
-    logger: { writeReviewLog: vi.fn(), writeDebugLog: vi.fn() },
-    writeReviewLog: vi.fn(),
+    logger: { review: vi.fn(), debug: vi.fn() },
     requestPermissionDecisionFromUi: vi
       .fn()
       .mockResolvedValue({ approved: true, state: "approved" as const }),
-    shouldAutoApprove: () => false,
+    config: { current: () => ({ ...DEFAULT_EXTENSION_CONFIG }) },
     ...overrides,
   };
 }
@@ -271,7 +270,9 @@ describe("processInbox", () => {
           forwardingDir,
           events,
           requestPermissionDecisionFromUi,
-          shouldAutoApprove: () => true,
+          config: {
+            current: () => ({ ...DEFAULT_EXTENSION_CONFIG, yoloMode: true }),
+          },
         }),
       );
 
