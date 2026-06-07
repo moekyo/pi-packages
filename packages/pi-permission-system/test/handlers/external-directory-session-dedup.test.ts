@@ -191,22 +191,25 @@ function makeStatefulSession(
 
 function makeHandlerForSession(
   session: MockGateHandlerSession,
-): PermissionGateHandler {
+  prompter?: GatePrompter,
+): { handler: PermissionGateHandler; prompter: GatePrompter } {
   const events = makeEvents();
   const reporter = new GateDecisionReporter(session.logger, events);
-  // Bridge: delegates to session's transitional prompting extras (#339).
-  const prompter: GatePrompter = {
-    canConfirm: () => session.canConfirm(),
-    prompt: (details) => session.promptPermission(details),
+  const resolvedPrompter: GatePrompter = prompter ?? {
+    canConfirm: vi.fn().mockReturnValue(true),
+    prompt: vi
+      .fn<GatePrompter["prompt"]>()
+      .mockResolvedValue({ approved: true, state: "approved_for_session" }),
   };
-  const runner = new GateRunner(session, session, prompter, reporter);
-  return new PermissionGateHandler(
+  const runner = new GateRunner(session, session, resolvedPrompter, reporter);
+  const handler = new PermissionGateHandler(
     session,
     makeToolRegistry(),
     new ToolCallGatePipeline(session),
     new SkillInputGatePipeline(session),
     runner,
   );
+  return { handler, prompter: resolvedPrompter };
 }
 
 function makeToolRegistry(): ToolRegistry {
@@ -229,7 +232,7 @@ describe("external-directory session dedup", () => {
   describe("path-bearing tools (read, write, edit)", () => {
     it("does not re-prompt for the same external path after session approval", async () => {
       const session = makeStatefulSession();
-      const handler = makeHandlerForSession(session);
+      const { handler, prompter } = makeHandlerForSession(session);
       const ctx = makeCtx();
       const externalPath = "/outside/project/data.txt";
 
@@ -242,7 +245,7 @@ describe("external-directory session dedup", () => {
       };
       const result1 = await handler.handleToolCall(event1, ctx);
       expect(result1).toEqual({});
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — same path, should hit session rule, no prompt
       const event2 = {
@@ -253,12 +256,12 @@ describe("external-directory session dedup", () => {
       };
       const result2 = await handler.handleToolCall(event2, ctx);
       expect(result2).toEqual({});
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
     });
 
     it("does not re-prompt for a different file in the same external directory", async () => {
       const session = makeStatefulSession();
-      const handler = makeHandlerForSession(session);
+      const { handler, prompter } = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — prompt for /outside/project/a.txt
@@ -269,7 +272,7 @@ describe("external-directory session dedup", () => {
         input: { path: "/outside/project/a.txt" },
       };
       await handler.handleToolCall(event1, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — /outside/project/b.txt is in the same directory
       const event2 = {
@@ -279,12 +282,12 @@ describe("external-directory session dedup", () => {
         input: { path: "/outside/project/b.txt" },
       };
       await handler.handleToolCall(event2, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
     });
 
     it("does prompt for a file in a different external directory", async () => {
       const session = makeStatefulSession();
-      const handler = makeHandlerForSession(session);
+      const { handler, prompter } = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — /outside/alpha/file.txt
@@ -295,7 +298,7 @@ describe("external-directory session dedup", () => {
         input: { path: "/outside/alpha/file.txt" },
       };
       await handler.handleToolCall(event1, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — /outside/beta/file.txt is a different directory
       const event2 = {
@@ -305,16 +308,18 @@ describe("external-directory session dedup", () => {
         input: { path: "/outside/beta/file.txt" },
       };
       await handler.handleToolCall(event2, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(2);
+      expect(prompter.prompt).toHaveBeenCalledTimes(2);
     });
 
     it("re-prompts when user approved once (not for session)", async () => {
-      const session = makeStatefulSession({
+      const session = makeStatefulSession();
+      const approveOnce: GatePrompter = {
+        canConfirm: vi.fn().mockReturnValue(true),
         prompt: vi
-          .fn()
+          .fn<GatePrompter["prompt"]>()
           .mockResolvedValue({ approved: true, state: "approved" }),
-      });
-      const handler = makeHandlerForSession(session);
+      };
+      const { handler, prompter } = makeHandlerForSession(session, approveOnce);
       const ctx = makeCtx();
       const externalPath = "/outside/project/data.txt";
 
@@ -326,7 +331,7 @@ describe("external-directory session dedup", () => {
         input: { path: externalPath },
       };
       await handler.handleToolCall(event1, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — no session rule recorded, should prompt again
       const event2 = {
@@ -336,14 +341,14 @@ describe("external-directory session dedup", () => {
         input: { path: externalPath },
       };
       await handler.handleToolCall(event2, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(2);
+      expect(prompter.prompt).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("bash commands with external paths", () => {
     it("does not re-prompt for a bash command referencing the same external path after session approval", async () => {
       const session = makeStatefulSession();
-      const handler = makeHandlerForSession(session);
+      const { handler, prompter } = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — bash referencing /tmp/out.txt
@@ -355,7 +360,7 @@ describe("external-directory session dedup", () => {
       };
       const result1 = await handler.handleToolCall(event1, ctx);
       expect(result1).toEqual({});
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — different bash command, same external path
       const event2 = {
@@ -366,12 +371,12 @@ describe("external-directory session dedup", () => {
       };
       const result2 = await handler.handleToolCall(event2, ctx);
       expect(result2).toEqual({});
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
     });
 
     it("does not re-prompt for read after bash already approved the same directory", async () => {
       const session = makeStatefulSession();
-      const handler = makeHandlerForSession(session);
+      const { handler, prompter } = makeHandlerForSession(session);
       const ctx = makeCtx();
 
       // First call — bash writes to /tmp/out.txt
@@ -382,7 +387,7 @@ describe("external-directory session dedup", () => {
         input: { command: "echo hello > /tmp/out.txt" },
       };
       await handler.handleToolCall(event1, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
 
       // Second call — read from /tmp/out.txt (same directory, different tool)
       const event2 = {
@@ -392,7 +397,7 @@ describe("external-directory session dedup", () => {
         input: { path: "/tmp/out.txt" },
       };
       await handler.handleToolCall(event2, ctx);
-      expect(session.prompt).toHaveBeenCalledTimes(1);
+      expect(prompter.prompt).toHaveBeenCalledTimes(1);
     });
   });
 });
