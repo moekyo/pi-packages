@@ -23,6 +23,7 @@ import { requestPermissionDecisionFromUi } from "./permission-dialog";
 import { registerPermissionRpcHandlers } from "./permission-event-rpc";
 import { PermissionManager } from "./permission-manager";
 import { PermissionPrompter } from "./permission-prompter";
+import { PermissionResolver } from "./permission-resolver";
 import { PermissionSession } from "./permission-session";
 import { LocalPermissionsService } from "./permissions-service";
 import { PromptingGateway } from "./prompting-gateway";
@@ -158,13 +159,15 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
 
   const lifecycle = new SessionLifecycleHandler(session, serviceLifecycle);
   const agentPrep = new AgentPrepHandler(session, toolRegistry);
+  const resolver = new PermissionResolver(permissionManager, sessionRules);
+
   const reporter = new GateDecisionReporter(session.logger, pi.events);
-  const gateRunner = new GateRunner(session, session, gateway, reporter);
+  const gateRunner = new GateRunner(resolver, session, gateway, reporter);
   const toolCallGatePipeline = new ToolCallGatePipeline(
     session,
     formatterRegistry,
   );
-  const skillInputGatePipeline = new SkillInputGatePipeline(session);
+  const skillInputGatePipeline = new SkillInputGatePipeline(resolver);
   const gates = new PermissionGateHandler(
     session,
     toolRegistry,
