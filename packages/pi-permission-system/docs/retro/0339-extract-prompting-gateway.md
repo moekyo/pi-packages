@@ -46,3 +46,51 @@ Pre-completion reviewer returned WARN with one finding (roadmap Step 6 not marke
 - `GatePrompter` rename sequencing worked cleanly: cycle 3 renamed the interface only after the session dropped it in cycle 2, avoiding the collision with the session’s own `prompt(ctx, details)` method.
 - `makeHandlerForSession` in `external-directory-session-dedup.test.ts` was redesigned in cycle 8 to accept an optional `GatePrompter` and return `{ handler, prompter }`, which kept the final cycle 9 cleanup contained to one function.
 - Pre-completion reviewer: WARN (resolved before commit — Step 6 marked `✓ complete` in `architecture.md`; unused `beforeEach` import removed from `test/prompting-gateway.test.ts`).
+
+## Stage: Final Retrospective (2026-06-07T15:09:29Z)
+
+### Session summary
+
+Shipped #339 across four stages (plan on `claude-opus-4-8`, TDD on `claude-sonnet-4-6`, ship on `deepseek-v4-flash`, retro on `claude-opus-4-8`): `pi-permission-system-v10.4.0` is released, the issue is closed, and release-please PR #348 is merged.
+The 9-cycle lift-and-shift landed with zero rework to production code and the test count held at 1,823 throughout.
+The execution was unusually clean — the only friction was mechanical `Edit`-tool match failures caused by `pi-autoformat` reflowing code between edits.
+
+### Observations
+
+#### What went well
+
+- The lift-and-shift bridge choreography (keep prompting extras on `MockGateHandlerSession`, migrate handler suites one per cycle, drop the bridge last) executed exactly as planned — no handler test case broke before its own migration cycle, and the plan's foresight meant only one unplanned spot surfaced (the latent `session.prompt` in `external-directory-integration.test.ts`), caught instantly by `pnpm run check`.
+- Cost-appropriate model routing: the ship stage ran end-to-end on `opencode-go/deepseek-v4-flash` (cheap) for purely mechanical orchestration — push, CI watch, the stacked-release `ask_user` gate, issue close, release-please merge — and executed flawlessly, while judgment-heavy planning/retro stayed on `claude-opus-4-8` and implementation on `claude-sonnet-4-6`.
+- The `pre-completion-reviewer` subagent caught both loose ends (roadmap Step 6 not marked `✓ complete`; unused `beforeEach` import) before they reached CI; both were fixed pre-push.
+- Incremental verification was textbook: `pnpm run check` ran after nearly every cycle (turns 50, 64, 73, 99, 111, 118, 125, 135, 152, 156), per-file tests after each cycle, full suite before each commit boundary.
+
+#### What caused friction (agent side)
+
+- `other` (tooling) — `Edit` `oldText` match failures from `pi-autoformat` reflow.
+  Four edits failed (turns 85, 87, 95, 140) because the agent built multi-line `oldText` from the layout it had just written, but `pi-autoformat` had reflowed that region (e.g. `const prompter: GatePrompter =\n    overrides?.prompter ?? {` collapsed onto one line).
+  Each recovered within 2–3 calls (re-read or `grep`, then retry; turn 97 fell back to `sed`).
+  Impact: ~8–10 extra tool calls across a ~210-turn session; no code rework.
+- `missing-context` — colgrep skill not loaded in planning.
+  Turn 4 guessed `.pi/skills/colgrep/SKILL.md` (the path pattern of the other five skills) and errored; the skill actually lives at `packages/pi-colgrep/skills/colgrep/SKILL.md` (the path is in the system `<available_skills>` list).
+  The agent proceeded with `grep`/`find` and explored correctly, so the grep-vs-colgrep decision table was simply never consulted.
+  Impact: no rework this session; recurring latent miss across sessions.
+
+#### What caused friction (user side)
+
+- None.
+  Two `Continue.` nudges (turns 72, 110) were routine continuation prompts after the agent paused mid-cycle, not corrections.
+
+### Diagnostic details
+
+- **Model-performance correlation** — all four stage assignments were appropriate; no mismatches.
+  The ship stage on `deepseek-v4-flash` is the ideal case (cheap model on deterministic tool orchestration), not a reasoning-weak-on-judgment mismatch.
+  The `pre-completion-reviewer` subagent ran on its configured `claude-sonnet-4-6` — appropriate for judgment-heavy review.
+- **Escalation-delay tracking** — no `rabbit-hole`; no sequence exceeded 5 consecutive tool calls on one error.
+  The longest stall was 3 calls (turn 140→143) re-locating reflowed `oldText`.
+- **Unused-tool detection** — colgrep was available but never loaded (path guess, above); it would have added the grep-vs-colgrep decision table but the grep-based exploration was already sufficient.
+- **Feedback-loop gap analysis** — no gaps; verification ran incrementally after every cycle, not just at the end.
+
+### Changes made
+
+1. `AGENTS.md` — extended the `### Tool-injected messages` note: `pi-autoformat` reflows what you just wrote, so an `oldText` built from the emitted layout can fail to match; re-read a just-edited region before editing it again.
+2. `packages/pi-permission-system/docs/retro/0339-extract-prompting-gateway.md` — added this Final Retrospective stage entry.
