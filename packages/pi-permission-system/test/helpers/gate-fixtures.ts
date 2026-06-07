@@ -243,18 +243,12 @@ export function makeGateCheckResult(
  */
 export function makeGateInputs(
   overrides: {
-    resolve?: ScopedPermissionResolver["resolve"];
     getActiveSkillEntries?: () => SkillPromptEntry[];
     getInfrastructureReadDirs?: () => string[];
     getToolPreviewLimits?: () => ToolPreviewFormatterOptions;
   } = {},
 ): ToolCallGateInputs {
   return {
-    resolve:
-      overrides.resolve ??
-      vi
-        .fn<ScopedPermissionResolver["resolve"]>()
-        .mockReturnValue(makeCheckResult()),
     getActiveSkillEntries:
       overrides.getActiveSkillEntries ??
       vi.fn<() => SkillPromptEntry[]>(() => []),

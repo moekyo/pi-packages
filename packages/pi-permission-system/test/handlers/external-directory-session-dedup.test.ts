@@ -153,17 +153,6 @@ function makeStatefulSession(
       vi
         .fn<MockGateHandlerSession["getToolPreviewLimits"]>()
         .mockReturnValue(resolveToolPreviewLimits(DEFAULT_EXTENSION_CONFIG)),
-    // Resolve delegation — closure reads `session` at call time so overrides win.
-    resolve:
-      overrides.resolve ??
-      vi.fn<MockGateHandlerSession["resolve"]>((surface, input, agentName) =>
-        session.checkPermission(
-          surface,
-          input,
-          agentName,
-          session.getSessionRuleset(),
-        ),
-      ),
   };
   return session;
 }
@@ -180,11 +169,22 @@ function makeHandlerForSession(
       .fn<GatePrompter["prompt"]>()
       .mockResolvedValue({ approved: true, state: "approved_for_session" }),
   };
-  const runner = new GateRunner(session, session, resolvedPrompter, reporter);
+  // Resolver delegates to session's checkPermission + getSessionRuleset so
+  // stateful approval tracking steers resolve automatically.
+  const resolver = {
+    resolve: (surface: string, input: unknown, agentName?: string) =>
+      session.checkPermission(
+        surface,
+        input,
+        agentName,
+        session.getSessionRuleset(),
+      ),
+  };
+  const runner = new GateRunner(resolver, session, resolvedPrompter, reporter);
   const handler = new PermissionGateHandler(
     session,
     makeToolRegistry(),
-    new ToolCallGatePipeline(session),
+    new ToolCallGatePipeline(resolver, session),
     new SkillInputGatePipeline(session),
     runner,
   );

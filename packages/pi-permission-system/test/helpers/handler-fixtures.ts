@@ -124,10 +124,6 @@ export function makeCheckResult(
  * field against `MockGateHandlerSession` individually — a missing field fails
  * `pnpm run check` instead of failing silently at runtime.
  *
- * The `resolve` delegation is inlined as a closure that reads `session` at
- * call time, so overriding `checkPermission` or `getSessionRuleset`
- * automatically steers it without extra guards.
- *
  * Prompting is not part of this mock — pass `prompter` to `makeHandler`.
  */
 export function makeSession(
@@ -169,17 +165,6 @@ export function makeSession(
       vi
         .fn<MockGateHandlerSession["getToolPreviewLimits"]>()
         .mockReturnValue(resolveToolPreviewLimits(DEFAULT_EXTENSION_CONFIG)),
-    // Resolve delegation — closure reads `session` at call time so overrides win.
-    resolve:
-      overrides.resolve ??
-      vi.fn<MockGateHandlerSession["resolve"]>((surface, input, agentName) =>
-        session.checkPermission(
-          surface,
-          input,
-          agentName,
-          session.getSessionRuleset(),
-        ),
-      ),
   };
   return session;
 }
@@ -293,7 +278,18 @@ export function makeHandler(overrides?: {
             .mockReturnValue(overrides.tools.map((name) => ({ name }))),
         })
       : makeToolRegistry(overrides?.toolRegistry);
-  const pipeline = new ToolCallGatePipeline(session);
+  // Resolver delegates to session's checkPermission + getSessionRuleset —
+  // overriding session.checkPermission steers resolve automatically.
+  const resolver = {
+    resolve: (surface: string, input: unknown, agentName?: string) =>
+      session.checkPermission(
+        surface,
+        input,
+        agentName,
+        session.getSessionRuleset(),
+      ),
+  };
+  const pipeline = new ToolCallGatePipeline(resolver, session);
   const skillInputPipeline = new SkillInputGatePipeline(session);
   const reporter = new GateDecisionReporter(session.logger, events);
   const prompter: GatePrompter = overrides?.prompter ?? {
@@ -302,7 +298,7 @@ export function makeHandler(overrides?: {
       .fn<GatePrompter["prompt"]>()
       .mockResolvedValue({ approved: true, state: "approved" }),
   };
-  const runner = new GateRunner(session, session, prompter, reporter);
+  const runner = new GateRunner(resolver, session, prompter, reporter);
   const handler = new PermissionGateHandler(
     session,
     toolRegistry,
