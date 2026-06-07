@@ -37,6 +37,28 @@ describe("describePathGate", () => {
     expect(resolver.resolve).not.toHaveBeenCalled();
   });
 
+  it("returns GateDescriptor for an extension tool with an explicit path", () => {
+    const resolver = makeResolver(
+      makeCheckResult({
+        state: "deny",
+        matchedPattern: "*.env",
+        source: "special",
+        origin: "global",
+      }),
+    );
+    const result = describePathGate(
+      makeTcc({
+        toolName: "ffgrep",
+        input: { pattern: "SECRET", path: "/workspace/.env" },
+      }),
+      resolver,
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    expect(desc.surface).toBe("path");
+    expect(desc.input).toEqual({ path: "/workspace/.env" });
+  });
+
   it("returns null when tool has no extractable path", () => {
     const resolver = makeResolver();
     const result = describePathGate(

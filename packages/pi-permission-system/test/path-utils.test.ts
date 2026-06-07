@@ -234,7 +234,21 @@ describe("getPathBearingToolPath", () => {
   test("returns null for a non-path-bearing tool", () => {
     expect(getPathBearingToolPath("bash", { path: "/src/foo.ts" })).toBeNull();
     expect(getPathBearingToolPath("mcp", { path: "/src/foo.ts" })).toBeNull();
-    expect(getPathBearingToolPath("task", { path: "/src/foo.ts" })).toBeNull();
+  });
+
+  test("returns path for an extension tool with an explicit path field", () => {
+    expect(getPathBearingToolPath("ffgrep", { path: "/src/foo.ts" })).toBe(
+      "/src/foo.ts",
+    );
+  });
+
+  test("returns path for MCP arguments with an explicit path field", () => {
+    expect(
+      getPathBearingToolPath("mcp", {
+        tool: "workspace:read",
+        arguments: { path: "/src/foo.ts" },
+      }),
+    ).toBe("/src/foo.ts");
   });
 
   test("returns null when input has no path", () => {

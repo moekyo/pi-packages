@@ -144,10 +144,13 @@ A string value is a catch-all for that surface.
 Unknown or absent tools are not required in the config.
 If a tool is not registered at runtime, this extension blocks it before permission checks run.
 
-#### Path Patterns for File Tools
+#### Path Patterns for File and Extension Tools
 
-For path-bearing tools (`read`, `write`, `edit`, `find`, `grep`, `ls`), an object value maps file-path patterns to actions.
-Patterns are matched against `input.path` using the same last-match-wins wildcard semantics as bash command patterns.
+For path-bearing tools, an object value maps file-path patterns to actions.
+Built-in file tools (`read`, `write`, `edit`, `find`, `grep`, `ls`) are path-bearing when `input.path` is present.
+Extension tools are path-bearing when their input exposes a singular `path`, `file`, `filePath`, `file_path`, `filepath`, `directory`, `dir`, `root`, or `cwd` field.
+If more than one alias is present, the first non-empty field in that order is used.
+Patterns are matched against the extracted path using the same last-match-wins wildcard semantics as bash command patterns.
 `*` matches zero or more of any character **including** path separators — `src/*` matches both `src/foo.ts` and `src/deep/nested/foo.ts`.
 There is no single-segment vs. multi-segment distinction; `**` is not a supported token and behaves identically to `*`.
 
@@ -168,10 +171,20 @@ There is no single-segment vs. multi-segment distinction; `**` is not a supporte
     "edit": {
       "*": "ask",
       "*.lock": "deny"
+    },
+    "ffgrep": {
+      "*": "ask",
+      "~/development/*": "allow",
+      "*.env": "deny"
     }
   }
 }
 ```
+
+When an extension tool does not provide a path field, its per-tool surface still works by tool name, but path patterns cannot narrow the decision by filesystem location.
+In that case, pass the search root or file path in one of the supported fields, or keep the tool at `ask`.
+For MCP calls, the `mcp` surface still matches the MCP target.
+Path and external-directory gates can additionally inspect `input.arguments.path` or the same singular path aliases inside `input.arguments`, but they do not infer a path from arbitrary MCP payloads.
 
 String shorthand is still supported and behaves identically — `"read": "allow"` is equivalent to `"read": { "*": "allow" }`, which permits reads of any path.
 
@@ -283,7 +296,7 @@ Skill name patterns use `*` and `?` wildcards (note: surface is `skill`, not `sk
 
 ### `path` Surface
 
-Cross-cutting gate that applies to **all** file access — both Pi tools (`read`, `write`, `edit`, `find`, `grep`, `ls`) and bash commands.
+Cross-cutting gate that applies to file access from built-in file tools, extension tools with explicit path fields, MCP calls with path-like fields inside `input.arguments`, and bash commands.
 A `path` deny cannot be overridden by a per-tool allow.
 
 ```jsonc
@@ -303,6 +316,7 @@ A `path` deny cannot be overridden by a per-tool allow.
 The path gate runs before the external-directory and tool gates.
 If it denies, the command is blocked without reaching subsequent gates — no wasted prompts.
 
+For extension tools, the gate uses the same singular path fields described in [Path Patterns for File and Extension Tools](#path-patterns-for-file-and-extension-tools).
 For bash commands, the extension extracts path-candidate tokens from the command (dot-files like `.env`, relative paths like `src/foo.ts`, and absolute paths) and evaluates each against the path rules.
 The most restrictive result across all tokens determines the outcome.
 
@@ -310,8 +324,8 @@ Four orthogonal layers compose with most-restrictive-wins:
 
 | Layer                   | Question                                | Applies to       |
 | ----------------------- | --------------------------------------- | ---------------- |
-| `path`                  | Is this specific path pattern allowed?  | All tools + bash |
-| `external_directory`    | Is accessing outside CWD ok?            | All tools + bash |
+| `path`                  | Is this specific path pattern allowed?  | Path-aware tools + bash |
+| `external_directory`    | Is accessing outside CWD ok?            | Path-aware tools + bash |
 | Per-tool patterns       | Is this path ok for this specific tool? | Individual tools |
 | `bash` command patterns | Is this command ok?                     | Bash only        |
 
@@ -377,7 +391,8 @@ Use a pattern map to allow specific directories without opening all external acc
 
 `external_directory` is evaluated before the normal tool permission check.
 For example, `read: "allow"` can permit ordinary reads while `external_directory: "ask"` still requires confirmation before reading `../outside.txt` or an absolute path outside `ctx.cwd`.
-Optional-path search tools (`find`, `grep`, `ls`) skip this check when no `path` is provided.
+Optional-path search tools (`find`, `grep`, `ls`) and extension tools skip this check when no path field is provided.
+For extension tools, this gate uses the same singular path fields described in [Path Patterns for File and Extension Tools](#path-patterns-for-file-and-extension-tools).
 
 Bash commands are also covered: the extension extracts path-like tokens from the command string and applies the same gate when any resolve outside `ctx.cwd`.
 Quoted strings are stripped first to reduce false positives.

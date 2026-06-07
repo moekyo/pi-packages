@@ -39,6 +39,20 @@ describe("describeExternalDirectoryGate", () => {
     expect(result).toBeNull();
   });
 
+  it("returns GateDescriptor for an extension tool with an explicit path", () => {
+    const result = describeExternalDirectoryGate(
+      makeTcc({
+        toolName: "ffgrep",
+        input: { pattern: "needle", path: "/outside/project/src" },
+      }),
+      ["/test/agent"],
+    );
+    expect(isGateDescriptor(result)).toBe(true);
+    const desc = result as GateDescriptor;
+    expect(desc.surface).toBe("external_directory");
+    expect(desc.input).toEqual({ path: "/outside/project/src" });
+  });
+
   it("returns null when path is inside CWD", () => {
     const result = describeExternalDirectoryGate(
       makeTcc({ input: { path: "/test/project/src/index.ts" } }),

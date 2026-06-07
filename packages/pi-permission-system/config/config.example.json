@@ -21,6 +21,11 @@
     "read": "allow",
     "write": "deny",
     "edit": "deny",
+    "ffgrep": {
+      "*": "ask",
+      "~/development/*": "allow",
+      "*.env": "deny"
+    },
     "bash": {
       "*": "ask",
       "git status": "allow",

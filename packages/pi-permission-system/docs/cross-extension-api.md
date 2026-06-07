@@ -77,6 +77,10 @@ interface PermissionsService {
 
 Returns `PermissionCheckResult` with fields `state`, `matchedPattern`, `source`, `origin`, etc.
 
+If your extension tool reads or writes files, include the target in a singular path field such as `path`, `file`, `filePath`, `file_path`, `filepath`, `directory`, `dir`, `root`, or `cwd`.
+Those fields let `path`, `external_directory`, and per-tool path maps apply the same filesystem policy used for built-in file tools.
+MCP calls keep their target-level `mcp` policy, and path gates only inspect path-like fields inside `input.arguments`.
+
 #### `getToolPermission`
 
 Returns `"allow"` | `"deny"` | `"ask"` for a tool name without considering command-level rules.

@@ -216,13 +216,13 @@ describe("normalizeInput — non-MCP surfaces", () => {
       expect(result.resultExtras).toEqual({});
     });
 
-    it("uses '*' even when extension tool has a path field", () => {
+    it("uses a top-level path field when an extension tool exposes one", () => {
       const result = normalizeInput(
         "my_extension_tool",
         { path: "/some/path" },
         [],
       );
-      expect(result.values).toEqual(["*"]);
+      expect(result.values).toEqual(["/some/path"]);
     });
   });
 });

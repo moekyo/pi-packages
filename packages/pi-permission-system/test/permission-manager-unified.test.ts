@@ -1120,6 +1120,41 @@ describe("checkPermission — per-tool path patterns", () => {
       cleanup();
     }
   });
+
+  it("extension tool path maps match an explicit input.path", () => {
+    const { manager, cleanup } = makeManagerWithConfig({
+      "*": "ask",
+      ffgrep: {
+        "*": "ask",
+        "/Users/example/Development/*": "allow",
+        "*.env": "deny",
+      },
+    });
+    try {
+      const allowed = manager.checkPermission("ffgrep", {
+        pattern: "needle",
+        path: "/Users/example/Development/app/src/index.ts",
+      });
+      expect(allowed.state).toBe("allow");
+      expect(allowed.matchedPattern).toBe("/Users/example/Development/*");
+
+      const outside = manager.checkPermission("ffgrep", {
+        pattern: "needle",
+        path: "/Users/example/Desktop/file.ts",
+      });
+      expect(outside.state).toBe("ask");
+      expect(outside.matchedPattern).toBe("*");
+
+      const env = manager.checkPermission("ffgrep", {
+        pattern: "SECRET",
+        path: "/Users/example/Development/app/.env",
+      });
+      expect(env.state).toBe("deny");
+      expect(env.matchedPattern).toBe("*.env");
+    } finally {
+      cleanup();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3080,4 +3115,184 @@ test("getResolvedPolicyPaths returns false for missing files and null for absent
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+// Workspace allowlist recipe
+// ---------------------------------------------------------------------------
+
+describe("workspace allowlist recipe", () => {
+  const workspacePermission = {
+    "*": "ask",
+    path: {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow",
+      "/Users/example/.ssh/*": "deny",
+      "/Users/example/.config/gh/hosts.yml": "deny",
+    },
+    read: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+    write: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "ask",
+      "/Users/example/.pi/agent/*": "ask",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "ask",
+    },
+    edit: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "ask",
+      "/Users/example/.pi/agent/*": "ask",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "ask",
+    },
+    grep: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+    ffgrep: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+    find: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+    ls: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+    external_directory: {
+      "*": "ask",
+      "/Users/example/Development/*": "allow",
+      "/Users/example/.agents/skills/*": "allow",
+      "/Users/example/.pi/agent/*": "allow",
+      "/opt/homebrew/lib/node_modules/@earendil-works/*": "allow",
+    },
+  };
+
+  it("allows read and external_directory for allowlisted workspace paths", () => {
+    const { manager, cleanup } = makeManagerWithConfig(workspacePermission);
+    try {
+      const target =
+        "/Users/example/Development/GitSync/src/GithubRepoBrowserDialog.jsx";
+      const externalDirectory = manager.checkPermission("external_directory", {
+        path: target,
+      });
+      expect(externalDirectory.state).toBe("allow");
+      expect(externalDirectory.matchedPattern).toBe(
+        "/Users/example/Development/*",
+      );
+
+      const read = manager.checkPermission("read", { path: target });
+      expect(read.state).toBe("allow");
+      expect(read.matchedPattern).toBe("/Users/example/Development/*");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("allows read for skill, Pi agent, and Homebrew Pi package docs", () => {
+    const { manager, cleanup } = makeManagerWithConfig(workspacePermission);
+    try {
+      const skillRead = manager.checkPermission("read", {
+        path: "/Users/example/.agents/skills/some-skill/SKILL.md",
+      });
+      expect(skillRead.state).toBe("allow");
+      expect(skillRead.matchedPattern).toBe("/Users/example/.agents/skills/*");
+
+      const piAgentRead = manager.checkPermission("read", {
+        path: "/Users/example/.pi/agent/npm/node_modules/pi-footer/README.md",
+      });
+      expect(piAgentRead.state).toBe("allow");
+      expect(piAgentRead.matchedPattern).toBe("/Users/example/.pi/agent/*");
+
+      const homebrewRead = manager.checkPermission("read", {
+        path: "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/extensions.md",
+      });
+      expect(homebrewRead.state).toBe("allow");
+      expect(homebrewRead.matchedPattern).toBe(
+        "/opt/homebrew/lib/node_modules/@earendil-works/*",
+      );
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("keeps writes to skills, Pi agent, and Homebrew package dirs at ask", () => {
+    const { manager, cleanup } = makeManagerWithConfig(workspacePermission);
+    try {
+      for (const path of [
+        "/Users/example/.agents/skills/some-skill/SKILL.md",
+        "/Users/example/.pi/agent/settings.json",
+        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/extensions.md",
+      ]) {
+        expect(manager.checkPermission("write", { path }).state).toBe("ask");
+        expect(manager.checkPermission("edit", { path }).state).toBe("ask");
+      }
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("denies sensitive paths while allowing .env.example override", () => {
+    const { manager, cleanup } = makeManagerWithConfig(workspacePermission);
+    try {
+      for (const path of [
+        "/Users/example/Development/GitSync/.env",
+        "/Users/example/Development/GitSync/.env.local",
+        "/Users/example/.ssh/id_rsa",
+        "/Users/example/.config/gh/hosts.yml",
+      ]) {
+        expect(manager.checkPermission("path", { path }).state).toBe("deny");
+      }
+
+      expect(
+        manager.checkPermission("path", {
+          path: "/Users/example/Development/GitSync/.env.example",
+        }).state,
+      ).toBe("allow");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("matches extension tool path maps when ffgrep supplies a path", () => {
+    const { manager, cleanup } = makeManagerWithConfig(workspacePermission);
+    try {
+      const allowed = manager.checkPermission("ffgrep", {
+        pattern: "needle",
+        path: "/Users/example/Development/GitSync/src",
+      });
+      expect(allowed.state).toBe("allow");
+      expect(allowed.matchedPattern).toBe("/Users/example/Development/*");
+
+      const outside = manager.checkPermission("ffgrep", {
+        pattern: "needle",
+        path: "/Users/example/Desktop",
+      });
+      expect(outside.state).toBe("ask");
+      expect(outside.matchedPattern).toBe("*");
+    } finally {
+      cleanup();
+    }
+  });
 });

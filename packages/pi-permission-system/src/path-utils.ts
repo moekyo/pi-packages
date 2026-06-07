@@ -112,15 +112,59 @@ export const PATH_SURFACES: ReadonlySet<string> = new Set([
   "path",
 ]);
 
+const PATH_FIELD_NAMES = [
+  "path",
+  "file",
+  "filePath",
+  "file_path",
+  "filepath",
+  "directory",
+  "dir",
+  "root",
+  "cwd",
+] as const;
+
 export function getPathBearingToolPath(
   toolName: string,
   input: unknown,
 ): string | null {
-  if (!PATH_BEARING_TOOLS.has(toolName)) {
-    return null;
+  return getToolInputPaths(toolName, input)[0] ?? null;
+}
+
+export function getToolInputPaths(toolName: string, input: unknown): string[] {
+  if (toolName === "bash") {
+    return [];
   }
 
-  return getNonEmptyString(toRecord(input).path);
+  const record = toRecord(input);
+
+  if (!PATH_BEARING_TOOLS.has(toolName)) {
+    const source =
+      toolName === "mcp"
+        ? isPlainRecord(record.arguments)
+          ? record.arguments
+          : {}
+        : record;
+    return extractExplicitPathFields(source);
+  }
+
+  const path = getNonEmptyString(record.path);
+  return path ? [path] : [];
+}
+
+function extractExplicitPathFields(record: Record<string, unknown>): string[] {
+  for (const key of PATH_FIELD_NAMES) {
+    const pathValue = getNonEmptyString(record[key]);
+    if (pathValue) {
+      return [pathValue];
+    }
+  }
+
+  return [];
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

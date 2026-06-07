@@ -1,7 +1,7 @@
 import { getNonEmptyString, toRecord } from "./common";
 import { expandHomePath } from "./expand-home";
 import { createMcpPermissionTargets } from "./mcp-targets";
-import { PATH_BEARING_TOOLS } from "./path-utils";
+import { getToolInputPaths, PATH_BEARING_TOOLS } from "./path-utils";
 
 /**
  * Construct a surface-appropriate input object from a raw value string.
@@ -122,10 +122,11 @@ export function normalizeInput(
     };
   }
 
-  // --- Extension tools (non-path-bearing) ---
+  // --- Extension tools ---
+  const paths = getToolInputPaths(toolName, input).map(expandHomePath);
   return {
     surface: toolName,
-    values: ["*"],
+    values: paths.length > 0 ? paths : ["*"],
     resultExtras: {},
   };
 }
