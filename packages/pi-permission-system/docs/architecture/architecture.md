@@ -592,22 +592,22 @@ Phase 4 splits the object so each role maps to a distinct collaborator, then ret
 
 `fallow`'s structural metrics (left) say the production code is healthy; the constructibility metrics (right) — which `fallow` does not score — tell the real story.
 
-| Metric                                                       | Value                                                                                  |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| Health score                                                 | 76 B                                                                                   |
-| LOC                                                          | 37,151                                                                                 |
-| Dead files / exports                                         | 0%                                                                                     |
-| Avg cyclomatic / p90                                         | 1.4 / 2                                                                                |
-| Maintainability                                              | 91.2 (good)                                                                            |
-| Complexity refactoring targets                               | 0                                                                                      |
-| Production duplication                                       | 0% (no `src/` clone groups)                                                            |
-| `index.ts` closures + `.bind` adapters                       | 11 (was 20; see Step 5 budget table in plan [#338])                                    |
-| `runtime`-as-first-arg free functions                        | 0 (all eliminated by #335–#337)                                                        |
-| `PermissionSession` role interfaces implemented by one class | 6                                                                                      |
-| Test files using module-level `vi.mock`                      | 23                                                                                     |
-| `as unknown as` casts in `test/`                             | ~34 (3× `PermissionManager`, 1× `SessionRules`; 3× `ExtensionRuntime` removed by #337) |
-| Test duplication                                             | 2,505 lines across 41 files — 3.4% (`dupes`) / 6.6% (health basis)                     |
-| Very-high functions (>60 LOC)                                | 5% — all in `test/`                                                                    |
+| Metric                                                       | Value                                                                            |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Health score                                                 | 76 B                                                                             |
+| LOC                                                          | 37,151                                                                           |
+| Dead files / exports                                         | 0%                                                                               |
+| Avg cyclomatic / p90                                         | 1.4 / 2                                                                          |
+| Maintainability                                              | 91.2 (good)                                                                      |
+| Complexity refactoring targets                               | 0                                                                                |
+| Production duplication                                       | 0% (no `src/` clone groups)                                                      |
+| `index.ts` closures + `.bind` adapters                       | 10 (was 11; `canRequestPermissionConfirmation` removed by #339)                  |
+| `runtime`-as-first-arg free functions                        | 0 (all eliminated by #335–#337)                                                  |
+| `PermissionSession` role interfaces implemented by one class | 5 (`GatePrompter` role moved to `PromptingGateway` by #339)                      |
+| Test files using module-level `vi.mock`                      | 23                                                                               |
+| `as unknown as` casts in `test/`                             | ~31 (3× `PermissionManager`, 1× `SessionRules`; prompting casts removed by #339) |
+| Test duplication                                             | 2,505 lines across 41 files — 3.4% (`dupes`) / 6.6% (health basis)               |
+| Very-high functions (>60 LOC)                                | 5% — all in `test/`                                                              |
 
 Health-score deductions: hotspots -10.0 · unit size -10.0 · coupling -2.4 · duplication -1.6.
 
