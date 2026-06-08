@@ -1,8 +1,8 @@
 import {
+  canonicalNormalizePathForComparison,
   getPathBearingToolPath,
   isPathOutsideWorkingDirectory,
   isPiInfrastructureRead,
-  normalizePathForComparison,
 } from "#src/path-utils";
 import { SessionApproval } from "#src/session-approval";
 import { deriveApprovalPattern } from "#src/session-rules";
@@ -31,7 +31,7 @@ export function describeExternalDirectoryGate(
     return null;
   }
 
-  const normalizedExtPath = normalizePathForComparison(
+  const normalizedExtPath = canonicalNormalizePathForComparison(
     externalDirectoryPath,
     tcc.cwd,
   );

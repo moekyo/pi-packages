@@ -1,5 +1,6 @@
 import { join, normalize, resolve, sep } from "node:path";
 
+import { canonicalizePath } from "./canonicalize-path";
 import { getNonEmptyString, toRecord } from "./common";
 import { expandHomePath } from "./expand-home";
 import { wildcardMatch } from "./wildcard-matcher";
@@ -89,12 +90,27 @@ export function getPathBearingToolPath(
   return getNonEmptyString(toRecord(input).path);
 }
 
+/**
+ * Like {@link normalizePathForComparison} but also resolves symlinks via
+ * `realpathSync` (best-effort). Use this for containment decisions where the
+ * OS-followed path matters, not for pattern matching.
+ */
+export function canonicalNormalizePathForComparison(
+  pathValue: string,
+  cwd: string,
+): string {
+  const lexical = normalizePathForComparison(pathValue, cwd);
+  if (!lexical) return "";
+  const canonical = canonicalizePath(lexical);
+  return process.platform === "win32" ? canonical.toLowerCase() : canonical;
+}
+
 export function isPathOutsideWorkingDirectory(
   pathValue: string,
   cwd: string,
 ): boolean {
-  const normalizedCwd = normalizePathForComparison(cwd, cwd);
-  const normalizedPath = normalizePathForComparison(pathValue, cwd);
+  const normalizedCwd = canonicalNormalizePathForComparison(cwd, cwd);
+  const normalizedPath = canonicalNormalizePathForComparison(pathValue, cwd);
   if (!normalizedCwd || !normalizedPath) {
     return false;
   }

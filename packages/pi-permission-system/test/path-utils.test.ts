@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Mock node:os so tilde-expansion is deterministic across platforms.
 vi.mock("node:os", () => {
@@ -10,7 +10,18 @@ vi.mock("node:os", () => {
   };
 });
 
+// Mock node:fs so realpathSync (used by canonicalizePath) is controllable.
+// Default implementation is identity — existing lexical tests are unaffected.
+const realpathSync = vi.hoisted(() =>
+  vi.fn<(path: string) => string>((p) => p),
+);
+vi.mock("node:fs", () => ({
+  realpathSync,
+  default: { realpathSync },
+}));
+
 import {
+  canonicalNormalizePathForComparison,
   getPathBearingToolPath,
   isPathOutsideWorkingDirectory,
   isPathWithinDirectory,
@@ -200,6 +211,12 @@ describe("getPathBearingToolPath", () => {
 describe("isPathOutsideWorkingDirectory", () => {
   const cwd = "/projects/my-app";
 
+  beforeEach(() => {
+    // Reset then restore the identity default so symlink tests don't bleed.
+    realpathSync.mockReset();
+    realpathSync.mockImplementation((p: string) => p);
+  });
+
   test("returns false when path is inside cwd", () => {
     expect(isPathOutsideWorkingDirectory("/projects/my-app/src", cwd)).toBe(
       false,
@@ -244,6 +261,57 @@ describe("isPathOutsideWorkingDirectory", () => {
 
   test("returns true for /dev/null/subdir (not a safe path)", () => {
     expect(isPathOutsideWorkingDirectory("/dev/null/subdir", cwd)).toBe(true);
+  });
+
+  test("returns true for in-cwd symlink that resolves to external path", () => {
+    // ./link -> /etc: realpathSync resolves the full token in one call.
+    realpathSync.mockImplementation((p: string) => {
+      if (p === "/projects/my-app/link/hosts") return "/etc/hosts";
+      return p;
+    });
+    expect(isPathOutsideWorkingDirectory("./link/hosts", cwd)).toBe(true);
+  });
+
+  test("returns false for path inside a symlinked cwd", () => {
+    // /tmp -> /private/tmp on macOS; cwd reported as /private/tmp.
+    const symlinkCwd = "/private/tmp";
+    realpathSync.mockImplementation((p: string) => {
+      if (p.startsWith("/tmp/")) return "/private/tmp" + p.slice(4);
+      if (p === "/tmp") return "/private/tmp";
+      return p;
+    });
+    expect(
+      isPathOutsideWorkingDirectory("/tmp/workspace/file.ts", symlinkCwd),
+    ).toBe(false);
+  });
+});
+
+describe("canonicalNormalizePathForComparison", () => {
+  const cwd = "/projects/my-app";
+
+  beforeEach(() => {
+    realpathSync.mockReset();
+    realpathSync.mockImplementation((p: string) => p);
+  });
+
+  test("returns canonical form of an existing path", () => {
+    realpathSync.mockImplementation((p: string) => {
+      if (p === "/projects/link") return "/real/projects/app";
+      return p;
+    });
+    expect(canonicalNormalizePathForComparison("/projects/link", cwd)).toBe(
+      "/real/projects/app",
+    );
+  });
+
+  test("returns empty string for empty input", () => {
+    expect(canonicalNormalizePathForComparison("", cwd)).toBe("");
+  });
+
+  test("returns lexical form when no symlinks (identity realpathSync)", () => {
+    expect(
+      canonicalNormalizePathForComparison("/projects/my-app/src/index.ts", cwd),
+    ).toBe("/projects/my-app/src/index.ts");
   });
 });
 
