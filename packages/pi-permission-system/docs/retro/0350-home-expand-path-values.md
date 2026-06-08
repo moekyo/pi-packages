@@ -47,3 +47,50 @@ Test count grew from 1813 to 1837 (+24).
   This unified extraction on `getNonEmptyString` (was a raw `typeof === "string"` check in the special-keys branch), a deliberate small behavior change: the `path` / `external_directory` surfaces now coerce empty/whitespace-only paths to `"*"` and trim before matching — matching the path-bearing tools' prior behavior.
   Covered by 3 new tests; `getPathBearingToolPath` import dropped from `input-normalizer.ts` (still has 3 live gate consumers, so no dead-code regression).
 - Pre-completion reviewer: **PASS** (re-dispatched after the refactor) — no warnings issued in either run.
+
+## Stage: Final Retrospective (2026-06-08T20:18:44Z)
+
+### Session summary
+
+Shipped issue #350 end-to-end across four stages (plan → TDD → ship → retro) in one continuous session, releasing `@gotgenes/pi-permission-system` v10.5.2.
+The fix home-expands path *values* (`~/…`, `$HOME/…`) before matching, closing a silent `deny`-bypass; a mid-implementation user question prompted an in-scope `refactor:` consolidation (`normalizePathSurfaceValue`) that was correctly re-reviewed.
+Clean execution overall — three minor self-caught slips, one of which (a fabricated CI SHA) cost ~125s.
+
+### Observations
+
+#### What went well
+
+- **Mid-stream scope expansion handled with discipline** — when the user asked "is there a broader improvement?"
+  after the pre-completion reviewer had already passed, the response separated the right-sized consolidation from gold-plating (explicitly rejected table/registry dispatch citing the `code-design` skill), used `ask_user` for the scope decision, ran the refactor as its own red→green TDD cycle, and re-dispatched the `pre-completion-reviewer` because the refactor carried a behavior change.
+  This is the intended way to absorb a late design request without abandoning workflow rigor.
+- **Root-cause analysis validated by the red phase** — the plan predicted exactly which integration cases were already passing; the TDD red run confirmed precisely 3 of 6 home-expansion cases red (raw `~/…`, raw `$HOME/…`, per-tool `~/…`), matching the asymmetry diagnosis.
+- **Incremental verification caught a bug at the cheapest point** — the `join` import slip surfaced immediately from the per-file `vitest` run after the green edit, not at the end-of-step full suite.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified) — in ship step 4, `ci_find` was called with a fabricated full SHA (`37f52fdd8e5d…`) expanded by guess from the 8-char short SHA in the `git push` output, instead of running `git rev-parse HEAD` first as the prompt's parenthetical instructed.
+  The real HEAD was `37f52fddd458…` (diverges after the shared 8-char prefix).
+  Impact: one `ci_find` timed out after ~125s before the SHA was corrected and the run was found.
+- `other` (self-identified) — in TDD step 1, removing the inline `~` block from `normalizePathForComparison` also dropped `join` from the shared `node:path` import, though `isPiInfrastructureRead` still uses it.
+  Impact: 4 `ReferenceError` failures on the next per-file run, fixed in 2 extra tool calls before the green commit; no follow-up commit needed.
+- `other` (self-identified) — appending the TDD stage notes to this retro duplicated the bash-parser observation line (the `Edit` was anchored on a content line, not the file's last line as the prompt advises).
+  Impact: 2 extra tool calls to detect and remove; caught before the commit.
+
+#### What caused friction (user side)
+
+- The near-duplicate path-value handling was visible in the plan's Design Overview (Fix 1 showed both branches with identical `… ? "*" : expandHomePath(…)` logic), but the duplication question surfaced only after TDD and the first pre-completion PASS.
+  Raising it at plan review would have folded `normalizePathSurfaceValue` into the original TDD cycles and avoided a second reviewer dispatch — an opportunity for earlier signal, not a fault.
+
+### Diagnostic details
+
+- **Model-performance correlation** — model selection tracked task complexity cleanly: planning and the two judgment-heavy interludes (the design conversation, this retro) ran on `claude-opus-4-8`; the mechanical TDD and ship stages ran on `claude-sonnet-4-6`.
+  Both `pre-completion-reviewer` subagent dispatches returned PASS.
+  No reasoning-weak-on-judgment or high-cost-on-mechanical mismatch.
+- **Feedback-loop gap analysis** — verification ran incrementally throughout, not just at the end: `pnpm run check` immediately after the shared-normalizer change (as the plan required), per-file `vitest` after every red/green, and full `test` + `check` + `lint` + `fallow dead-code` after both the last TDD step and the refactor.
+  No gap; this is the pattern that caught the `join` slip early.
+- **Escalation-delay tracking** and **unused-tool detection** — nothing notable; no `rabbit-hole` friction, no error exceeded 2 consecutive tool calls, and no `Explore`/`colgrep`/`web_search` gap (exact-symbol searches correctly used `grep` per the `colgrep` decision table).
+
+### Changes made
+
+1. `.pi/prompts/ship-issue.md` — step 4 now leads with an explicit `git rev-parse HEAD` action and a caution to never hand-expand the short SHA from `git push` output or type a SHA from memory; subsequent items renumbered (1–5).
+2. `packages/pi-permission-system/docs/retro/0350-home-expand-path-values.md` — added this Final Retrospective stage entry.

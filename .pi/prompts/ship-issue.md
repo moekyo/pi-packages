@@ -32,11 +32,13 @@ If either fails, fix the issues and commit before pushing.
 
 ## 4. Verify CI on the pushed commit
 
-1. Use `ci_find` with the pushed SHA (`git rev-parse HEAD`) and workflow `ci` to locate the CI run.
-2. Use `ci_watch` with the returned `run_id` and workflow `ci` to wait for it to complete.
-3. If the run conclusion is `failure`, stop and report.
+1. Run `git rev-parse HEAD` to capture the full 40-char SHA.
+   Pass that exact value to `ci_find` — never hand-expand the short SHA from the `git push` output, and never type a SHA from memory.
+2. Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
+3. Use `ci_watch` with the returned `run_id` and workflow `ci` to wait for it to complete.
+4. If the run conclusion is `failure`, stop and report.
    Do not close the issue or merge anything.
-4. If it lands `success`, continue.
+5. If it lands `success`, continue.
 
 ## 4b. Check for a stacked release
 
