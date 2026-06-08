@@ -258,6 +258,72 @@ describe("loadUnifiedConfig", () => {
     const result = loadUnifiedConfig(configPath);
     expect(result.config.permission).toBeUndefined();
   });
+
+  it("parses toolInputPreviewMaxLength when a valid positive integer is present", () => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({ toolInputPreviewMaxLength: 1000 }),
+    );
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config.toolInputPreviewMaxLength).toBe(1000);
+  });
+
+  it("parses toolTextSummaryMaxLength when a valid positive integer is present", () => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({ toolTextSummaryMaxLength: 120 }),
+    );
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config.toolTextSummaryMaxLength).toBe(120);
+  });
+
+  it("omits toolInputPreviewMaxLength when absent", () => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(configPath, JSON.stringify({ debugLog: false }));
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config).not.toHaveProperty("toolInputPreviewMaxLength");
+  });
+
+  it("omits toolTextSummaryMaxLength when absent", () => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(configPath, JSON.stringify({ debugLog: false }));
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config).not.toHaveProperty("toolTextSummaryMaxLength");
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["float", 1.5],
+    ["string", "200"],
+    ["boolean", true],
+  ] as const)("omits toolInputPreviewMaxLength for invalid value: %s", (_label, value) => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({ toolInputPreviewMaxLength: value }),
+    );
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config).not.toHaveProperty("toolInputPreviewMaxLength");
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["float", 1.5],
+    ["string", "80"],
+    ["boolean", false],
+  ] as const)("omits toolTextSummaryMaxLength for invalid value: %s", (_label, value) => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({ toolTextSummaryMaxLength: value }),
+    );
+    const result = loadUnifiedConfig(configPath);
+    expect(result.config).not.toHaveProperty("toolTextSummaryMaxLength");
+  });
 });
 
 describe("mergeUnifiedConfigs", () => {

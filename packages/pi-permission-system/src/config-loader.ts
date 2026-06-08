@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { normalize } from "node:path";
 
-import { isPermissionState, toRecord } from "./common";
+import {
+  isPermissionState,
+  normalizeOptionalPositiveInt,
+  toRecord,
+} from "./common";
 import {
   getGlobalConfigPath,
   getLegacyExtensionConfigPath,
@@ -21,6 +25,8 @@ export interface UnifiedPermissionConfig {
   debugLog?: boolean;
   permissionReviewLog?: boolean;
   yoloMode?: boolean;
+  toolInputPreviewMaxLength?: number;
+  toolTextSummaryMaxLength?: number;
 
   // Flat permission policy
   permission?: FlatPermissionConfig;
@@ -182,6 +188,18 @@ export function normalizeUnifiedConfig(raw: unknown): {
 
   const yoloMode = normalizeOptionalBoolean(record.yoloMode);
   if (yoloMode !== undefined) config.yoloMode = yoloMode;
+
+  const toolInputPreviewMaxLength = normalizeOptionalPositiveInt(
+    record.toolInputPreviewMaxLength,
+  );
+  if (toolInputPreviewMaxLength !== undefined)
+    config.toolInputPreviewMaxLength = toolInputPreviewMaxLength;
+
+  const toolTextSummaryMaxLength = normalizeOptionalPositiveInt(
+    record.toolTextSummaryMaxLength,
+  );
+  if (toolTextSummaryMaxLength !== undefined)
+    config.toolTextSummaryMaxLength = toolTextSummaryMaxLength;
 
   // Flat permission policy
   const permission = normalizeFlatPermissionValue(record.permission);
