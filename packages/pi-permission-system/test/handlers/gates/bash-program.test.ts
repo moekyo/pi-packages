@@ -1,4 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Mock node:fs so realpathSync (used by canonicalizePath) is controllable.
+// Default is identity so all existing lexical tests are unaffected.
+const realpathSync = vi.hoisted(() =>
+  vi.fn<(path: string) => string>((p) => p),
+);
+vi.mock("node:fs", () => ({
+  realpathSync,
+  default: { realpathSync },
+}));
 
 import { BashProgram } from "#src/handlers/gates/bash-program";
 
@@ -22,6 +32,11 @@ describe("BashProgram", () => {
 
   describe("externalPaths", () => {
     const cwd = "/projects/my-app";
+
+    beforeEach(() => {
+      realpathSync.mockReset();
+      realpathSync.mockImplementation((p: string) => p);
+    });
 
     it("returns absolute paths resolving outside cwd", async () => {
       const program = await BashProgram.parse("cat /etc/hosts");
@@ -141,6 +156,33 @@ describe("BashProgram", () => {
         );
         expect(program.externalPaths(cwd)).toHaveLength(0);
       });
+    });
+
+    it("flags an absolute in-cwd path that resolves externally via a symlink", async () => {
+      // The strict classifier only processes absolute tokens, so the escape
+      // surface is `cat /cwd/link/hosts` (absolute) where `link -> /etc`.
+      // Without canonicalization: /projects/my-app/link/hosts looks internal.
+      // With canonicalization: realpathSync resolves it to /etc/hosts.
+      realpathSync.mockImplementation((p: string) => {
+        if (p === "/projects/my-app/link/hosts") return "/etc/hosts";
+        return p;
+      });
+      const program = await BashProgram.parse(
+        "cat /projects/my-app/link/hosts",
+      );
+      expect(program.externalPaths(cwd)).toContain("/etc/hosts");
+    });
+
+    it("does not flag a token that resolves within a symlinked cwd", async () => {
+      // Simulates /tmp -> /private/tmp on macOS; cwd is the canonical form.
+      const symlinkCwd = "/private/tmp";
+      realpathSync.mockImplementation((p: string) => {
+        if (p === "/tmp") return "/private/tmp";
+        if (p.startsWith("/tmp/")) return "/private/tmp" + p.slice(4);
+        return p;
+      });
+      const program = await BashProgram.parse("cat /tmp/workspace/file.ts");
+      expect(program.externalPaths(symlinkCwd)).toHaveLength(0);
     });
   });
 

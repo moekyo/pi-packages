@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { basename, isAbsolute, join, resolve } from "node:path";
-
+import { canonicalizePath } from "#src/canonicalize-path";
 import {
   classifyTokenAsPathCandidate,
   classifyTokenAsRuleCandidate,
@@ -186,7 +186,9 @@ export class BashProgram {
    * the running directory.
    */
   externalPaths(cwd: string): string[] {
-    const normalizedCwd = normalizePathForComparison(cwd, cwd);
+    const normalizedCwd = canonicalizePath(
+      normalizePathForComparison(cwd, cwd),
+    );
 
     const seen = new Set<string>();
     const externalPaths: string[] = [];
@@ -200,7 +202,9 @@ export class BashProgram {
       // display path). Absolute / `~` candidates are base-independent and
       // resolve normally below.
       if (base.kind === "unknown" && isRelativeCandidate(candidate)) {
-        const normalized = normalizePathForComparison(candidate, cwd);
+        const normalized = canonicalizePath(
+          normalizePathForComparison(candidate, cwd),
+        );
         if (
           normalized &&
           normalizedCwd !== "" &&
@@ -215,7 +219,9 @@ export class BashProgram {
 
       const resolveBase =
         base.kind === "known" ? resolve(cwd, base.offset) : cwd;
-      const normalized = normalizePathForComparison(candidate, resolveBase);
+      const normalized = canonicalizePath(
+        normalizePathForComparison(candidate, resolveBase),
+      );
       if (!normalized) continue;
 
       if (
