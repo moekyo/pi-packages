@@ -9,6 +9,14 @@ vi.mock("node:os", () => {
   };
 });
 
+// Mock node:fs with an identity realpathSync so canonicalizePath
+// (used by BashProgram.externalPaths) leaves test paths unchanged and
+// existing expected-value literals remain accurate across platforms.
+vi.mock("node:fs", () => ({
+  realpathSync: (p: string) => p,
+  default: { realpathSync: (p: string) => p },
+}));
+
 import { formatDenyReason } from "#src/denial-messages";
 import {
   extractExternalPathsFromBashCommand,

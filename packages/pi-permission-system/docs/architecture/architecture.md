@@ -541,7 +541,8 @@ src/
 ├── extension-config.ts       Runtime knobs (debugLog, yoloMode, etc.)
 │
 ├── permission-merge.ts        Deep-shallow merge for flat permission configs
-├── path-utils.ts              Path normalization, within-directory, outside-CWD, safe-system-path, path-bearing-tool, Pi infrastructure read
+├── canonicalize-path.ts       Best-effort symlink resolution via `realpathSync` — walks up to longest existing ancestor and re-appends non-existent tail; ENOENT/ENOTDIR safe, EACCES/ELOOP fall back to lexical form
+├── path-utils.ts              Path normalization, within-directory, outside-CWD (canonical), safe-system-path, path-bearing-tool, Pi infrastructure read; `canonicalNormalizePathForComparison` for containment decisions
 ├── node-modules-discovery.ts  Global node_modules resolution (walk-up + npm root -g fallback)
 ├── system-prompt-sanitizer.ts Remove denied tools from system prompt
 ├── skill-prompt-sanitizer.ts  Skill prompt filtering by policy
