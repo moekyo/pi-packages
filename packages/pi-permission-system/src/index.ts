@@ -28,7 +28,7 @@ import { PermissionSession } from "./permission-session";
 import { LocalPermissionsService } from "./permissions-service";
 import { PromptingGateway } from "./prompting-gateway";
 import { PermissionServiceLifecycle } from "./service-lifecycle";
-import { createSessionLogger } from "./session-logger";
+import { PermissionSessionLogger } from "./session-logger";
 import { SessionRules } from "./session-rules";
 import { subscribeSubagentLifecycle } from "./subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "./subagent-registry";
@@ -54,7 +54,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   // notify is a best-effort sink (no-op at factory-init when there is no UI).
   let sessionNotify: PermissionSession | null = null;
 
-  const logger = createSessionLogger({
+  const logger = new PermissionSessionLogger({
     globalLogsDir: paths.globalLogsDir,
     getConfig: () => configStore.current(),
     notify: (message) =>
