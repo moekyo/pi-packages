@@ -67,6 +67,11 @@ Treat the issue's "Proposed change" as a hypothesis, not a spec.
 An extraction that only relocates statements to lower a complexity metric — introducing no new collaborator and moving no behavior onto data — is procedure-splitting, not design improvement.
 When the issue prescribes a specific decomposition, verify (against the `code-design` heuristics) that each extracted piece returns a value, owns state, or gives behavior to data before planning around it.
 
+Classify whether the change is breaking — independently of whether it is ambiguous.
+A change is breaking if it alters the observable behavior, output shape, or default of existing code or config on upgrade without a user edit.
+A bug fix that changes a default value is breaking, even when the old behavior was wrong.
+If breaking, state it in Goals and use `feat!:`/`fix!:` with a `BREAKING CHANGE:` footer.
+
 Before writing the plan, identify any genuinely ambiguous design choices.
 If there are 1–2 such choices (breaking-vs-non-breaking, result-shape change, fallback semantics, etc.), use the `ask-user` skill once to surface them with a short context summary and concrete options.
 Skip this step if the issue's "Proposed change" section is unambiguous.
