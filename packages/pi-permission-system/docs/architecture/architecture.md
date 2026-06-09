@@ -563,7 +563,7 @@ src/
 ├── forwarded-permissions/     Poll-based approval forwarding for subagents
 │   ├── permission-forwarder.ts `PermissionForwarder` class (`ApprovalRequester` + `InboxProcessor`) - owns the forwarding lifecycle: `requestApproval()` polls for the parent's decision, `processInbox()` drains forwarded requests (#315, #316, #317)
 │   └── io.ts                  Forwarding filesystem helpers - request/response read-write, location derivation, atomic JSON writes
-├── session-logger.ts          SessionLogger interface + createSessionLogger(deps) factory; owns JSONL-writer composition, IO-failure warning dedup, and notify sink (#336)
+├── session-logger.ts          `SessionLogger` interface + `PermissionSessionLogger` class; owns JSONL-writer composition, IO-failure warning dedup, and notify sink (#336, [#362])
 ├── logging.ts                 JSONL review/debug log writer
 ├── status.ts                  Footer status bar integration
 ├── yolo-mode.ts               Auto-approve logic
