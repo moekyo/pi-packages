@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, getPackageDir } from "@earendil-works/pi-coding-agent";
 import { registerBuiltinToolInputFormatters } from "./builtin-tool-input-formatters";
 import { registerPermissionSystemCommand } from "./config-modal";
 import { getGlobalConfigPath } from "./config-paths";
@@ -36,7 +36,9 @@ import { ToolInputFormatterRegistry } from "./tool-input-formatter-registry";
 
 export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   const agentDir = getAgentDir();
-  const paths = computeExtensionPaths(agentDir);
+  // getPackageDir() is Pi's own install dir; auto-allow it for read-only tools
+  // so the agent can read Pi's bundled docs/examples regardless of layout.
+  const paths = computeExtensionPaths(agentDir, getPackageDir());
   const permissionManager = new PermissionManager({ agentDir });
   const sessionRules = new SessionRules();
   const subagentRegistry = getSubagentSessionRegistry();
