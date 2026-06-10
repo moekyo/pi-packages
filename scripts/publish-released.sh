@@ -21,6 +21,7 @@ packages=(
   "packages/pi-permission-system:@gotgenes/pi-permission-system"
   "packages/pi-session-tools:@gotgenes/pi-session-tools"
   "packages/pi-subagents:@gotgenes/pi-subagents"
+  "packages/pi-subagents-worktrees:@gotgenes/pi-subagents-worktrees"
 )
 
 for entry in "${packages[@]}"; do
