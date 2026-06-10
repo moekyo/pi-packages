@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-
+import { CacheKeyGate } from "#src/cache-key-gate";
 import {
   getActiveAgentName,
   getActiveAgentNameFromSystemPrompt,
@@ -38,8 +38,8 @@ export class PermissionSession implements ToolCallGateInputs {
   private context: ExtensionContext | null = null;
   private skillEntries: SkillPromptEntry[] = [];
   private knownAgentName: string | null = null;
-  private toolsCacheKey: string | null = null;
-  private promptCacheKey: string | null = null;
+  readonly activeToolsGate = new CacheKeyGate();
+  readonly promptStateGate = new CacheKeyGate();
 
   constructor(
     private readonly paths: ExtensionPaths,
@@ -89,8 +89,8 @@ export class PermissionSession implements ToolCallGateInputs {
   resetForNewSession(ctx: ExtensionContext): void {
     this.permissionManager.configureForCwd(ctx.cwd);
     this.skillEntries = [];
-    this.toolsCacheKey = null;
-    this.promptCacheKey = null;
+    this.activeToolsGate.reset();
+    this.promptStateGate.reset();
     this.activate(ctx);
   }
 
@@ -101,8 +101,8 @@ export class PermissionSession implements ToolCallGateInputs {
   shutdown(): void {
     this.sessionRules.clear();
     this.skillEntries = [];
-    this.toolsCacheKey = null;
-    this.promptCacheKey = null;
+    this.activeToolsGate.reset();
+    this.promptStateGate.reset();
     this.deactivate();
   }
 
@@ -113,26 +113,8 @@ export class PermissionSession implements ToolCallGateInputs {
   reload(): void {
     this.permissionManager.configureForCwd(this.context?.cwd);
     this.skillEntries = [];
-    this.toolsCacheKey = null;
-    this.promptCacheKey = null;
-  }
-
-  // ── Agent-start caching ────────────────────────────────────────────────
-
-  shouldUpdateActiveTools(cacheKey: string): boolean {
-    return this.toolsCacheKey !== cacheKey;
-  }
-
-  commitActiveToolsCacheKey(cacheKey: string): void {
-    this.toolsCacheKey = cacheKey;
-  }
-
-  shouldUpdatePromptState(cacheKey: string): boolean {
-    return this.promptCacheKey !== cacheKey;
-  }
-
-  commitPromptStateCacheKey(cacheKey: string): void {
-    this.promptCacheKey = cacheKey;
+    this.activeToolsGate.reset();
+    this.promptStateGate.reset();
   }
 
   // ── Skill entries ──────────────────────────────────────────────────────

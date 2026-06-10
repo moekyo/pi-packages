@@ -143,40 +143,22 @@ describe("AgentPrepHandler.handle", () => {
     expect(toolRegistry.setActive).toHaveBeenCalledWith(["read", "write"]);
   });
 
-  it("commits active-tools cache key after applying", async () => {
-    const { handler, session } = makeSetup({
+  it("calls setActive once across repeated calls with the same allowed tools", async () => {
+    const { handler, toolRegistry } = makeSetup({
       toolRegistry: {
         getAll: vi.fn().mockReturnValue([{ name: "read" }]),
       },
     });
-    const spy = vi.spyOn(session, "commitActiveToolsCacheKey");
     await handler.handle(makeEvent(), makeCtx());
-    expect(spy).toHaveBeenCalled();
+    await handler.handle(makeEvent(), makeCtx());
+    expect(toolRegistry.setActive).toHaveBeenCalledOnce();
   });
 
-  it("skips setActive when cache key is unchanged", async () => {
-    const { handler, session, toolRegistry } = makeSetup({
-      toolRegistry: {
-        getAll: vi.fn().mockReturnValue([{ name: "read" }]),
-      },
-    });
-    vi.spyOn(session, "shouldUpdateActiveTools").mockReturnValue(false);
+  it("returns empty object on repeated calls with unchanged inputs", async () => {
+    const { handler } = makeSetup();
     await handler.handle(makeEvent(), makeCtx());
-    expect(toolRegistry.setActive).not.toHaveBeenCalled();
-  });
-
-  it("returns empty object when prompt cache is unchanged", async () => {
-    const { handler, session } = makeSetup();
-    vi.spyOn(session, "shouldUpdatePromptState").mockReturnValue(false);
     const result = await handler.handle(makeEvent(), makeCtx());
     expect(result).toEqual({});
-  });
-
-  it("commits prompt-state cache key and processes prompt when cache is new", async () => {
-    const { handler, session } = makeSetup();
-    const spy = vi.spyOn(session, "commitPromptStateCacheKey");
-    await handler.handle(makeEvent(), makeCtx());
-    expect(spy).toHaveBeenCalled();
   });
 
   it("stores resolved skill entries on the session", async () => {

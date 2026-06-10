@@ -74,10 +74,9 @@ export class AgentPrepHandler {
     }
 
     const activeToolsCacheKey = createActiveToolsCacheKey(allowedTools);
-    if (this.session.shouldUpdateActiveTools(activeToolsCacheKey)) {
+    this.session.activeToolsGate.runIfChanged(activeToolsCacheKey, () => {
       this.toolRegistry.setActive(allowedTools);
-      this.session.commitActiveToolsCacheKey(activeToolsCacheKey);
-    }
+    });
 
     const promptStateCacheKey = createBeforeAgentStartPromptStateKey({
       agentName,
@@ -89,28 +88,25 @@ export class AgentPrepHandler {
       allowedToolNames: allowedTools,
     });
 
-    if (!this.session.shouldUpdatePromptState(promptStateCacheKey)) {
-      return {};
-    }
-
-    this.session.commitPromptStateCacheKey(promptStateCacheKey);
-
-    const toolPromptResult = sanitizeAvailableToolsSection(
-      event.systemPrompt,
-      allowedTools,
+    const promptResult = this.session.promptStateGate.runIfChanged(
+      promptStateCacheKey,
+      () => {
+        const toolPromptResult = sanitizeAvailableToolsSection(
+          event.systemPrompt,
+          allowedTools,
+        );
+        const skillPromptResult = resolveSkillPromptEntries(
+          toolPromptResult.prompt,
+          this.resolver,
+          agentName,
+          ctx.cwd,
+        );
+        this.session.setActiveSkillEntries(skillPromptResult.entries);
+        return skillPromptResult.prompt !== event.systemPrompt
+          ? { systemPrompt: skillPromptResult.prompt }
+          : {};
+      },
     );
-    const skillPromptResult = resolveSkillPromptEntries(
-      toolPromptResult.prompt,
-      this.resolver,
-      agentName,
-      ctx.cwd,
-    );
-    this.session.setActiveSkillEntries(skillPromptResult.entries);
-
-    if (skillPromptResult.prompt !== event.systemPrompt) {
-      return { systemPrompt: skillPromptResult.prompt };
-    }
-
-    return {};
+    return promptResult ?? {};
   }
 }

@@ -105,16 +105,19 @@ describe("PermissionSession", () => {
 
     it("clears cache keys", () => {
       const { session } = createSession();
-      session.commitActiveToolsCacheKey("key-1");
-      session.commitPromptStateCacheKey("key-2");
-      expect(session.shouldUpdateActiveTools("key-1")).toBe(false);
-      expect(session.shouldUpdatePromptState("key-2")).toBe(false);
+      // Prime both gates with a key
+      session.activeToolsGate.runIfChanged("key-1", () => {});
+      session.promptStateGate.runIfChanged("key-2", () => {});
 
       session.resetForNewSession(makeCtx());
 
-      // After reset, same keys should be treated as new
-      expect(session.shouldUpdateActiveTools("key-1")).toBe(true);
-      expect(session.shouldUpdatePromptState("key-2")).toBe(true);
+      // After reset, the same keys should run the effect again
+      const toolsEffect = vi.fn();
+      const promptEffect = vi.fn();
+      session.activeToolsGate.runIfChanged("key-1", toolsEffect);
+      session.promptStateGate.runIfChanged("key-2", promptEffect);
+      expect(toolsEffect).toHaveBeenCalledOnce();
+      expect(promptEffect).toHaveBeenCalledOnce();
     });
 
     it("clears skill entries", () => {
@@ -162,13 +165,19 @@ describe("PermissionSession", () => {
 
     it("clears cache keys", () => {
       const { session } = createSession();
-      session.commitActiveToolsCacheKey("k1");
-      session.commitPromptStateCacheKey("k2");
+      // Prime both gates with a key
+      session.activeToolsGate.runIfChanged("k1", () => {});
+      session.promptStateGate.runIfChanged("k2", () => {});
 
       session.shutdown();
 
-      expect(session.shouldUpdateActiveTools("k1")).toBe(true);
-      expect(session.shouldUpdatePromptState("k2")).toBe(true);
+      // After shutdown, the same keys should run the effect again
+      const toolsEffect = vi.fn();
+      const promptEffect = vi.fn();
+      session.activeToolsGate.runIfChanged("k1", toolsEffect);
+      session.promptStateGate.runIfChanged("k2", promptEffect);
+      expect(toolsEffect).toHaveBeenCalledOnce();
+      expect(promptEffect).toHaveBeenCalledOnce();
     });
 
     it("clears skill entries", () => {
@@ -187,36 +196,6 @@ describe("PermissionSession", () => {
       session.shutdown();
 
       expect(forwarding.stop).toHaveBeenCalled();
-    });
-  });
-
-  describe("cache key methods", () => {
-    it("shouldUpdateActiveTools returns true for new key", () => {
-      const { session } = createSession();
-      expect(session.shouldUpdateActiveTools("key-1")).toBe(true);
-    });
-
-    it("shouldUpdateActiveTools returns false for committed key", () => {
-      const { session } = createSession();
-      session.commitActiveToolsCacheKey("key-1");
-      expect(session.shouldUpdateActiveTools("key-1")).toBe(false);
-    });
-
-    it("shouldUpdateActiveTools returns true for different key", () => {
-      const { session } = createSession();
-      session.commitActiveToolsCacheKey("key-1");
-      expect(session.shouldUpdateActiveTools("key-2")).toBe(true);
-    });
-
-    it("shouldUpdatePromptState returns true for new key", () => {
-      const { session } = createSession();
-      expect(session.shouldUpdatePromptState("key-1")).toBe(true);
-    });
-
-    it("shouldUpdatePromptState returns false for committed key", () => {
-      const { session } = createSession();
-      session.commitPromptStateCacheKey("key-1");
-      expect(session.shouldUpdatePromptState("key-1")).toBe(false);
     });
   });
 
@@ -356,14 +335,20 @@ describe("PermissionSession", () => {
 
     it("clears caches and skill entries", () => {
       const { session } = createSession();
-      session.commitActiveToolsCacheKey("k1");
-      session.commitPromptStateCacheKey("k2");
+      // Prime both gates with a key
+      session.activeToolsGate.runIfChanged("k1", () => {});
+      session.promptStateGate.runIfChanged("k2", () => {});
       session.setActiveSkillEntries([makeSkillEntry("s")]);
 
       session.reload();
 
-      expect(session.shouldUpdateActiveTools("k1")).toBe(true);
-      expect(session.shouldUpdatePromptState("k2")).toBe(true);
+      // After reload, the same keys should run the effect again
+      const toolsEffect = vi.fn();
+      const promptEffect = vi.fn();
+      session.activeToolsGate.runIfChanged("k1", toolsEffect);
+      session.promptStateGate.runIfChanged("k2", promptEffect);
+      expect(toolsEffect).toHaveBeenCalledOnce();
+      expect(promptEffect).toHaveBeenCalledOnce();
       expect(session.getActiveSkillEntries()).toEqual([]);
     });
   });
