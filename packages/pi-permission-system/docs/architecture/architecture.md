@@ -582,20 +582,20 @@ The phase does not touch `bash-program.ts` (pure AST parsing — splitting it pr
 
 `fallow` reports a clean syntactic surface (health 76, 0% dead files, 0% reported dead exports, avg cyclomatic 1.4, no refactoring targets), which is exactly why these findings matter: they are structural smells `fallow` cannot see — a mutable Set hidden in a closure, a `null`-init cast papering over a construction cycle, an anemic accessor quartet a handler drives via ask-then-tell, a relay-only field reached through, and concrete-class constructor types that force `as unknown as` casts in tests.
 
-| Metric                                                              | Phase 5 baseline                                             | Phase 5 target                         |
-| ------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------- |
-| Health score                                                        | 76 (B)                                                       | ≥ 76 (structural, not score-driven)    |
-| Production `as unknown as` casts                                    | 3 (`index.ts` ×1, `config-store.ts` ×2 serialization)        | 2 (serialization only)                 |
-| Factory closures over mutable state                                 | 1 (`createSessionLogger`)                                    | 0                                      |
-| Forward-reference `null`-init holders in `index.ts`                 | 2 (`configStore`, `sessionNotify`)                           | 0                                      |
-| Anemic cache accessors on `PermissionSession`                       | 4 methods over 2 fields                                      | 0 (2 owned `CacheKeyGate` sub-objects) |
-| Ask-then-tell pairs in `AgentPrepHandler`                           | 2                                                            | 0                                      |
-| Test-only-alive exports                                             | 1 (`shouldApplyCachedAgentStartState`)                       | 0                                      |
-| `PermissionSession` constructor arity                               | 7 positional args                                            | 6 (relay-only `logger` dropped)        |
-| `session.logger` / `session.getRuntimeContext()?.ui` reach-throughs | 5 (1 notify sink, 3 lifecycle logger, 1 reporter wiring)     | 0                                      |
-| `config-modal` controller reach-throughs                            | 1 (`permissionManager` + `session.lastKnownActiveAgentName`) | 0                                      |
-| `LocalPermissionsService` concrete-class deps                       | 3                                                            | 0 (narrow interfaces)                  |
-| Test `as unknown as` casts removed                                  | —                                                            | −8 (3 service + 5 forwarder ctx)       |
+| Metric                                                              | Phase 5 baseline                                             | Phase 5 target                                                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Health score                                                        | 76 (B)                                                       | ≥ 76 (structural, not score-driven)                                                               |
+| Production `as unknown as` casts                                    | 3 (`index.ts` ×1, `config-store.ts` ×2 serialization)        | 2 (serialization only)                                                                            |
+| Factory closures over mutable state                                 | 1 (`createSessionLogger`)                                    | 0                                                                                                 |
+| Forward-reference `null`-init holders in `index.ts`                 | 2 (`configStore`, `sessionNotify`)                           | 0                                                                                                 |
+| Anemic cache accessors on `PermissionSession`                       | 4 methods over 2 fields                                      | 0 (2 owned `CacheKeyGate` sub-objects)                                                            |
+| Ask-then-tell pairs in `AgentPrepHandler`                           | 2                                                            | 0                                                                                                 |
+| Test-only-alive exports                                             | 1 (`shouldApplyCachedAgentStartState`)                       | 0                                                                                                 |
+| `PermissionSession` constructor arity                               | 7 positional args                                            | 6 (relay-only `logger` dropped)                                                                   |
+| `session.logger` / `session.getRuntimeContext()?.ui` reach-throughs | 5 (1 notify sink, 3 lifecycle logger, 1 reporter wiring)     | 0                                                                                                 |
+| `config-modal` controller reach-throughs                            | 1 (`permissionManager` + `session.lastKnownActiveAgentName`) | 0                                                                                                 |
+| `LocalPermissionsService` concrete-class deps                       | 3                                                            | 0 (narrow interfaces)                                                                             |
+| Test `as unknown as` casts removed                                  | —                                                            | −8 (3 service + 5 forwarder ctx) → −8 more (8 `ExtensionContext` ctx; #367) = −16 total; 4 remain |
 
 Unchanged guardrails: 0% dead code, avg cyclomatic 1.4, maintainability 91.1, no new public surface.
 
@@ -638,7 +638,7 @@ The composition-root forward-reference cycle exists *because* the logger needs l
    - Smell: Category C (DIP — depending on concrete classes) / Category D (testability — concrete-class types expose private members, so `permissions-service.test.ts` is forced into `as unknown as` casts).
    - Outcome: depends on the existing `ScopedPermissionManager`, `Pick<SessionRules, "getRuleset">`, and a `{ register }` formatter interface; the three `as unknown as` casts in `permissions-service.test.ts` disappear and mocks become plain objects.
 
-6. Narrow `PermissionForwarder`'s context dependency to a local interface ([#367])
+6. Narrow `PermissionForwarder`'s context dependency to a local interface ([#367]) ✓ complete
    - Target: `src/forwarded-permissions/permission-forwarder.ts` — methods take the full SDK `ExtensionContext` rather than a narrow local interface of the fields actually read.
    - Smell: Category C (platform-type threading) / Category D (testability).
    - Outcome: the five `as unknown as ExtensionContext` casts in `permission-forwarder.test.ts` (the single biggest cluster of the 12 such casts across 7 test files) disappear; a bounded down-payment on the systemic ctx-threading pattern.
