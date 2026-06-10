@@ -18,12 +18,12 @@ Follow this order — each step builds context for the next.
 
 ### 1. Run fallow
 
+Run from the repo root — the `fallow:*` scripts exist only in the root `package.json`, and `--workspace` scopes the analysis:
+
 ```bash
-cd packages/<PKG>
-pnpm fallow:health 2>&1 || true
-pnpm fallow:dead-code 2>&1 || true
-pnpm fallow:dupes 2>&1 || true
-pnpm fallow health --hotspots --targets --score 2>&1 || true
+pnpm fallow health --score --hotspots --targets --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow dead-code --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow dupes --workspace @gotgenes/<PKG> 2>&1 || true
 ```
 
 Capture: health score, dead exports, duplication (production vs. test), hotspots, refactoring targets.
