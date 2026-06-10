@@ -23,3 +23,19 @@ Produced `packages/pi-subagents-worktrees/docs/plans/0001-publish-worktrees-pack
 - Package is ship-source: no `files` allowlist, no `prepack`/`prepublishOnly`, so the backfill publish needs no build step.
 - No automated test exists for the bash publish script; verification is `bash -n` plus the next-release end-to-end signal.
   Next stage is `/build-plan` (script edit + runbook), not `/tdd-plan`.
+
+## Stage: Implementation — Build (2026-06-10T02:10:00Z)
+
+### Session summary
+
+Added `"packages/pi-subagents-worktrees:@gotgenes/pi-subagents-worktrees"` to the `packages` array in `scripts/publish-released.sh` in one commit.
+The backfill runbook (step 2 from the plan) is operational — it is documented in the plan and will be posted to the issue by `/ship-issue`, not committed.
+No TypeScript or test files were modified; `bash -n` confirmed script syntax; all lint and test checks passed.
+
+### Observations
+
+- Single committed change: one insertion in `scripts/publish-released.sh` — exactly as planned, no deviations.
+- `bash -n` syntax check passed immediately; lint (Biome + ESLint) exited clean (the 3 Biome `INFO`-level suggestions are in `packages/pi-permission-system/`, an unrelated prior session).
+- Pre-completion reviewer returned **PASS** — all deterministic checks clean, conventional commits valid, no dead code, no test artifacts expected for a bash-only change.
+- The backfill runbook to publish `0.2.2` to npm locally must be executed by the maintainer after `/ship-issue` pushes and CI passes.
+  Exact commands: `npm whoami`, then `pnpm --filter @gotgenes/pi-subagents-worktrees publish --access public --no-git-checks`, then `npm view @gotgenes/pi-subagents-worktrees version` to confirm `0.2.2` resolves.
