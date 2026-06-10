@@ -5,6 +5,7 @@ import type { ServiceLifecycle } from "#src/service-lifecycle";
 
 import { makeCtx } from "#test/helpers/handler-fixtures";
 import {
+  makeLogger,
   makeRealResolver,
   makeRealSession,
 } from "#test/helpers/session-fixtures";
@@ -19,14 +20,8 @@ vi.mock("../../src/status", () => ({
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function makeSetup(opts?: { configIssues?: string[] }) {
-  const {
-    session,
-    permissionManager,
-    sessionRules,
-    logger,
-    forwarding,
-    configStore,
-  } = makeRealSession();
+  const { session, permissionManager, sessionRules, forwarding, configStore } =
+    makeRealSession();
   const { resolver } = makeRealResolver(permissionManager, sessionRules);
   if (opts?.configIssues) {
     vi.mocked(permissionManager.getConfigIssues).mockReturnValue(
@@ -37,10 +32,14 @@ function makeSetup(opts?: { configIssues?: string[] }) {
     activate: vi.fn<ServiceLifecycle["activate"]>(),
     teardown: vi.fn<ServiceLifecycle["teardown"]>(),
   };
+  // Use a session-independent logger so assertions verify direct injection,
+  // not reach-through to session.logger.
+  const logger = makeLogger();
   const handler = new SessionLifecycleHandler(
     session,
     resolver,
     serviceLifecycle,
+    logger,
   );
   return {
     handler,

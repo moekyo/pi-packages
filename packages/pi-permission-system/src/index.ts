@@ -160,6 +160,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     session,
     resolver,
     serviceLifecycle,
+    logger,
   );
   const agentPrep = new AgentPrepHandler(session, resolver, toolRegistry);
 
