@@ -440,4 +440,42 @@ describe("isPiInfrastructureRead", () => {
       ),
     ).toBe(true);
   });
+
+  // ── Windows: case-insensitive infra-read matching ─────────────────────
+
+  test("win32: plain infra dir matches a case-different path", () => {
+    expect(
+      isPiInfrastructureRead(
+        "read",
+        "c:\\users\\foo\\.pi\\agent\\config.json",
+        ["C:\\Users\\Foo\\.pi\\agent"],
+        "C:\\proj",
+        "win32",
+      ),
+    ).toBe(true);
+  });
+
+  test("win32: glob infra dir matches case-insensitively", () => {
+    expect(
+      isPiInfrastructureRead(
+        "read",
+        "c:\\users\\foo\\npm\\node_modules\\@earendil-works\\pi-coding-agent\\skill.md",
+        ["C:\\Users\\Foo\\**\\pi-coding-agent\\**"],
+        "C:\\proj",
+        "win32",
+      ),
+    ).toBe(true);
+  });
+
+  test("win32: rejects a path outside every infra dir", () => {
+    expect(
+      isPiInfrastructureRead(
+        "read",
+        "c:\\windows\\system32\\drivers\\etc\\hosts",
+        ["C:\\Users\\Foo\\.pi\\agent"],
+        "C:\\proj",
+        "win32",
+      ),
+    ).toBe(false);
+  });
 });

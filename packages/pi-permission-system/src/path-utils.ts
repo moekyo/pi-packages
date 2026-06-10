@@ -166,16 +166,24 @@ export function isPiInfrastructureRead(
   normalizedPath: string,
   infrastructureDirs: readonly string[],
   cwd: string,
+  platform: NodeJS.Platform = process.platform,
 ): boolean {
   if (!READ_ONLY_PATH_BEARING_TOOLS.has(toolName)) {
     return false;
   }
 
+  // On Windows the path value is canonicalized + lowercased; fold case (and
+  // separators) so mixed-case infra dirs and glob patterns still match.
+  const matchOptions =
+    platform === "win32"
+      ? { caseInsensitive: true, windowsSeparators: true }
+      : undefined;
+
   for (const dir of infrastructureDirs) {
     if (containsGlobChars(dir)) {
-      if (wildcardMatch(dir, normalizedPath)) return true;
+      if (wildcardMatch(dir, normalizedPath, matchOptions)) return true;
     } else {
-      if (isPathWithinDirectory(normalizedPath, expandHomePath(dir)))
+      if (isPathWithinDirectory(normalizedPath, expandHomePath(dir), platform))
         return true;
     }
   }
@@ -183,10 +191,10 @@ export function isPiInfrastructureRead(
   // Project-local Pi packages — checked fresh every call so CWD changes work.
   const projectNpmDir = join(cwd, ".pi", "npm");
   const projectGitDir = join(cwd, ".pi", "git");
-  if (isPathWithinDirectory(normalizedPath, projectNpmDir)) {
+  if (isPathWithinDirectory(normalizedPath, projectNpmDir, platform)) {
     return true;
   }
-  if (isPathWithinDirectory(normalizedPath, projectGitDir)) {
+  if (isPathWithinDirectory(normalizedPath, projectGitDir, platform)) {
     return true;
   }
 
