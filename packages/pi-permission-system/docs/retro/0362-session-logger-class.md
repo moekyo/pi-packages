@@ -39,3 +39,47 @@ Also committed a `docs:` update to `docs/architecture/architecture.md` reflectin
 - The `this`-binding risk was clear in practice: all 11 tests passed without any `.bind` adjustment, confirming grep's analysis that no consumer passes methods as bare references.
 - No deviations from the plan; the single-step fold was the right call — compiler rejected the mismatched import immediately on the red phase.
 - Pre-completion reviewer verdict: PASS — no issues found; all deterministic checks clean; test count unchanged; architecture doc correctly updated.
+
+## Stage: Final Retrospective (2026-06-09T22:23:54Z)
+
+### Session summary
+
+Shipped #362 (Phase 5 Step 1, Track A): converted the `createSessionLogger` factory to the `PermissionSessionLogger` class across planning, one TDD cycle, and ship in a single continuous session.
+CI passed, the issue was closed, and no release-please PR was produced (the lone non-docs commit is `refactor:`, which release-please does not version).
+Execution was clean throughout — the only friction was one mangled file path during planning; no rework, no plan deviations.
+
+### Observations
+
+#### What went well
+
+- The planning-stage `this`-binding analysis paid off exactly as predicted: grepping all six logger consumers to confirm none pass a bare `logger.review` reference de-risked the factory→class conversion upfront, and all 11 tests went green with zero `.bind` adjustments.
+  A risk the plan named precisely is the cheapest kind to retire.
+- The single-step fold was correctly predicted at plan time: removing the `createSessionLogger` export breaks the sole call site (`index.ts`) and the test file together at the type level, so the compiler rejected the mismatched import the instant the red phase landed — confirming the fold-into-one-commit call rather than discovering it the hard way.
+- Incremental verification was exemplary: green baseline → red confirmed → green confirmed → `pnpm run check` before commit (correct per the shared-type rule, since the class implements a widely-injected interface) → full suite + lint + `fallow` after.
+  No end-of-session surprise.
+- The release-timing question at ship was a genuine strategic checkpoint: #362 is the foundation of a serial sequence (#362 → #363 → #364), and surfacing release-now-vs-batch let the user make that call deliberately rather than defaulting.
+
+#### What caused friction (agent side)
+
+- `other` (path construction) — during planning, the first `Read` of `index.ts` used a hand-built absolute path (`/Users/chris/development/pi/pi-permission-system/src/index.ts`) that dropped both `pi-packages/` and `packages/`, so the `external_directory` guard denied it.
+  Impact: one denied tool call, corrected in the very next batch with the right path; no rework.
+  Self-identified.
+  Lesson (local, not a new rule): for `Read`, prefer a CWD-relative path (`packages/pi-permission-system/src/index.ts`) over an absolute path reconstructed from memory — the relative form cannot drift and is not subject to the out-of-tree guard.
+
+#### What caused friction (user side)
+
+- None.
+  The two user interactions (class name, release timing) were both genuine preference/strategic decisions appropriately routed through `ask_user`, not mechanical oversight.
+
+### Diagnostic details
+
+- Model-performance correlation — one subagent dispatched: `pre-completion-reviewer` on `anthropic/claude-sonnet-4-6` (per its agent frontmatter).
+  Appropriate: review is judgment-heavy, and a sonnet-class model is the right tier; no mismatch.
+- Escalation-delay tracking — no rabbit-holes; the single denied read resolved on the next call (1 retry, well under the 5-call flag).
+- Unused-tool detection — no gaps; `grep` over `colgrep` was the correct choice for exact-symbol work (`createSessionLogger`, `SessionLoggerDeps`) per the colgrep decision table.
+- Feedback-loop gap analysis — verification ran incrementally at every boundary (baseline, red, green, pre-commit `check`, post-commit suite/lint/fallow); no lens-flagged gap.
+
+### Changes made
+
+1. Appended this Final Retrospective stage entry to `packages/pi-permission-system/docs/retro/0362-session-logger-class.md`.
+   No prompt or `AGENTS.md` changes proposed — the session surfaced no recurring, generalizable friction worth a project-wide rule.
