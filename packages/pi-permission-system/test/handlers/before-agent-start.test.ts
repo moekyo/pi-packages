@@ -31,6 +31,7 @@ function makeEvent(systemPrompt = "You are an assistant.") {
 function makeToolRegistry(overrides: Partial<ToolRegistry> = {}): ToolRegistry {
   return {
     getAll: vi.fn().mockReturnValue([]),
+    getActive: vi.fn().mockReturnValue([]),
     setActive: vi.fn(),
     ...overrides,
   };
