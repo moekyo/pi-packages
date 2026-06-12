@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [12.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v11.0.0...pi-permission-system-v12.0.0) (2026-06-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* extension and MCP tools that expose a filesystem path (input.path, or input.arguments.path for MCP) are now subject to the path and external_directory permission gates. Tools previously ungated may now prompt or be denied under existing path rules.
+
+### Features
+
+* add extensible tool input path extraction ([#352](https://github.com/gotgenes/pi-packages/issues/352)) ([3a54ea1](https://github.com/gotgenes/pi-packages/commit/3a54ea16be4d621bd7474f7a728d97ce9781a994))
+* add tool access extractor registry ([#352](https://github.com/gotgenes/pi-packages/issues/352)) ([7a34f01](https://github.com/gotgenes/pi-packages/commit/7a34f0187f6b3fbb75e056082f04d3b805a37c8a))
+* expose registerToolAccessExtractor via permissions service ([#352](https://github.com/gotgenes/pi-packages/issues/352)) ([5e02c16](https://github.com/gotgenes/pi-packages/commit/5e02c163b212adf9648a2631e4788f030539a36a))
+* gate extension and MCP path tools by default ([#352](https://github.com/gotgenes/pi-packages/issues/352)) ([1d53f4f](https://github.com/gotgenes/pi-packages/commit/1d53f4ffa1a08e953b96437e9adf0214c6ca7465))
+
+
+### Documentation
+
+* document path-aware extension/MCP gating and registerToolAccessExtractor ([#352](https://github.com/gotgenes/pi-packages/issues/352)) ([a2f825f](https://github.com/gotgenes/pi-packages/commit/a2f825f031ec26f1c47dbf13d056e724fda87021))
+
 ## [11.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v10.10.1...pi-permission-system-v11.0.0) (2026-06-11)
 
 
