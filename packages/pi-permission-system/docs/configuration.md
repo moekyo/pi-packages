@@ -150,6 +150,9 @@ For path-bearing tools (`read`, `write`, `edit`, `find`, `grep`, `ls`), an objec
 Patterns are matched against `input.path` using the same last-match-wins wildcard semantics as bash command patterns.
 `*` matches zero or more of any character **including** path separators — `src/*` matches both `src/foo.ts` and `src/deep/nested/foo.ts`.
 There is no single-segment vs. multi-segment distinction; `**` is not a supported token and behaves identically to `*`.
+When Pi's current working directory is known, a relative path input is matched with both its original relative form and its cwd-normalized absolute form.
+For example, `src/App.jsx` under `/workspace/project` can match either `src/*` or `/workspace/project/*`.
+If both forms match configured rules, the usual last-match-wins ordering still decides the final action.
 
 ```jsonc
 {
@@ -305,6 +308,9 @@ The path gate runs before the external-directory and tool gates.
 If it denies, the command is blocked without reaching subsequent gates — no wasted prompts.
 
 For bash commands, the extension extracts path-candidate tokens from the command (dot-files like `.env`, relative paths like `src/foo.ts`, and absolute paths) and evaluates each against the path rules.
+Relative bash tokens are matched with cwd-normalized policy values when the current working directory is known.
+Literal current-shell `cd` commands are folded before matching, so `cd nested && cat src/foo.ts` can match `/workspace/project/nested/src/foo.ts`, `nested/src/foo.ts`, or `src/foo.ts` depending on configured rule patterns.
+Non-literal directory changes such as `cd "$DIR"` stay conservative and do not gain an absolute allowlist alias for following relative tokens.
 The most restrictive result across all tokens determines the outcome.
 
 Four orthogonal layers compose with most-restrictive-wins:

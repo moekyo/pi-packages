@@ -1122,6 +1122,78 @@ describe("checkPermission — per-tool path patterns", () => {
   });
 });
 
+describe("checkPermission — cwd-aware path policy values", () => {
+  const cwd = "/workspace/project";
+
+  it("matches a relative read input against an absolute allowlist", () => {
+    const { manager, cleanup } = makeManagerWithConfig({
+      read: { "*": "ask", [`${cwd}/*`]: "allow" },
+    });
+    try {
+      manager.configureForCwd(cwd);
+      const result = manager.checkPermission("read", {
+        path: "src/App.jsx",
+      });
+      expect(result.state).toBe("allow");
+      expect(result.matchedPattern).toBe(`${cwd}/*`);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("keeps legacy relative path rules working after configureForCwd", () => {
+    const { manager, cleanup } = makeManagerWithConfig({
+      read: { "*": "ask", "src/*": "allow" },
+    });
+    try {
+      manager.configureForCwd(cwd);
+      const result = manager.checkPermission("read", {
+        path: "src/App.jsx",
+      });
+      expect(result.state).toBe("allow");
+      expect(result.matchedPattern).toBe("src/*");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("preserves last-match-wins across absolute and relative aliases", () => {
+    const { manager, cleanup } = makeManagerWithConfig({
+      read: {
+        "*": "ask",
+        [`${cwd}/*`]: "allow",
+        "src/private/*": "deny",
+      },
+    });
+    try {
+      manager.configureForCwd(cwd);
+      const result = manager.checkPermission("read", {
+        path: "src/private/key.txt",
+      });
+      expect(result.state).toBe("deny");
+      expect(result.matchedPattern).toBe("src/private/*");
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("matches the cross-cutting path surface against absolute allowlists", () => {
+    const { manager, cleanup } = makeManagerWithConfig({
+      path: { "*": "ask", [`${cwd}/*`]: "allow" },
+    });
+    try {
+      manager.configureForCwd(cwd);
+      const result = manager.checkPermission("path", {
+        path: "src/App.jsx",
+      });
+      expect(result.state).toBe("allow");
+      expect(result.matchedPattern).toBe(`${cwd}/*`);
+    } finally {
+      cleanup();
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Cross-cutting path surface (#148)
 // ---------------------------------------------------------------------------

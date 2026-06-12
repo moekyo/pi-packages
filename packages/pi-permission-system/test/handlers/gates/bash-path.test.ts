@@ -19,6 +19,7 @@ import type {
 } from "#src/handlers/gates/descriptor";
 import { isGateBypass, isGateDescriptor } from "#src/handlers/gates/descriptor";
 import type { ToolCallContext } from "#src/handlers/gates/types";
+import { INTERNAL_PATH_POLICY_VALUES } from "#src/input-normalizer";
 import type { ScopedPermissionResolver } from "#src/permission-resolver";
 
 import {
@@ -214,6 +215,56 @@ describe("describeBashPathGate", () => {
     const desc = result as GateDescriptor;
     expect(desc.preCheck?.state).toBe("deny");
     expect(desc.decision.value).toBe(".env");
+  });
+
+  it("resolves path policy values against literal cd while preserving raw prompt token", async () => {
+    const resolver = makeResolver();
+    resolver.resolve.mockImplementation((_surface, input) => {
+      const policyValues = (input as Record<PropertyKey, unknown>)[
+        INTERNAL_PATH_POLICY_VALUES
+      ];
+      return Array.isArray(policyValues) &&
+        policyValues.includes("/test/project/nested/src/file.txt")
+        ? makeCheckResult({ state: "ask", matchedPattern: "/test/project/*" })
+        : makeCheckResult({
+            state: "allow",
+            matchedPattern: "/test/project/*",
+          });
+    });
+
+    const result = (await describeGate(
+      makeTcc({ input: { command: "cd nested && cat src/file.txt" } }),
+      resolver,
+    )) as GateDescriptor;
+
+    expect(isGateDescriptor(result)).toBe(true);
+    expect(result.denialContext).toMatchObject({
+      kind: "bash_path",
+      command: "cd nested && cat src/file.txt",
+      pathValue: "src/file.txt",
+    });
+    expect(result.input).toEqual({
+      path: "src/file.txt",
+      [INTERNAL_PATH_POLICY_VALUES]: [
+        "/test/project/nested/src/file.txt",
+        "nested/src/file.txt",
+        "src/file.txt",
+      ],
+    });
+  });
+
+  it("does not resolve relative policy values through an unknown cd", async () => {
+    const resolver = makeResolver(makeCheckResult({ state: "allow" }));
+    await describeGate(
+      makeTcc({ input: { command: 'cd "$DIR" && cat src/App.jsx' } }),
+      resolver,
+    );
+
+    expect(resolver.resolve).toHaveBeenCalledWith(
+      "path",
+      { path: "src/App.jsx", [INTERNAL_PATH_POLICY_VALUES]: ["src/App.jsx"] },
+      undefined,
+    );
   });
 });
 

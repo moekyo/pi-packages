@@ -70,6 +70,8 @@ Extension and MCP tools that operate on paths (via `input.path`, MCP's `input.ar
 
 For per-tool path patterns (`read`, `write`, `edit`, `find`, `grep`, `ls`), patterns are matched against the file path from `input.path`.
 This lets you express rules like "allow reads but deny `.env` files" at the individual tool level.
+When Pi's current working directory is known, relative path inputs also match their cwd-normalized absolute form, so `src/App.jsx` can match both `src/*` and `/workspace/project/*`.
+Bash path tokens use the effective directory after literal `cd` commands for this matching, while non-literal `cd "$DIR"` style commands remain conservative.
 
 Four layers compose with most-restrictive-wins: `path` (cross-cutting) → `external_directory` (CWD boundary) → per-tool patterns → `bash` command patterns.
 

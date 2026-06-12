@@ -3,6 +3,7 @@ import { isPermissionState } from "./common";
 import { getGlobalConfigPath, getProjectConfigPath } from "./config-paths";
 import { normalizeInput } from "./input-normalizer";
 import { normalizeFlatConfig } from "./normalize";
+import { PATH_SURFACES } from "./path-utils";
 import {
   FilePolicyLoader,
   type PolicyLoader,
@@ -10,7 +11,7 @@ import {
   type ResolvedPolicyPaths,
 } from "./policy-loader";
 import type { Rule, RuleOrigin, Ruleset } from "./rule";
-import { evaluate, evaluateFirst } from "./rule";
+import { evaluate, evaluateAnyValue, evaluateFirst } from "./rule";
 import { mergeScopesWithOrigins } from "./scope-merge";
 import {
   composeRuleset,
@@ -79,6 +80,7 @@ export interface PermissionManagerOptions extends PolicyLoaderOptions {
 
 export class PermissionManager implements ScopedPermissionManager {
   private readonly agentDir: string | undefined;
+  private currentCwd: string | undefined;
   private loader: PolicyLoader;
   private readonly resolvedPermissionsCache = new Map<
     string,
@@ -104,6 +106,8 @@ export class PermissionManager implements ScopedPermissionManager {
    * built with explicit paths), only the cache is cleared.
    */
   configureForCwd(cwd: string | undefined | null): void {
+    this.currentCwd =
+      typeof cwd === "string" && cwd.trim().length > 0 ? cwd : undefined;
     if (this.agentDir !== undefined) {
       this.loader = new FilePolicyLoader(
         derivePolicyLoaderOptions(this.agentDir, cwd),
@@ -245,9 +249,12 @@ export class PermissionManager implements ScopedPermissionManager {
       normalizedToolName,
       input,
       this.loader.getConfiguredMcpServerNames(),
+      this.currentCwd,
     );
 
-    const { rule, value } = evaluateFirst(surface, values, fullRules);
+    const { rule, value } = PATH_SURFACES.has(surface)
+      ? evaluateAnyValue(surface, values, fullRules)
+      : evaluateFirst(surface, values, fullRules);
 
     // For MCP, replace the normalizer's fallback target with the actual
     // matched candidate value so PermissionCheckResult.target is accurate.

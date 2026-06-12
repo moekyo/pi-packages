@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { Rule, RuleOrigin, Ruleset } from "#src/rule";
-import { evaluate, evaluateFirst, evaluateMostRestrictive } from "#src/rule";
+import {
+  evaluate,
+  evaluateAnyValue,
+  evaluateFirst,
+  evaluateMostRestrictive,
+} from "#src/rule";
 
 describe("evaluate", () => {
   const allowBashGit: Rule = {
@@ -390,6 +395,80 @@ describe("evaluateFirst", () => {
     const rules: Ruleset = [defaultRule];
     const result = evaluateFirst("bash", [], rules);
     expect(result.value).toBe("*");
+  });
+});
+
+describe("evaluateAnyValue", () => {
+  const defaultRule: Rule = {
+    surface: "*",
+    pattern: "*",
+    action: "ask",
+    layer: "default",
+    origin: "builtin",
+  };
+
+  test("preserves rule order across equivalent path values", () => {
+    const absoluteAllow: Rule = {
+      surface: "path",
+      pattern: "/workspace/project/*",
+      action: "allow",
+      layer: "config",
+      origin: "global",
+    };
+    const relativeDeny: Rule = {
+      surface: "path",
+      pattern: "src/private/*",
+      action: "deny",
+      layer: "config",
+      origin: "global",
+    };
+    const rules: Ruleset = [
+      defaultRule,
+      {
+        surface: "path",
+        pattern: "*",
+        action: "ask",
+        layer: "config",
+        origin: "global",
+      },
+      absoluteAllow,
+      relativeDeny,
+    ];
+    const result = evaluateAnyValue(
+      "path",
+      ["/workspace/project/src/private/key.txt", "src/private/key.txt"],
+      rules,
+    );
+    expect(result.rule).toEqual(relativeDeny);
+    expect(result.value).toBe("src/private/key.txt");
+  });
+
+  test("uses an absolute alias when no later relative rule matches", () => {
+    const absoluteAllow: Rule = {
+      surface: "read",
+      pattern: "/workspace/project/*",
+      action: "allow",
+      layer: "config",
+      origin: "global",
+    };
+    const rules: Ruleset = [
+      defaultRule,
+      {
+        surface: "read",
+        pattern: "*",
+        action: "ask",
+        layer: "config",
+        origin: "global",
+      },
+      absoluteAllow,
+    ];
+    const result = evaluateAnyValue(
+      "read",
+      ["/workspace/project/src/App.jsx", "src/App.jsx"],
+      rules,
+    );
+    expect(result.rule).toEqual(absoluteAllow);
+    expect(result.value).toBe("/workspace/project/src/App.jsx");
   });
 });
 

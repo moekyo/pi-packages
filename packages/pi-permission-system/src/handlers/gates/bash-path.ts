@@ -1,13 +1,26 @@
 import { getNonEmptyString, toRecord } from "#src/common";
+import { INTERNAL_PATH_POLICY_VALUES } from "#src/input-normalizer";
 import type { ScopedPermissionResolver } from "#src/permission-resolver";
 import { SessionApproval } from "#src/session-approval";
 import { deriveApprovalPattern } from "#src/session-rules";
 import type { PermissionCheckResult } from "#src/types";
-import type { BashProgram } from "./bash-program";
+import type { BashPathRuleCandidate, BashProgram } from "./bash-program";
 import { pickMostRestrictive } from "./candidate-check";
 import type { GateResult } from "./descriptor";
 import { formatPathAskPrompt } from "./path";
 import type { ToolCallContext } from "./types";
+
+interface UncoveredBashPathCheck {
+  readonly token: string;
+  readonly policyValues: readonly string[];
+  readonly check: PermissionCheckResult;
+}
+
+interface BashPathResolution {
+  readonly tokens: string[];
+  readonly uncovered: UncoveredBashPathCheck[];
+  readonly allSessionCovered: boolean;
+}
 
 /**
  * Build a pure descriptor for the cross-cutting path permission gate (bash).
@@ -34,84 +47,41 @@ export function describeBashPathGate(
 
   if (!bashProgram) return null;
 
-  const tokens = bashProgram.pathTokens();
-  if (tokens.length === 0) return null;
+  const candidates = bashProgram.pathRuleCandidates(tcc.cwd);
+  if (candidates.length === 0) return null;
 
-  // Tokens whose resolved state needs a check (deny/ask), paired with the
-  // token that produced them so the descriptor can derive its pattern.
-  const uncovered: Array<{ token: string; check: PermissionCheckResult }> = [];
-  let allSessionCovered = true;
-
-  for (const token of tokens) {
-    const check = resolver.resolve(
-      "path",
-      { path: token },
-      tcc.agentName ?? undefined,
-    );
-
-    // No explicit path rule matched — only the universal default fired.
-    // Treat this token as unrestricted to preserve backward compatibility
-    // for configs without a "path" key (#58).
-    if (check.matchedPattern === undefined && check.source !== "session") {
-      allSessionCovered = false;
-      continue;
-    }
-
-    if (check.source !== "session") {
-      allSessionCovered = false;
-    }
-
-    if (check.state === "deny") {
-      uncovered.push({ token, check });
-      break; // Short-circuit on deny.
-    }
-    if (check.state === "ask") {
-      uncovered.push({ token, check });
-    }
-  }
+  const resolution = resolveBashPathCandidates(
+    candidates,
+    resolver,
+    tcc.agentName ?? undefined,
+  );
 
   // All tokens are session-covered — bypass.
-  if (allSessionCovered) {
-    return {
-      action: "allow",
-      log: {
-        event: "permission_request.session_approved",
-        details: {
-          source: "tool_call",
-          toolCallId: tcc.toolCallId,
-          toolName: tcc.toolName,
-          agentName: tcc.agentName,
-          command,
-          tokens,
-          resolution: "session_approved",
-        },
-      },
-    };
+  if (resolution.allSessionCovered) {
+    return createSessionBypass(tcc, command, resolution.tokens);
   }
 
   // Pick the most restrictive (deny > ask > allow, first-wins) uncovered token.
-  const worstCheck = pickMostRestrictive(uncovered.map(({ check }) => check));
-  const worstToken = worstCheck
-    ? (uncovered.find(({ check }) => check === worstCheck)?.token ?? null)
-    : null;
+  const worst = pickWorstUncoveredPathCheck(resolution.uncovered);
+  if (!worst) return null;
 
-  // All tokens evaluate to allow — no restriction.
-  if (!worstCheck || !worstToken) return null;
-
-  const pattern = deriveApprovalPattern(worstToken);
+  const pattern = deriveApprovalPattern(worst.token);
   const askMessage = formatPathAskPrompt(
     tcc.toolName,
-    worstToken,
+    worst.token,
     tcc.agentName ?? undefined,
   );
 
   return {
     surface: "path",
-    input: { path: worstToken },
+    input: {
+      path: worst.token,
+      [INTERNAL_PATH_POLICY_VALUES]: worst.policyValues,
+    },
     denialContext: {
       kind: "bash_path",
       command,
-      pathValue: worstToken,
+      pathValue: worst.token,
       agentName: tcc.agentName ?? undefined,
     },
     sessionApproval: SessionApproval.single("path", pattern),
@@ -129,12 +99,98 @@ export function describeBashPathGate(
       toolName: tcc.toolName,
       agentName: tcc.agentName,
       command,
-      path: worstToken,
+      path: worst.token,
     },
     decision: {
       surface: "path",
-      value: worstToken,
+      value: worst.token,
     },
-    preCheck: worstCheck,
+    preCheck: worst.check,
   };
+}
+
+function resolveBashPathCandidates(
+  candidates: readonly BashPathRuleCandidate[],
+  resolver: ScopedPermissionResolver,
+  agentName: string | undefined,
+): BashPathResolution {
+  const uncovered: UncoveredBashPathCheck[] = [];
+  let allSessionCovered = true;
+
+  for (const candidate of candidates) {
+    const check = resolveCandidate(candidate, resolver, agentName);
+    if (check.matchedPattern === undefined && check.source !== "session") {
+      allSessionCovered = false;
+      continue;
+    }
+
+    if (check.source !== "session") allSessionCovered = false;
+    const uncoveredCheck = toUncoveredCheck(candidate, check);
+    if (!uncoveredCheck) continue;
+
+    uncovered.push(uncoveredCheck);
+    if (check.state === "deny") break;
+  }
+
+  return {
+    tokens: candidates.map(({ token }) => token),
+    uncovered,
+    allSessionCovered,
+  };
+}
+
+function resolveCandidate(
+  candidate: BashPathRuleCandidate,
+  resolver: ScopedPermissionResolver,
+  agentName: string | undefined,
+): PermissionCheckResult {
+  return resolver.resolve(
+    "path",
+    {
+      path: candidate.token,
+      [INTERNAL_PATH_POLICY_VALUES]: candidate.policyValues,
+    },
+    agentName,
+  );
+}
+
+function toUncoveredCheck(
+  candidate: BashPathRuleCandidate,
+  check: PermissionCheckResult,
+): UncoveredBashPathCheck | null {
+  if (check.state !== "deny" && check.state !== "ask") return null;
+  return {
+    token: candidate.token,
+    policyValues: candidate.policyValues,
+    check,
+  };
+}
+
+function createSessionBypass(
+  tcc: ToolCallContext,
+  command: string,
+  tokens: readonly string[],
+): GateResult {
+  return {
+    action: "allow",
+    log: {
+      event: "permission_request.session_approved",
+      details: {
+        source: "tool_call",
+        toolCallId: tcc.toolCallId,
+        toolName: tcc.toolName,
+        agentName: tcc.agentName,
+        command,
+        tokens,
+        resolution: "session_approved",
+      },
+    },
+  };
+}
+
+function pickWorstUncoveredPathCheck(
+  uncovered: readonly UncoveredBashPathCheck[],
+): UncoveredBashPathCheck | null {
+  const worstCheck = pickMostRestrictive(uncovered.map(({ check }) => check));
+  return uncovered.find(({ check }) => check === worstCheck) ?? null;
 }

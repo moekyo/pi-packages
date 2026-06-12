@@ -1,7 +1,14 @@
-import { getNonEmptyString, toRecord } from "./common";
-import { expandHomePath } from "./expand-home";
+import {
+  getNonEmptyString,
+  normalizeOptionalStringArray,
+  toRecord,
+} from "./common";
 import { createMcpPermissionTargets } from "./mcp-targets";
-import { PATH_BEARING_TOOLS } from "./path-utils";
+import {
+  getPathPolicyValues,
+  normalizePathPolicyLiteral,
+  PATH_BEARING_TOOLS,
+} from "./path-utils";
 
 /**
  * Construct a surface-appropriate input object from a raw value string.
@@ -52,6 +59,9 @@ export interface NormalizedInput {
 }
 
 const SPECIAL_PERMISSION_KEYS = new Set(["external_directory", "path"]);
+export const INTERNAL_PATH_POLICY_VALUES = Symbol(
+  "pi-permission-system.pathPolicyValues",
+);
 
 /**
  * Map a raw tool invocation to the surface/values/extras triple needed by
@@ -66,12 +76,13 @@ export function normalizeInput(
   toolName: string,
   input: unknown,
   configuredMcpServerNames: readonly string[],
+  cwd?: string,
 ): NormalizedInput {
   // --- Special surfaces (path, external_directory) ---
   if (SPECIAL_PERMISSION_KEYS.has(toolName)) {
     return {
       surface: toolName,
-      values: [normalizePathSurfaceValue(input)],
+      values: normalizePathSurfaceValues(input, cwd),
       resultExtras: {},
     };
   }
@@ -117,7 +128,7 @@ export function normalizeInput(
   if (PATH_BEARING_TOOLS.has(toolName)) {
     return {
       surface: toolName,
-      values: [normalizePathSurfaceValue(input)],
+      values: normalizePathSurfaceValues(input, cwd),
       resultExtras: {},
     };
   }
@@ -131,15 +142,38 @@ export function normalizeInput(
 }
 
 /**
- * Extract and home-expand the `input.path` lookup value shared by every path
- * surface (`path`, `external_directory`, and the path-bearing tools).
+ * Extract and normalize the path lookup values shared by every path surface
+ * (`path`, `external_directory`, and the path-bearing tools).
  *
  * Missing, empty, or whitespace-only paths collapse to the surface catch-all
- * `"*"`; otherwise `~/…` and `$HOME/…` prefixes are expanded to the OS home
- * directory so values match home-anchored patterns symmetrically with how
- * `compileWildcardPattern` expands the patterns themselves (#350).
+ * `"*"`. When CWD is known, relative paths also produce a normalized absolute
+ * policy value while keeping their legacy relative value as an alias.
+ *
+ * Internal gates may pass a symbol-keyed equivalent-value set, e.g. bash
+ * tokens resolved against a preceding `cd`; string-keyed tool input fields are
+ * never trusted for this.
  */
-function normalizePathSurfaceValue(input: unknown): string {
-  const path = getNonEmptyString(toRecord(input).path);
-  return path === null ? "*" : expandHomePath(path);
+function normalizePathSurfaceValues(input: unknown, cwd?: string): string[] {
+  const record = toRecord(input);
+  const policyValues = getInternalPathPolicyValues(input);
+  if (policyValues !== undefined) {
+    const values = policyValues
+      .map((value) => normalizePathPolicyLiteral(value))
+      .filter((value) => value.length > 0);
+    return values.length > 0 ? [...new Set(values)] : ["*"];
+  }
+
+  const path = getNonEmptyString(record.path);
+  if (path === null) return ["*"];
+  const values = getPathPolicyValues(path, cwd ? { cwd } : {});
+  return values.length > 0 ? values : ["*"];
+}
+
+function getInternalPathPolicyValues(input: unknown): string[] | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return undefined;
+  }
+  return normalizeOptionalStringArray(
+    (input as Record<PropertyKey, unknown>)[INTERNAL_PATH_POLICY_VALUES],
+  );
 }
